@@ -19,7 +19,7 @@ const hallStatus = isEditMode ? hall.status : 'active';
 const hallCapacity = isEditMode ? hall.capacity : defaultCapacity;
 
 // Seat type counts
-const seatTypeCounts = isEditMode && seatTypeCounts ? seatTypeCounts : { regular: 130, vip: 15, wheelchair: 5 };
+const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ? seatTypeCounts : { regular: 130, vip: 15, wheelchair: 5 };
 %>
 
     <div class="row justify-content-center">
