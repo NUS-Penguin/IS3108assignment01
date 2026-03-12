@@ -1,0 +1,1152 @@
+# CineVillage Admin Portal - Change History
+
+## Change Summary Format
+This document tracks all significant changes to the codebase.
+
+**Threshold for Documentation:**
+- Changes affecting **3+ files**, OR
+- Changes adding/modifying **30+ lines of code**
+
+---
+
+## [2026-03-12] Bug Fix: EJS Layout Rendering Errors
+
+**Type:** Bug Fix  
+**Scope:** Medium - Template Rendering  
+**Files Modified:** 16 files  
+**Files Created:** 0 files  
+**Lines Modified:** ~30 lines  
+**Developer:** AI Assistant  
+**Status:** ✅ Completed
+
+### Overview
+Fixed critical rendering errors preventing the application from starting. The issue was caused by incorrect `<% layout('layouts/main') %>` syntax in EJS template files, which is incompatible with express-ejs-layouts. Since the layout is configured globally in app.js, individual views should not call the layout function directly.
+
+Additionally, updated error handling middleware to properly render error pages without attempting to use layouts, preventing circular dependency errors.
+
+### Problem Description
+
+**Initial Error:**
+```
+ReferenceError: layout is not defined
+at views/error.ejs:1
+```
+
+**Root Cause:**
+- All EJS view files contained `<% layout('layouts/main') %>` at the top
+- This syntax is not valid for express-ejs-layouts
+- express-ejs-layouts automatically applies the default layout set in app.js
+- Views should only contain their content, not layout directives
+
+**Secondary Issue:**
+- Error pages were trying to use the layout system
+- This caused circular dependency when errors occurred
+- Error middleware needed to explicitly disable layouts when rendering error views
+
+### Changes Made
+
+#### 1. Removed Invalid Layout Calls from Views
+
+**Files Modified (13 EJS view files):**
+
+**Auth Views (4 files):**
+- `views/auth/login.ejs` - Removed `<% layout('layouts/main') %>`
+- `views/auth/register.ejs` - Removed `<% layout('layouts/main') %>`
+- `views/auth/forgot-password.ejs` - Removed `<% layout('layouts/main') %>`
+- `views/auth/reset-password.ejs` - Removed `<% layout('layouts/main') %>`
+
+**Dashboard (1 file):**
+- `views/dashboard/index.ejs` - Removed `<% layout('layouts/main') %>`
+
+**Halls (3 files):**
+- `views/halls/index.ejs` - Removed `<% layout('layouts/main') %>`
+- `views/halls/create.ejs` - Removed `<% layout('layouts/main') %>`
+- `views/halls/edit.ejs` - Removed `<% layout('layouts/main') %>`
+
+**Movies (3 files):**
+- `views/movies/index.ejs` - Removed `<% layout('layouts/main') %>`
+- `views/movies/create.ejs` - Removed `<% layout('layouts/main') %>`
+- `views/movies/edit.ejs` - Removed `<% layout('layouts/main') %>`
+
+**Screenings (2 files):**
+- `views/screenings/index.ejs` - Removed `<% layout('layouts/main') %>`
+- `views/screenings/create.ejs` - Removed `<% layout('layouts/main') %>`
+
+**Technical Details:**
+Each file had the first line removed and leading whitespace adjusted. The views now start directly with their content.
+
+#### 2. Fixed Error Page Rendering
+
+**File Modified:** `views/error.ejs`
+- Converted from layout-dependent to standalone HTML page
+- Added complete HTML structure with head, body sections
+- Included Bootstrap CSS/JS directly
+- Now renders independently without requiring layout system
+- Lines modified: Full file rewrite (~55 lines)
+
+**Before:**
+```ejs
+<% layout('layouts/main') %>
+<div class="row">
+  <!-- error content -->
+</div>
+```
+
+**After:**
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Full head with Bootstrap -->
+</head>
+<body>
+  <!-- Standalone error page -->
+</body>
+</html>
+```
+
+#### 3. Updated Error Middleware to Disable Layouts
+
+**File Modified:** `middleware/errorMiddleware.js`
+- Added `layout: false` parameter to all error render calls (5 locations)
+- Prevents express-ejs-layouts from attempting to wrap error views
+- Lines modified: ~10 lines
+
+**Locations Updated:**
+1. Mongoose validation error handler
+2. Mongoose duplicate key error handler (11000)
+3. Mongoose cast error handler
+4. Operational error handler (AppError)
+5. Generic error handler (500)
+
+**Code Pattern:**
+```javascript
+// Before
+res.status(400).render('error', {
+    title: 'Error',
+    message: 'Error message',
+    user: res.locals.user
+});
+
+// After
+res.status(400).render('error', {
+    title: 'Error',
+    message: 'Error message',
+    user: res.locals.user,
+    layout: false  // ← Added
+});
+```
+
+#### 4. Fixed Auth Middleware Error Rendering
+
+**File Modified:** `middleware/authMiddleware.js`
+- Added `layout: false` to error renders in access control (2 locations)
+- Affects `requireAdmin` and `requireRole` middleware
+- Lines modified: ~4 lines
+
+### Complete File Manifest
+
+#### Files Modified (16):
+
+1. **views/auth/login.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+2. **views/auth/register.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+3. **views/auth/forgot-password.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+4. **views/auth/reset-password.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+5. **views/dashboard/index.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+6. **views/halls/index.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+7. **views/halls/create.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+8. **views/halls/edit.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+9. **views/movies/index.ejs**
+   - Lines Modified: 1 line removed
+   - Change: Removed layout directive
+
+10. **views/movies/create.ejs**
+    - Lines Modified: 1 line removed
+    - Change: Removed layout directive
+
+11. **views/movies/edit.ejs**
+    - Lines Modified: 1 line removed
+    - Change: Removed layout directive
+
+12. **views/screenings/index.ejs**
+    - Lines Modified: 1 line removed
+    - Change: Removed layout directive
+
+13. **views/screenings/create.ejs**
+    - Lines Modified: 1 line removed
+    - Change: Removed layout directive
+
+14. **views/error.ejs**
+    - Lines Modified: Full file (~55 lines)
+    - Change: Converted to standalone HTML page
+
+15. **middleware/errorMiddleware.js**
+    - Lines Modified: ~10 lines (5 render calls)
+    - Change: Added layout: false to error renders
+
+16. **middleware/authMiddleware.js**
+    - Lines Modified: ~4 lines (2 render calls)
+    - Change: Added layout: false to error renders
+
+### Express-EJS-Layouts Configuration
+
+**How it works in app.js:**
+```javascript
+// These settings make layouts automatic
+app.use(expressLayouts);
+app.set('layout', 'layouts/main');  // Default layout
+app.set('layout extractScripts', true);
+app.set('layout extractStyles', true);
+```
+
+**Result:**
+- All views automatically wrapped with `layouts/main.ejs`
+- Views contain only content, layout handles structure
+- To skip layout for a specific view: pass `layout: false` to render()
+
+### Testing Performed
+
+**Before Fix:**
+- ❌ Application crashed on startup
+- ❌ Error: "layout is not defined"
+- ❌ Could not access any routes
+
+**After Fix:**
+- ✅ Application starts successfully
+- ✅ Login page renders correctly
+- ✅ Register page renders correctly
+- ✅ Dashboard renders correctly (after login)
+- ✅ All CRUD pages render correctly
+- ✅ Error pages display without crashing
+- ✅ Navigation between pages works
+
+**Error Page Testing:**
+- ✅ 404 errors display properly
+- ✅ 403 access denied displays properly
+- ✅ Validation errors display properly
+- ✅ Duplicate key errors display properly
+- ✅ Invalid ID errors display properly
+
+### Root Cause Analysis
+
+**Why This Happened:**
+The project was initially scaffolded with a `<% layout('layouts/main') %>` directive in each EJS file, which is a pattern from other EJS layout libraries (like ejs-mate or ejs-locals). However, express-ejs-layouts uses a different approach where:
+
+1. Layout is set globally in Express configuration
+2. Middleware automatically wraps views with the layout
+3. Views should not have layout directives
+
+**Lesson Learned:**
+When using express-ejs-layouts:
+- ✅ Configure layout once in app.js
+- ✅ Views contain only content
+- ✅ Pass `layout: false` when you need to skip layout
+- ❌ Don't use `<% layout() %>` in views
+
+### Migration Notes
+
+**For Existing Installations:**
+None - this was a startup bug fix. No data migration needed.
+
+**For Future Development:**
+- New view files should NOT include layout directives
+- Error views should render with `layout: false`
+- Check documentation for express-ejs-layouts when adding new views
+
+### Prevention
+
+**To Prevent Similar Issues:**
+1. Document the correct EJS patterns in project README
+2. Create a view template file for reference
+3. Add linting rule to catch layout directives in views (if possible)
+4. Include this in developer onboarding documentation
+
+### Dependencies
+
+**No dependency changes.**
+
+All fixes used existing dependencies:
+- express-ejs-layouts (already installed)
+- ejs (already installed)
+
+### Impact Assessment
+
+**User Impact:**
+- 🟢 Critical bug fixed - application now starts
+- 🟢 All pages now accessible
+- 🟢 No user-facing changes (behavior identical once working)
+
+**System Impact:**
+- 🟢 Application stability restored
+- 🟢 Error handling improved (no circular dependencies)
+- 🟢 No performance impact
+- 🟢 No database impact
+
+**Business Impact:**
+- ✅ Blocking issue resolved - development can continue
+- ✅ Module 1 features now accessible for testing
+- ✅ Project timeline back on track
+
+### Rollback Plan
+
+**If Issues Arise:**
+This fix is low-risk and straightforward to revert:
+
+```bash
+git log --oneline  # Find commit hash
+git revert <commit-hash>
+```
+
+Or manually revert the changes:
+1. Add back `<% layout('layouts/main') %>` to views (not recommended)
+2. Revert error.ejs to layout-based version
+
+However, rollback is not recommended as the previous code was non-functional.
+
+### Related Issues
+
+**This fix resolves:**
+- ❌ Application startup failure
+- ❌ "layout is not defined" errors
+- ❌ Error page rendering failures
+- ❌ Circular dependency in error handling
+
+**Related to:**
+- Module 1 implementation (needed this fix to test auth features)
+- Initial project setup (template files had incorrect syntax)
+
+### Next Steps
+
+**Immediate:**
+- ✅ Application now functional
+- ✅ Ready to test Module 1 features
+- ✅ Ready to proceed with Module 2
+
+**Follow-Up:**
+- [ ] Update project README with EJS patterns
+- [ ] Create view template file for reference
+- [ ] Test all features to ensure no regression
+- [ ] Document layout system for team
+
+---
+
+## [2026-03-12] Module 1: Enhanced Authentication Implementation
+
+**Type:** Feature Enhancement  
+**Scope:** Major - Authentication & Security  
+**Files Modified:** 11 files  
+**Files Created:** 3 files  
+**Lines Added:** ~650+ lines  
+**Developer:** AI Assistant  
+**Status:** ✅ Completed
+
+### Overview
+Implemented comprehensive authentication enhancements as specified in Module 1 of the requirements document. This update significantly improves security, user experience, and account management capabilities.
+
+### Features Implemented
+
+#### 1. Password Security Validation
+**Impact:** High Security Enhancement
+
+**Changes:**
+- Enhanced password validation requiring:
+  - Minimum 8 characters (increased from 6)
+  - At least one uppercase letter
+  - At least one number
+  - At least one special character
+- Implemented password history tracking (stores last 5 passwords)
+- Prevention of password reuse
+
+**Files Modified:**
+- `utils/validationUtils.js`
+  - Rewrote `isStrongPassword()` function with stricter requirements
+  - Added `getPasswordErrors()` for detailed validation feedback
+  - Lines added: ~35 lines
+  
+- `models/User.js`
+  - Added `passwordHistory` field (array of strings)
+  - Enhanced pre-save hook to store password history
+  - Added `isPasswordReused()` instance method
+  - Lines added: ~45 lines
+
+- `controllers/authController.js`
+  - Integrated password validation in registration
+  - Added password reuse check in reset flow
+  - Lines added: ~15 lines
+
+- `views/auth/register.ejs`
+  - Updated password field help text with requirements
+  - Changed minlength from 6 to 8
+  - Lines modified: ~10 lines
+
+**Technical Details:**
+```javascript
+// Password validation regex patterns
+const hasUppercase = /[A-Z]/.test(password);
+const hasNumber = /\d/.test(password);
+const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+```
+
+**Database Schema Changes:**
+```javascript
+passwordHistory: [{
+    type: String,
+    required: false
+}]
+```
+
+---
+
+#### 2. Failed Login Protection
+**Impact:** High Security Enhancement
+
+**Changes:**
+- Account locking mechanism after 5 failed attempts
+- 30-minute automatic lockout period
+- Progressive warning messages before lockout
+- Automatic unlock after timeout expires
+
+**Files Modified:**
+- `models/User.js`
+  - Added `failedLoginAttempts` (Number, default: 0)
+  - Added `accountLocked` (Boolean, default: false)
+  - Added `lockUntil` (Date, default: null)
+  - Added `incrementLoginAttempts()` instance method
+  - Added `resetLoginAttempts()` instance method
+  - Added `isLocked()` instance method
+  - Lines added: ~60 lines
+
+- `controllers/authController.js`
+  - Implemented account lock checking before login
+  - Added failed attempt tracking on wrong password
+  - Progressive warning messages (at 3, 2, 1 remaining)
+  - Reset attempts on successful login
+  - Lines added: ~45 lines
+
+**Algorithm:**
+```javascript
+// Lock account if 5 attempts reached
+if (this.failedLoginAttempts + 1 >= 5) {
+    updates.$set = {
+        accountLocked: true,
+        lockUntil: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+    };
+}
+```
+
+**User Experience:**
+- Clear error messages: "Account is locked for 27 minutes..."
+- Warning at 3 attempts: "Warning: 3 attempts remaining before account lock"
+- Helpful guidance: "Please contact the administrator"
+
+**Database Schema Changes:**
+```javascript
+failedLoginAttempts: { type: Number, default: 0 },
+accountLocked: { type: Boolean, default: false },
+lockUntil: { type: Date, default: null }
+```
+
+---
+
+#### 3. Login Activity Tracking
+**Impact:** Medium User Experience Enhancement
+
+**Changes:**
+- Last login timestamp recording
+- Dashboard display of last login
+- Special message for first-time logins
+- Session storage of login time
+
+**Files Modified:**
+- `models/User.js`
+  - Added `lastLogin` field (Date, default: null)
+  - Added `updateLastLogin()` instance method
+  - Lines added: ~10 lines
+
+- `controllers/authController.js`
+  - Call `updateLastLogin()` on successful login
+  - Store lastLogin in session
+  - Lines modified: ~5 lines
+
+- `controllers/dashboardController.js`
+  - Fetch user data including lastLogin
+  - Pass to dashboard view
+  - Lines added: ~15 lines
+
+- `views/dashboard/index.ejs`
+  - Added welcome section with user info
+  - Display last login with formatted date/time
+  - Show role badge (Admin/Manager)
+  - Conditional rendering for first-time users
+  - Lines added: ~40 lines
+
+**Display Format:**
+```
+Last Login: Wed, Mar 12, 2026, 02:30 PM
+```
+
+**Database Schema Changes:**
+```javascript
+lastLogin: { type: Date, default: null }
+```
+
+---
+
+#### 4. Role-Based Access Control
+**Impact:** Medium Security Enhancement
+
+**Changes:**
+- Flexible role-based middleware
+- Support for multiple role requirements
+- Clear access denial messages
+- Visual role indicators
+
+**Files Modified:**
+- `middleware/authMiddleware.js`
+  - Added `requireRole(roles)` function with array support
+  - Enhanced `requireAdmin` error message
+  - Lines added: ~20 lines
+
+- `views/dashboard/index.ejs`
+  - Added role badge with conditional styling
+  - Admin: red badge with shield icon
+  - Manager: blue badge with person icon
+  - Lines added: ~5 lines (part of welcome section)
+
+**Usage Pattern:**
+```javascript
+// Single role
+router.use('/admin/users', requireAdmin);
+
+// Multiple roles
+router.use('/admin/movies', requireRole(['admin', 'manager']));
+```
+
+**Existing Support:**
+- User model already had `role` enum: ['admin', 'manager']
+- No database changes required
+
+---
+
+#### 5. Session Expiry Warning
+**Impact:** High User Experience Enhancement
+
+**Changes:**
+- Client-side session monitoring
+- Modal warning 5 minutes before expiry
+- Live countdown timer
+- Option to continue or logout
+- Activity-based timer reset
+
+**Files Modified:**
+- `views/layouts/main.ejs`
+  - Added data attributes for session config
+  - `data-authenticated` flag
+  - `data-session-max-age` value
+  - Lines added: ~1 line modified
+
+- `public/js/main.js`
+  - Added session expiry warning system (~130 lines)
+  - `showSessionWarning()` function
+  - `scheduleSessionWarning()` function
+  - `resetSessionTimer()` function
+  - Activity event listeners
+  - Bootstrap modal creation
+  - Countdown timer implementation
+  - Lines added: ~135 lines
+
+**Technical Implementation:**
+```javascript
+const SESSION_MAX_AGE = 86400000; // 24 hours
+const WARNING_TIME = 5 * 60 * 1000; // 5 minutes
+const TIME_UNTIL_WARNING = SESSION_MAX_AGE - WARNING_TIME;
+
+// Show warning after 23 hours 55 minutes
+setTimeout(showSessionWarning, TIME_UNTIL_WARNING);
+```
+
+**Activity Tracking:**
+- Monitors: mousedown, keypress, scroll, click
+- Resets timer only if >1 minute since last activity
+- Prevents excessive API calls
+
+**User Interface:**
+- Bootstrap modal with warning styling
+- Live countdown: "5:00" → "4:59" → "4:58" ...
+- Two action buttons: "Continue Session" | "Logout Now"
+
+---
+
+#### 6. Password Reset Support
+**Impact:** High User Experience & Security Enhancement
+
+**Changes:**
+- Complete password reset flow
+- Secure token-based system
+- Email integration placeholder
+- Token expiration mechanism
+- Account unlock on successful reset
+
+**Files Created:**
+- `views/auth/forgot-password.ejs`
+  - Form to request password reset
+  - Email input field
+  - Link back to login
+  - Lines: ~50 lines
+
+- `views/auth/reset-password.ejs`
+  - Form to enter new password
+  - Token validation display
+  - Password confirmation
+  - Lines: ~80 lines
+
+**Files Modified:**
+- `models/User.js`
+  - Added `resetPasswordToken` (String, default: null)
+  - Added `resetPasswordExpires` (Date, default: null)
+  - Added `createPasswordResetToken()` instance method
+  - Lines added: ~25 lines
+
+- `controllers/authController.js`
+  - Added `renderForgotPassword()` - GET /forgot-password
+  - Added `forgotPassword()` - POST /forgot-password
+  - Added `renderResetPassword()` - GET /reset-password/:token
+  - Added `resetPassword()` - POST /reset-password/:token
+  - Added crypto import for token hashing
+  - Lines added: ~190 lines
+
+- `routes/authRoutes.js`
+  - Added 4 new routes for password reset
+  - Lines added: ~5 lines
+
+- `views/auth/login.ejs`
+  - Added "Forgot your password?" link
+  - Added success message display support
+  - Lines added: ~10 lines
+
+**Security Features:**
+- Tokens are cryptographically hashed (SHA-256)
+- 1-hour token expiration
+- Generic success messages (prevent email enumeration)
+- Validates password strength on reset
+- Checks password reuse
+- Clears failed login attempts
+- Unlocks account automatically
+
+**Token Generation Algorithm:**
+```javascript
+const resetToken = crypto.randomBytes(32).toString('hex');
+this.resetPasswordToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+this.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
+return resetToken; // Unhashed for email link
+```
+
+**Production Note:**
+Currently logs token to console. Requires email service integration:
+```javascript
+// TODO: Replace with nodemailer
+console.log('Reset URL:', `http://localhost:3000/reset-password/${resetToken}`);
+```
+
+**Database Schema Changes:**
+```javascript
+resetPasswordToken: { type: String, default: null },
+resetPasswordExpires: { type: Date, default: null }
+```
+
+---
+
+### Complete File Manifest
+
+#### Files Modified (11):
+
+1. **models/User.js**
+   - Lines Added: ~180
+   - New Fields: 7
+   - New Methods: 7
+   - Changes: Password history, login tracking, account locking, password reset
+
+2. **controllers/authController.js**
+   - Lines Added: ~265
+   - New Functions: 4
+   - Modified Functions: 2
+   - Changes: Enhanced login logic, password reset flow, validation
+
+3. **controllers/dashboardController.js**
+   - Lines Added: ~15
+   - Changes: Fetch and pass user data to view
+
+4. **middleware/authMiddleware.js**
+   - Lines Added: ~20
+   - New Functions: 1
+   - Changes: Flexible role-based access control
+
+5. **routes/authRoutes.js**
+   - Lines Added: ~5
+   - New Routes: 4
+   - Changes: Password reset routes
+
+6. **utils/validationUtils.js**
+   - Lines Added: ~35
+   - Modified Functions: 1
+   - New Functions: 1
+   - Changes: Stricter password validation
+
+7. **views/auth/login.ejs**
+   - Lines Added: ~10
+   - Changes: Forgot password link, success message display
+
+8. **views/auth/register.ejs**
+   - Lines Modified: ~10
+   - Changes: Password requirements display, minlength update
+
+9. **views/dashboard/index.ejs**
+   - Lines Added: ~40
+   - Changes: Welcome section, last login display, role badge
+
+10. **views/layouts/main.ejs**
+    - Lines Modified: ~1
+    - Changes: Session configuration data attributes
+
+11. **public/js/main.js**
+    - Lines Added: ~135
+    - Changes: Session expiry warning system, modal, countdown
+
+#### Files Created (3):
+
+1. **views/auth/forgot-password.ejs**
+   - Lines: ~50
+   - Purpose: Request password reset form
+
+2. **views/auth/reset-password.ejs**
+   - Lines: ~80
+   - Purpose: Reset password with token validation
+
+3. **docs/MODULE-1-IMPLEMENTATION.md**
+   - Lines: ~700+
+   - Purpose: Comprehensive implementation documentation
+
+---
+
+### Database Schema Summary
+
+**User Model - New Fields Added (7):**
+
+```javascript
+{
+    // Login Protection (3 fields)
+    failedLoginAttempts: { type: Number, default: 0 },
+    accountLocked: { type: Boolean, default: false },
+    lockUntil: { type: Date, default: null },
+    
+    // Login Tracking (1 field)
+    lastLogin: { type: Date, default: null },
+    
+    // Password History (1 field)
+    passwordHistory: [{ type: String }],
+    
+    // Password Reset (2 fields)
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpires: { type: Date, default: null }
+}
+```
+
+**User Model - New Methods Added (7):**
+
+```javascript
+// Instance Methods
+userSchema.methods.isPasswordReused(candidatePassword)
+userSchema.methods.incrementLoginAttempts()
+userSchema.methods.resetLoginAttempts()
+userSchema.methods.isLocked()
+userSchema.methods.updateLastLogin()
+userSchema.methods.createPasswordResetToken()
+
+// No change to static methods
+userSchema.statics.findByUsername(username)
+```
+
+---
+
+### Routes Added
+
+**New Routes (4):**
+
+| Method | Route                        | Controller Method           | Description                    |
+|--------|------------------------------|-----------------------------|--------------------------------|
+| GET    | /forgot-password             | renderForgotPassword        | Show forgot password form      |
+| POST   | /forgot-password             | forgotPassword              | Process reset request          |
+| GET    | /reset-password/:token       | renderResetPassword         | Show reset password form       |
+| POST   | /reset-password/:token       | resetPassword               | Update password                |
+
+**Modified Routes (2):**
+
+| Method | Route                        | Changes                                     |
+|--------|------------------------------|---------------------------------------------|
+| GET    | /login                       | Added message parameter support             |
+| POST   | /login                       | Added account lock checking, attempt tracking |
+
+---
+
+### Testing Performed
+
+**Manual Testing Checklist:**
+- ✅ Password validation rejects weak passwords
+- ✅ Account locks after 5 failed attempts
+- ✅ Progressive warnings display correctly
+- ✅ Last login shows on dashboard
+- ✅ Role badge displays correctly
+- ✅ Password reset token generation works
+- ✅ Token validation works (valid/expired/invalid)
+- ✅ Password reuse prevention works
+- ✅ Session warning modal appears (tested with reduced timeout)
+- ✅ Countdown timer works
+- ✅ Continue session refreshes properly
+
+**Error Handling Verified:**
+- ✅ Expired reset token shows clear error
+- ✅ Invalid reset token shows clear error
+- ✅ Account lock shows time remaining
+- ✅ Weak password shows specific requirements
+- ✅ Password reuse shows helpful message
+- ✅ Session expiry redirects to login
+
+---
+
+### Security Improvements
+
+**Before Module 1:**
+- Password: 6+ characters, basic requirements
+- No failed login protection
+- No password history tracking
+- No password reset capability
+- No session expiry warnings
+- Basic role checking
+
+**After Module 1:**
+- Password: 8+ characters with uppercase, numbers, special chars
+- Account locking after 5 attempts (30-min lockout)
+- Last 5 passwords stored and checked
+- Secure token-based password reset (1-hour expiry)
+- Proactive session expiry warnings (5-min before)
+- Flexible role-based access control
+
+**Risk Mitigation:**
+- ✅ Brute force attacks → Account locking
+- ✅ Weak passwords → Strong validation
+- ✅ Password reuse → History tracking
+- ✅ Account recovery → Password reset flow
+- ✅ Session hijacking → Expiry warnings
+- ✅ User enumeration → Generic messages
+- ✅ Token theft → Cryptographic hashing, short expiry
+
+---
+
+### Performance Considerations
+
+**Database Operations:**
+- Login: +2 queries (check lock, update login time)
+- Password Reset: +1-2 queries (token validation, update)
+- Dashboard: +1 query (fetch user data)
+
+**Client-Side:**
+- Session monitoring runs in background
+- Activity throttling prevents excessive resets
+- Modal creation on-demand (not pre-rendered)
+
+**Optimization Opportunities:**
+- Consider adding indexes on `resetPasswordToken`, `accountLocked`
+- Consider caching user data in session to reduce dashboard query
+
+---
+
+### Migration Notes
+
+**For Existing Users:**
+- All new fields have default values (no migration required)
+- Existing users will see `null` for lastLogin (shows "First time login" message)
+- Existing users have 0 failed attempts and unlocked accounts
+- No password history until first password change
+
+**Backward Compatibility:**
+- ✅ All existing functionality preserved
+- ✅ Old sessions continue to work
+- ✅ No breaking changes to existing routes
+- ✅ Existing users can login immediately
+
+---
+
+### Production Deployment Checklist
+
+**Required Before Production:**
+- [ ] Integrate email service (nodemailer or similar)
+- [ ] Remove console.log for reset tokens
+- [ ] Set up email templates for password reset
+- [ ] Configure APP_URL environment variable
+- [ ] Review and adjust session timeout settings
+- [ ] Add rate limiting for login and password reset
+- [ ] Set up monitoring for security events
+- [ ] Test email delivery in staging environment
+
+**Recommended:**
+- [ ] Add database indexes for performance
+- [ ] Implement comprehensive security logging
+- [ ] Set up alerts for suspicious activity
+- [ ] Add CAPTCHA for password reset (prevent abuse)
+- [ ] Configure email service credentials securely
+- [ ] Test account lock/unlock mechanism thoroughly
+- [ ] Document password reset process for support team
+
+**Environment Variables:**
+```env
+# Existing (no changes)
+PORT=3000
+NODE_ENV=production
+MONGODB_URI=mongodb://localhost:27017/cinevillage
+SESSION_SECRET=<64-char-hex>
+SESSION_MAX_AGE=86400000
+
+# New (required for production)
+APP_URL=https://your-domain.com
+EMAIL_SERVICE=<smtp-service>
+EMAIL_USER=<email-username>
+EMAIL_PASSWORD=<email-password>
+EMAIL_FROM=no-reply@your-domain.com
+```
+
+---
+
+### Known Issues & Limitations
+
+**Current Limitations:**
+1. Password reset tokens logged to console (development only)
+2. No email service integration (manual testing only)
+3. No rate limiting on login or password reset
+4. No CAPTCHA protection
+5. Session expiry warning requires JavaScript enabled
+6. No admin panel to manually unlock accounts
+
+**Future Enhancements:**
+1. Email service integration with templates
+2. Admin dashboard for account management
+3. Rate limiting middleware
+4. Two-factor authentication (2FA)
+5. Login history log for audit trail
+6. Configurable lockout duration
+7. IP-based blocking for repeated attacks
+8. Password strength meter on client side
+
+---
+
+### Documentation Updates
+
+**New Documentation Files:**
+- `docs/MODULE-1-IMPLEMENTATION.md` - Comprehensive technical documentation
+
+**Updated Documentation:**
+- (None - initial implementation)
+
+**README Updates Needed:**
+- [ ] Document new authentication features
+- [ ] Add setup instructions for email service
+- [ ] Update screenshots with new UI elements
+- [ ] Document password requirements for users
+
+---
+
+### Dependencies
+
+**No New Dependencies Added**
+
+All features implemented using existing dependencies:
+- bcrypt (password hashing)
+- crypto (built-in Node.js module for tokens)
+- express-session (session management)
+- Bootstrap (UI components for modals)
+
+**Considered but not added:**
+- nodemailer (needed for production email integration)
+- express-rate-limit (recommended for production)
+- express-validator (current validation is sufficient)
+
+---
+
+### Rollback Plan
+
+**If Issues Arise:**
+
+1. **Revert Database Changes:**
+   ```javascript
+   // Remove new fields from User model
+   db.users.updateMany({}, {
+       $unset: {
+           failedLoginAttempts: "",
+           accountLocked: "",
+           lockUntil: "",
+           lastLogin: "",
+           passwordHistory: "",
+           resetPasswordToken: "",
+           resetPasswordExpires: ""
+       }
+   });
+   ```
+
+2. **Git Revert:**
+   ```bash
+   git log --oneline  # Find commit hash before Module 1
+   git revert <commit-hash>
+   ```
+
+3. **Quick Fixes:**
+   - Disable account locking: Set max attempts to 999
+   - Disable password reset: Remove routes from authRoutes.js
+   - Disable session warning: Remove data-authenticated attribute
+
+---
+
+### Lessons Learned
+
+**What Went Well:**
+- Modular implementation allowed incremental testing
+- Pre-save hooks in Mongoose simplified password history
+- Bootstrap modals worked perfectly for session warning
+- Clear separation of concerns (controller/service/view)
+
+**Challenges Encountered:**
+- Whitespace issues in EJS template editing
+- Session timer coordination with server-side expiry
+- Balance between security and user experience
+
+**Best Practices Applied:**
+- Cryptographic token hashing (not storing raw tokens)
+- Generic error messages (prevent user enumeration)
+- Progressive disclosure (warnings before lockout)
+- Sensible defaults (all new fields have default values)
+- Comprehensive error handling throughout
+
+---
+
+### Impact Assessment
+
+**User Impact:**
+- 🟢 Positive: Better security, better UX
+- 🟡 Neutral: Users must create stronger passwords
+- 🔴 Minor Disruption: Existing users may be surprised by new requirements
+
+**System Impact:**
+- 🟢 Database: Minimal impact (+7 fields per user)
+- 🟢 Performance: Negligible impact (+1-2 queries per request)
+- 🟢 Compatibility: Fully backward compatible
+
+**Business Impact:**
+- ✅ Improved security posture
+- ✅ Better compliance with security standards
+- ✅ Reduced risk of unauthorized access
+- ✅ Enhanced user trust and confidence
+
+---
+
+### Code Quality Metrics
+
+**Lines of Code:**
+- Added: ~650 lines
+- Modified: ~100 lines
+- Deleted: ~10 lines
+- Net Change: +640 lines
+
+**Complexity:**
+- New Functions: 15+
+- Modified Functions: 5
+- New Routes: 4
+- New Views: 2
+
+**Test Coverage:**
+- Manual Testing: ✅ Comprehensive
+- Unit Tests: ⚠️ Not yet implemented
+- Integration Tests: ⚠️ Not yet implemented
+
+---
+
+### Next Steps
+
+**Immediate (Required for Production):**
+1. Integrate email service for password reset
+2. Add rate limiting to prevent abuse
+3. Remove console.log statements
+4. Set up security event logging
+
+**Short Term (Recommended):**
+1. Add unit tests for authentication logic
+2. Add integration tests for password reset flow
+3. Create admin panel for account management
+4. Document setup process for support team
+
+**Long Term (Future Enhancements):**
+1. Implement two-factor authentication (2FA)
+2. Add login history audit trail
+3. Implement IP-based blocking
+4. Add client-side password strength meter
+
+**Follow-Up Modules:**
+- Module 2: Hall Management Enhancements
+- Module 3: Movie Management Enhancements
+- Module 4: Screening Scheduling Enhancements
+- Module 5: Dashboard Enhancements
+
+---
+
+### References
+
+**Related Documentation:**
+- `prompts/Modules` - Original requirements
+- `prompts/Assignment-1-prompt-v2` - Technical specifications
+- `docs/MODULE-1-IMPLEMENTATION.md` - Detailed implementation guide
+
+**Standards & Guidelines:**
+- OWASP Authentication Best Practices
+- NIST Password Guidelines
+- Express.js Security Best Practices
+
+---
+
+### Approval & Sign-Off
+
+**Implementation:** ✅ Complete  
+**Testing:** ✅ Manual testing passed  
+**Documentation:** ✅ Complete  
+**Code Review:** ⏳ Pending  
+**Production Ready:** ⚠️ Requires email integration  
+
+**Implemented By:** AI Assistant  
+**Date:** March 12, 2026  
+**Version:** 1.0.0
+
+---
+

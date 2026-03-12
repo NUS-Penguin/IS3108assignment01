@@ -26,7 +26,8 @@ exports.requireAdmin = (req, res, next) => {
         return res.status(403).render('error', {
             title: 'Access Denied',
             message: 'You do not have permission to access this resource. Admin access required.',
-            user: res.locals.user
+            user: res.locals.user,
+            layout: false
         });
     }
 
@@ -47,7 +48,8 @@ exports.requireRole = (roles) => {
             return res.status(403).render('error', {
                 title: 'Access Denied',
                 message: `You do not have permission to access this resource. Required role: ${roles.join(' or ')}`,
-                user: res.locals.user
+                user: res.locals.user,
+                layout: false
             });
         }
 
