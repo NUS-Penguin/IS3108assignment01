@@ -241,5 +241,242 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // ========================================
+    // SEAT CONFIGURATION MATRIX TOOL
+    // ========================================
+
+    // Hall Form - Seat Configuration Matrix
+    if (document.getElementById('generateLayoutBtn')) {
+        let currentSeatMode = 'regular';
+        let seatMatrix = [];
+        let rows = 0;
+        let columns = 0;
+
+        // Initialize seat configuration
+        function initializeSeatConfiguration() {
+            const generateBtn = document.getElementById('generateLayoutBtn');
+            const rowsInput = document.getElementById('rows');
+            const columnsInput = document.getElementById('columns');
+            const seatModeControls = document.getElementById('seatModeControls');
+            const seatLegend = document.getElementById('seatLegend');
+            const seatStats = document.getElementById('seatStats');
+            const seatGridContainer = document.getElementById('seatGridContainer');
+
+            generateBtn.addEventListener('click', function () {
+                rows = parseInt(rowsInput.value) || 0;
+                columns = parseInt(columnsInput.value) || 0;
+
+                if (rows < 1 || rows > 26 || columns < 1 || columns > 50) {
+                    alert('Please enter valid dimensions (Rows: 1-26, Columns: 1-50)');
+                    return;
+                }
+
+                generateSeatMatrix();
+                showSeatConfiguration();
+                updateSeatStatistics();
+            });
+
+            // Seat mode button handlers
+            const seatModeButtons = document.querySelectorAll('.seat-mode-btn');
+            seatModeButtons.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    // Remove active class from all buttons
+                    seatModeButtons.forEach(b => b.classList.remove('active'));
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    currentSeatMode = this.dataset.mode;
+                });
+            });
+
+            // Update capacity display when dimensions change
+            function updateCapacityDisplay() {
+                const r = parseInt(rowsInput.value) || 0;
+                const c = parseInt(columnsInput.value) || 0;
+                const capacity = r * c;
+                const display = document.getElementById('capacityDisplay');
+                if (display) {
+                    display.textContent = `${capacity} seats (${r} rows × ${c} columns)`;
+                }
+            }
+
+            rowsInput.addEventListener('input', updateCapacityDisplay);
+            columnsInput.addEventListener('input', updateCapacityDisplay);
+        }
+
+        // Generate seat matrix based on dimensions
+        function generateSeatMatrix() {
+            seatMatrix = [];
+            for (let row = 0; row < rows; row++) {
+                const currentRow = [];
+                for (let col = 0; col < columns; col++) {
+                    currentRow.push('empty');
+                }
+                seatMatrix.push(currentRow);
+            }
+        }
+
+        // Show seat configuration UI elements
+        function showSeatConfiguration() {
+            document.getElementById('seatModeControls').style.display = 'block';
+            document.getElementById('seatLegend').style.display = 'block';
+            document.getElementById('seatStats').style.display = 'block';
+            document.getElementById('seatGridContainer').style.display = 'block';
+
+            renderSeatGrid();
+        }
+
+        // Render the seat grid
+        function renderSeatGrid() {
+            const seatGrid = document.getElementById('seatGrid');
+            const rowLabels = document.getElementById('rowLabels');
+            const columnLabels = document.getElementById('columnLabels');
+
+            // Clear existing content
+            seatGrid.innerHTML = '';
+            rowLabels.innerHTML = '';
+            columnLabels.innerHTML = '';
+
+            // Set grid template columns
+            seatGrid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+            columnLabels.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+
+            // Create row labels (A, B, C, etc.)
+            for (let row = 0; row < rows; row++) {
+                const rowLabel = document.createElement('div');
+                rowLabel.className = 'row-label';
+                rowLabel.textContent = String.fromCharCode(65 + row); // A, B, C...
+                rowLabels.appendChild(rowLabel);
+            }
+
+            // Create column labels (1, 2, 3, etc.)
+            for (let col = 0; col < columns; col++) {
+                const colLabel = document.createElement('div');
+                colLabel.className = 'column-label';
+                colLabel.textContent = col + 1;
+                columnLabels.appendChild(colLabel);
+            }
+
+            // Create seat elements
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < columns; col++) {
+                    const seat = document.createElement('div');
+                    seat.className = 'seat seat-empty';
+                    seat.dataset.row = row;
+                    seat.dataset.column = col;
+                    seat.dataset.seatType = 'empty';
+
+                    // Add click handler
+                    seat.addEventListener('click', function () {
+                        changeSeatType(row, col, currentSeatMode);
+                    });
+
+                    seatGrid.appendChild(seat);
+                }
+            }
+        }
+
+        // Change seat type
+        function changeSeatType(row, col, newType) {
+            // Update matrix
+            seatMatrix[row][col] = newType;
+
+            // Update visual representation
+            const seat = document.querySelector(`[data-row="${row}"][data-column="${col}"]`);
+            if (seat) {
+                // Remove old seat type classes
+                seat.classList.remove('seat-regular', 'seat-vip', 'seat-wheelchair', 'seat-unavailable', 'seat-empty');
+                // Add new seat type class
+                seat.classList.add(`seat-${newType}`);
+                seat.dataset.seatType = newType;
+            }
+
+            // Update statistics
+            updateSeatStatistics();
+
+            // Update form data
+            updateFormData();
+        }
+
+        // Update seat statistics
+        function updateSeatStatistics() {
+            const stats = {
+                regular: 0,
+                vip: 0,
+                wheelchair: 0,
+                unavailable: 0,
+                empty: 0
+            };
+
+            // Count seat types
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < columns; col++) {
+                    const seatType = seatMatrix[row][col];
+                    stats[seatType]++;
+                }
+            }
+
+            // Update display
+            document.getElementById('regularCount').textContent = stats.regular;
+            document.getElementById('vipCount').textContent = stats.vip;
+            document.getElementById('wheelchairCount').textContent = stats.wheelchair;
+            document.getElementById('unavailableCount').textContent = stats.unavailable;
+        }
+
+        // Update hidden form data
+        function updateFormData() {
+            const seatMatrixInput = document.getElementById('seatMatrix');
+            if (seatMatrixInput) {
+                // Convert 2D matrix to flat array for form submission
+                const flatMatrix = [];
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < columns; col++) {
+                        flatMatrix.push(seatMatrix[row][col]);
+                    }
+                }
+                seatMatrixInput.value = JSON.stringify(flatMatrix);
+            }
+        }
+
+        // Load existing seat matrix for edit mode
+        function loadExistingSeatMatrix() {
+            const existingMatrix = window.seatMatrix; // Passed from EJS template
+            if (existingMatrix && existingMatrix.length > 0) {
+                seatMatrix = existingMatrix;
+                const rowsInput = document.getElementById('rows');
+                const columnsInput = document.getElementById('columns');
+                rows = parseInt(rowsInput.value);
+                columns = parseInt(columnsInput.value);
+
+                // Auto-generate and show the seat configuration
+                showSeatConfiguration();
+                updateSeatStatistics();
+
+                // Update seat visual states
+                setTimeout(() => {
+                    for (let row = 0; row < rows; row++) {
+                        for (let col = 0; col < columns; col++) {
+                            const seatType = seatMatrix[row][col];
+                            const seat = document.querySelector(`[data-row="${row}"][data-column="${col}"]`);
+                            if (seat) {
+                                seat.classList.remove('seat-empty');
+                                seat.classList.add(`seat-${seatType}`);
+                                seat.dataset.seatType = seatType;
+                            }
+                        }
+                    }
+                    updateFormData();
+                }, 100);
+            }
+        }
+
+        // Initialize the seat configuration
+        initializeSeatConfiguration();
+
+        // Load existing data if in edit mode
+        if (window.location.pathname.includes('/edit')) {
+            loadExistingSeatMatrix();
+        }
+    }
+
     console.log('🎬 CineVillage Admin Portal initialized');
 });

@@ -47,6 +47,32 @@ const hallSchema = new mongoose.Schema({
         type: [seatTypeSchema],
         default: []
     },
+    seats: {
+        type: [[String]],
+        default: [],
+        validate: {
+            validator: function (seats) {
+                // If seats array is provided, validate structure
+                if (seats && seats.length > 0) {
+                    // Check if seats matrix matches rows and columns
+                    if (seats.length !== this.rows) return false;
+
+                    for (let row of seats) {
+                        if (row.length !== this.columns) return false;
+
+                        // Validate each seat type
+                        for (let seat of row) {
+                            if (!['regular', 'vip', 'wheelchair', 'unavailable', 'empty'].includes(seat)) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            },
+            message: 'Seats matrix must match hall dimensions and contain valid seat types'
+        }
+    },
     status: {
         type: String,
         enum: {

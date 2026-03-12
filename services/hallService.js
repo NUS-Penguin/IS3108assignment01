@@ -176,6 +176,66 @@ class HallService {
     }
 
     /**
+     * Process seat matrix data from the form
+     * Converts flat seat matrix array to 2D array for storage
+     */
+    static processSeatMatrix(seatMatrix, rows, columns) {
+        if (!seatMatrix || !Array.isArray(seatMatrix)) {
+            return [];
+        }
+
+        // Convert flat array to 2D matrix
+        const result = [];
+        for (let row = 0; row < rows; row++) {
+            const currentRow = [];
+            for (let col = 0; col < columns; col++) {
+                const index = row * columns + col;
+                const seatType = seatMatrix[index] || 'empty';
+
+                // Validate seat type
+                if (!['regular', 'vip', 'wheelchair', 'unavailable', 'empty'].includes(seatType)) {
+                    throw new AppError(`Invalid seat type: ${seatType}`, 400);
+                }
+
+                currentRow.push(seatType);
+            }
+            result.push(currentRow);
+        }
+
+        return result;
+    }
+
+    /**
+     * Generate seat matrix from seat type counts (fallback method)
+     * Creates a simple distribution when visual configuration is not used
+     */
+    static generateSeatMatrixFromTypes(rows, columns, seatTypes) {
+        const result = [];
+        let seatIndex = 0;
+
+        // Initialize all seats as empty
+        for (let row = 0; row < rows; row++) {
+            const currentRow = [];
+            for (let col = 0; col < columns; col++) {
+                currentRow.push('empty');
+            }
+            result.push(currentRow);
+        }
+
+        // Distribute seat types
+        for (const seatType of seatTypes) {
+            for (let count = 0; count < seatType.count && seatIndex < rows * columns; count++) {
+                const row = Math.floor(seatIndex / columns);
+                const col = seatIndex % columns;
+                result[row][col] = seatType.type;
+                seatIndex++;
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Get hall utilization rate
      */
     static async getHallUtilization(hallId, days = 7) {

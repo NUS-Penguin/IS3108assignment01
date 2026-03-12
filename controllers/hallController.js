@@ -78,14 +78,14 @@ exports.renderForm = async (req, res, next) => {
             }
 
             // Generate seat map for interactive grid
-            const seatMap = hall.seatMap || [];
+            const seatMatrix = hall.seats || [];
 
             res.render('halls/form', {
                 title: 'Edit Hall',
                 username: req.session.username,
                 hall,
                 seatTypeCounts,
-                seatMap,
+                seatMatrix,
                 error: null
             });
         } else {
@@ -116,13 +116,20 @@ exports.create = async (req, res, next) => {
             wheelchairSeats,
             maintenanceStartDate,
             maintenanceEndDate,
-            maintenanceReason
+            maintenanceReason,
+            seatMatrix
         } = req.body;
 
         const rowsInt = parseInt(rows);
         const colsInt = parseInt(columns);
 
-        // Process seat types
+        // Process seat matrix if provided
+        let seatsArray = [];
+        if (seatMatrix && Array.isArray(seatMatrix)) {
+            seatsArray = HallService.processSeatMatrix(seatMatrix, rowsInt, colsInt);
+        }
+
+        // Process seat types (fallback for non-matrix mode)
         const seatTypes = HallService.processSeatTypes(
             regularSeats,
             vipSeats,
@@ -140,7 +147,8 @@ exports.create = async (req, res, next) => {
             rows: rowsInt,
             columns: colsInt,
             status: status || 'active',
-            seatTypes: seatTypes.length > 0 ? seatTypes : []
+            seatTypes: seatTypes.length > 0 ? seatTypes : [],
+            seats: seatsArray
         };
 
         // Add maintenance fields if status is maintenance
@@ -200,7 +208,7 @@ exports.update = async (req, res, next) => {
             regularSeats,
             vipSeats,
             wheelchairSeats,
-            seatMapData,
+            seatMatrix,
             maintenanceStartDate,
             maintenanceEndDate,
             maintenanceReason
@@ -215,12 +223,12 @@ exports.update = async (req, res, next) => {
         const rowsInt = parseInt(rows);
         const colsInt = parseInt(columns);
 
-        // Process seat types (if provided) or seat map
-        if (seatMapData) {
-            // Use interactive seat map if provided
-            hall.seatMap = JSON.parse(seatMapData);
+        // Process seat matrix if provided
+        if (seatMatrix && Array.isArray(seatMatrix)) {
+            const seatsArray = HallService.processSeatMatrix(seatMatrix, rowsInt, colsInt);
+            hall.seats = seatsArray;
         } else {
-            // Use simple seat type counts
+            // Use simple seat type counts (fallback)
             const seatTypes = HallService.processSeatTypes(
                 regularSeats,
                 vipSeats,
@@ -288,13 +296,13 @@ exports.update = async (req, res, next) => {
                     seatTypeCounts[seat.type] = seat.count;
                 });
             }
-            const seatMap = hall.seatMap || [];
+            const seatMatrix = hall.seats || [];
             return res.render('halls/form', {
                 title: 'Edit Hall',
                 username: req.session.username,
                 hall,
                 seatTypeCounts,
-                seatMap,
+                seatMatrix,
                 error: Object.values(error.errors).map(e => e.message).join(', ')
             });
         }
@@ -311,13 +319,13 @@ exports.update = async (req, res, next) => {
                     seatTypeCounts[seat.type] = seat.count;
                 });
             }
-            const seatMap = hall.seatMap || [];
+            const seatMatrix = hall.seats || [];
             return res.render('halls/form', {
                 title: 'Edit Hall',
                 username: req.session.username,
                 hall,
                 seatTypeCounts,
-                seatMap,
+                seatMatrix,
                 error: error.message
             });
         }

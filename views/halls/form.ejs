@@ -1,12 +1,26 @@
-<% // Determine if we're in edit mode or create mode const isEditMode=typeof hall !=='undefined' && hall; const
-    formAction=isEditMode ? `/admin/halls/${hall._id}?_method=PUT` : '/admin/halls' ; const formTitle=isEditMode
-    ? 'Edit Cinema Hall' : 'Create New Cinema Hall' ; const formIcon=isEditMode ? 'bi-pencil' : 'bi-plus-circle' ; const
-    submitButtonText=isEditMode ? 'Update Hall' : 'Create Hall' ; // Default values for create mode const
-    defaultRows=10; const defaultColumns=15; const defaultCapacity=defaultRows * defaultColumns; // Use hall data in
-    edit mode, defaults in create mode const hallName=isEditMode ? hall.name : '' ; const hallRows=isEditMode ?
-    hall.rows : defaultRows; const hallColumns=isEditMode ? hall.columns : defaultColumns; const hallStatus=isEditMode ?
-    hall.status : 'active' ; const hallCapacity=isEditMode ? hall.capacity : defaultCapacity; // Seat type counts const
-    seatTypeCounts=isEditMode && seatTypeCounts ? seatTypeCounts : { regular: 130, vip: 15, wheelchair: 5 }; %>
+<%
+// Determine if we're in edit mode or create mode
+const isEditMode = typeof hall !== 'undefined' && hall;
+const formAction = isEditMode ? `/admin/halls/${hall._id}?_method=PUT` : '/admin/halls';
+const formTitle = isEditMode ? 'Edit Cinema Hall' : 'Create New Cinema Hall';
+const formIcon = isEditMode ? 'bi-pencil' : 'bi-plus-circle';
+const submitButtonText = isEditMode ? 'Update Hall' : 'Create Hall';
+
+// Default values for create mode
+const defaultRows = 10;
+const defaultColumns = 15;
+const defaultCapacity = defaultRows * defaultColumns;
+
+// Use hall data in edit mode, defaults in create mode
+const hallName = isEditMode ? hall.name : '';
+const hallRows = isEditMode ? hall.rows : defaultRows;
+const hallColumns = isEditMode ? hall.columns : defaultColumns;
+const hallStatus = isEditMode ? hall.status : 'active';
+const hallCapacity = isEditMode ? hall.capacity : defaultCapacity;
+
+// Seat type counts
+const seatTypeCounts = isEditMode && seatTypeCounts ? seatTypeCounts : { regular: 130, vip: 15, wheelchair: 5 };
+%>
 
     <div class="row justify-content-center">
         <div class="col-lg-10">
@@ -57,16 +71,37 @@
                                     </div>
                                 </div>
 
-                                <% if (isEditMode) { %>
-                                    <!-- Edit Mode: Interactive Seat Grid -->
-                                    <div class="mb-3">
-                                        <button type="button" class="btn btn-success" id="generateGridBtn">
-                                            <i class="bi bi-grid-3x3-gap me-2"></i>Generate Seat Grid
+                                <!-- Generate Layout Button (for both create and edit modes) -->
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-success" id="generateLayoutBtn">
+                                        <i class="bi bi-grid-3x3-gap me-2"></i>Generate Seating Layout
+                                    </button>
+                                    <div class="form-text">Click to create or reset the seat configuration based on
+                                        the dimensions above.</div>
+                                </div>
+
+                                <!-- Seat Mode Control Buttons -->
+                                <div class="mb-3" id="seatModeControls" style="display: none;">
+                                    <h6 class="mb-2">Seat Editing Mode:</h6>
+                                    <div class="btn-group" role="group" aria-label="Seat editing modes">
+                                        <button type="button" class="btn btn-primary seat-mode-btn active" data-mode="regular">
+                                            <i class="bi bi-circle me-1"></i>Add Regular
                                         </button>
-                                        <div class="form-text">Click to create or reset the seat configuration based on
-                                            the dimensions above.</div>
+                                        <button type="button" class="btn btn-warning seat-mode-btn" data-mode="vip">
+                                            <i class="bi bi-star-fill me-1"></i>Add VIP
+                                        </button>
+                                        <button type="button" class="btn btn-info seat-mode-btn" data-mode="wheelchair">
+                                            <i class="bi bi-person-wheelchair me-1"></i>Add Wheelchair
+                                        </button>
+                                        <button type="button" class="btn btn-secondary seat-mode-btn" data-mode="unavailable">
+                                            <i class="bi bi-x-circle me-1"></i>Add Unavailable
+                                        </button>
+                                        <button type="button" class="btn btn-outline-dark seat-mode-btn" data-mode="empty">
+                                            <i class="bi bi-eraser me-1"></i>Clear Seat
+                                        </button>
                                     </div>
-                                    <% } %>
+                                    <div class="form-text mt-2">Select a mode above, then click on seats to change them to that type.</div>
+                                </div>
 
                                         <div class="alert alert-info mb-4">
                                             <i class="bi bi-calculator me-2"></i>
@@ -79,84 +114,86 @@
                                             </span>
                                         </div>
 
-                                        <% if (isEditMode) { %>
-                                            <!-- Interactive Seat Configuration (Edit Mode Only) -->
-                                            <h5 class="border-bottom pb-2 mb-3 mt-4"><i
-                                                    class="bi bi-grid-3x3 me-2"></i>Interactive Seat Configuration</h5>
-                                            <p class="text-muted small mb-3">Click on seats to change their type.</p>
+                                        <!-- Seat Type Legend -->
+                                        <div class="card bg-light mb-3" id="seatLegend" style="display: none;">
+                                            <div class="card-body py-2">
+                                                <h6 class="mb-2">Seat Legend:</h6>
+                                                <div class="d-flex flex-wrap gap-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="seat-legend-box seat-regular"></div>
+                                                        <span class="ms-2 small">Regular</span>
+                                                    </div>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="seat-legend-box seat-vip"></div>
+                                                        <span class="ms-2 small">VIP</span>
+                                                    </div>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="seat-legend-box seat-wheelchair"></div>
+                                                        <span class="ms-2 small">Wheelchair</span>
+                                                    </div>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="seat-legend-box seat-unavailable"></div>
+                                                        <span class="ms-2 small">Unavailable</span>
+                                                    </div>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="seat-legend-box seat-empty"></div>
+                                                        <span class="ms-2 small">Empty</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                            <!-- Seat Type Legend -->
-                                            <div class="card bg-light mb-3">
-                                                <div class="card-body py-2">
-                                                    <div class="d-flex flex-wrap gap-3">
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="seat-legend-box bg-primary"></div>
-                                                            <span class="ms-2 small"><i
-                                                                    class="bi bi-circle me-1"></i>Regular</span>
-                                                        </div>
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="seat-legend-box bg-warning"></div>
-                                                            <span class="ms-2 small"><i
-                                                                    class="bi bi-star-fill me-1"></i>VIP</span>
-                                                        </div>
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="seat-legend-box bg-info"></div>
-                                                            <span class="ms-2 small"><i
-                                                                    class="bi bi-person-wheelchair me-1"></i>Wheelchair</span>
-                                                        </div>
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="seat-legend-box bg-secondary"></div>
-                                                            <span class="ms-2 small"><i
-                                                                    class="bi bi-x-circle me-1"></i>Unavailable</span>
+                                        <!-- Seat Statistics -->
+                                        <div class="alert alert-light border mb-3" id="seatStats" style="display: none;">
+                                            <div class="row text-center">
+                                                <div class="col-3">
+                                                    <div class="fw-bold text-primary" id="regularCount">0</div>
+                                                    <small class="text-muted">Regular</small>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="fw-bold text-warning" id="vipCount">0</div>
+                                                    <small class="text-muted">VIP</small>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="fw-bold text-info" id="wheelchairCount">0</div>
+                                                    <small class="text-muted">Wheelchair</small>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="fw-bold text-secondary" id="unavailableCount">0</div>
+                                                    <small class="text-muted">Unavailable</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Seating Grid -->
+                                        <div class="mb-3" id="seatGridContainer" style="display: none;">
+                                            <div class="card">
+                                                <div class="card-header bg-dark text-white text-center py-2">
+                                                    <small><i class="bi bi-film me-1"></i>SCREEN</small>
+                                                </div>
+                                                <div class="card-body p-3">
+                                                    <!-- Row Labels and Grid Container -->
+                                                    <div class="d-flex">
+                                                        <div class="seat-row-labels" id="rowLabels"></div>
+                                                        <div class="flex-grow-1">
+                                                            <!-- Column Labels -->
+                                                            <div class="seat-column-labels" id="columnLabels"></div>
+                                                            <!-- Seat Grid -->
+                                                            <div id="seatGrid" class="seat-grid"></div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            <!-- Seat Statistics -->
-                                            <div class="alert alert-light border mb-3">
-                                                <div class="row text-center">
-                                                    <div class="col-3">
-                                                        <div class="fw-bold text-primary" id="regularCount">0</div>
-                                                        <small class="text-muted">Regular</small>
-                                                    </div>
-                                                    <div class="col-3">
-                                                        <div class="fw-bold text-warning" id="vipCount">0</div>
-                                                        <small class="text-muted">VIP</small>
-                                                    </div>
-                                                    <div class="col-3">
-                                                        <div class="fw-bold text-info" id="wheelchairCount">0</div>
-                                                        <small class="text-muted">Wheelchair</small>
-                                                    </div>
-                                                    <div class="col-3">
-                                                        <div class="fw-bold text-secondary" id="unavailableCount">0
-                                                        </div>
-                                                        <small class="text-muted">Unavailable</small>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <!-- Hidden input to store seat matrix -->
+                                        <input type="hidden" id="seatMatrix" name="seatMatrix">
 
-                                            <!-- Seating Grid -->
-                                            <div class="mb-3">
-                                                <div class="card">
-                                                    <div class="card-header bg-dark text-white text-center py-2">
-                                                        <small><i class="bi bi-film me-1"></i>SCREEN</small>
-                                                    </div>
-                                                    <div class="card-body p-3">
-                                                        <div id="seatGrid" class="seat-grid"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Hidden input to store seat map -->
-                                            <input type="hidden" id="seatMapData" name="seatMapData">
-
-                                            <% } else { %>
-                                                <!-- Simple Seat Type Configuration (Create Mode Only) -->
-                                                <h5 class="border-bottom pb-2 mb-3 mt-4"><i
-                                                        class="bi bi-grid-3x3 me-2"></i>Seat Type Configuration</h5>
-                                                <p class="text-muted small mb-3">Configure different seat categories.
-                                                    Total must not exceed capacity.</p>
+                                        <% if (!isEditMode) { %>
+                                            <!-- Fallback: Simple Seat Type Configuration (Create Mode Only) -->
+                                            <div class="mt-4" id="simpleSeatConfig">
+                                                <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-grid-3x3 me-2"></i>Alternative: Simple Seat Configuration</h6>
+                                                <p class="text-muted small mb-3">Use these inputs as a fallback if visual configuration is not used.</p>
 
                                                 <div class="row">
                                                     <div class="col-md-4 mb-3">
@@ -164,7 +201,7 @@
                                                             <i class="bi bi-circle me-1"></i> Regular Seats
                                                         </label>
                                                         <input type="number" class="form-control seat-input"
-                                                            id="regularSeats" name="regularSeats" min="0" value="130"
+                                                            id="regularSeats" name="regularSeats" min="0" value="0"
                                                             placeholder="0">
                                                     </div>
 
@@ -173,28 +210,21 @@
                                                             <i class="bi bi-star-fill me-1"></i> VIP Seats
                                                         </label>
                                                         <input type="number" class="form-control seat-input"
-                                                            id="vipSeats" name="vipSeats" min="0" value="15"
+                                                            id="vipSeats" name="vipSeats" min="0" value="0"
                                                             placeholder="0">
                                                     </div>
 
                                                     <div class="col-md-4 mb-3">
                                                         <label for="wheelchairSeats" class="form-label">
-                                                            <i class="bi bi-person-wheelchair me-1"></i> Wheelchair
-                                                            Accessible
+                                                            <i class="bi bi-person-wheelchair me-1"></i> Wheelchair Accessible
                                                         </label>
                                                         <input type="number" class="form-control seat-input"
                                                             id="wheelchairSeats" name="wheelchairSeats" min="0"
-                                                            value="5" placeholder="0">
+                                                            value="0" placeholder="0">
                                                     </div>
                                                 </div>
-
-                                                <div id="seatValidation" class="alert alert-success mb-4">
-                                                    <i class="bi bi-check-circle me-2"></i>
-                                                    <strong>Total Configured:</strong> <span
-                                                        id="totalConfigured">150</span> seats
-                                                    / <span id="maxCapacity">150</span> capacity
-                                                </div>
-                                                <% } %>
+                                            </div>
+                                        <% } %>
 
                                                     <!-- Status and Maintenance -->
                                                     <h5 class="border-bottom pb-2 mb-3 mt-4"><i
@@ -358,253 +388,75 @@
             <script>
                 const isEditMode = <%= isEditMode ? 'true' : 'false' %>;
 
-    <% if (isEditMode) { %>
-        // Edit Mode: Interactive seat grid
-        const existingSeatMap = <%- JSON.stringify(seatMap) %>;
-                    let seatMap = existingSeatMap;
+                // Form validation and maintenance logic
 
-                    document.addEventListener('DOMContentLoaded', function () {
-                        // Render existing seat grid on page load
-                        if (seatMap && Array.isArray(seatMap) && seatMap.length > 0) {
-                            renderSeatGrid();
-                            updateSeatCounts();
-                        }
-
-                        // Update capacity display when dimensions change
-                        document.getElementById('rows').addEventListener('input', updateCapacityDisplay);
-                        document.getElementById('columns').addEventListener('input', updateCapacityDisplay);
-
-                        // Generate seat grid when button is clicked
-                        document.getElementById('generateGridBtn').addEventListener('click', function () {
-                            initializeSeatMap();
-                            renderSeatGrid();
-                            updateCapacityDisplay();
-                            updateSeatCounts();
-                        });
-
-                        document.getElementById('status').addEventListener('change', updateMaintenanceFields);
-
-                        document.getElementById('hallForm').addEventListener('submit', function (e) {
-                            document.getElementById('seatMapData').value = JSON.stringify(seatMap);
-                        });
-                    });
-
-                    function initializeSeatMap() {
-                        const rows = parseInt(document.getElementById('rows').value) || 10;
-                        const columns = parseInt(document.getElementById('columns').value) || 15;
-
-                        seatMap = [];
-                        for (let i = 0; i < rows; i++) {
-                            const row = [];
-                            for (let j = 0; j < columns; j++) {
-                                row.push('regular');
-                            }
-                            seatMap.push(row);
-                        }
-                    }
-
-                    function renderSeatGrid() {
-                        const rows = parseInt(document.getElementById('rows').value) || 10;
-                        const columns = parseInt(document.getElementById('columns').value) || 15;
-                        const gridContainer = document.getElementById('seatGrid');
-
-                        if (!gridContainer) return;
-
-                        gridContainer.innerHTML = '';
-
-                        for (let i = 0; i < rows; i++) {
-                            const rowDiv = document.createElement('div');
-                            rowDiv.className = 'seat-row';
-
-                            const rowLabel = document.createElement('div');
-                            rowLabel.className = 'seat-row-label';
-                            rowLabel.textContent = String.fromCharCode(65 + i);
-                            rowDiv.appendChild(rowLabel);
-
-                            for (let j = 0; j < columns; j++) {
-                                const seatType = seatMap[i] && seatMap[i][j] ? seatMap[i][j] : 'regular';
-                                const seat = document.createElement('div');
-                                seat.className = `seat seat-${seatType}`;
-                                seat.dataset.row = i;
-                                seat.dataset.col = j;
-                                seat.title = `Row ${String.fromCharCode(65 + i)}, Seat ${j + 1}`;
-
-                                seat.addEventListener('click', function () {
-                                    toggleSeatType(i, j);
-                                });
-
-                                rowDiv.appendChild(seat);
-                            }
-
-                            gridContainer.appendChild(rowDiv);
-                        }
-                    }
-
-                    function toggleSeatType(row, col) {
-                        const types = ['regular', 'vip', 'wheelchair', 'unavailable'];
-                        const currentType = seatMap[row][col];
-                        const currentIndex = types.indexOf(currentType);
-                        const nextIndex = (currentIndex + 1) % types.length;
-
-                        seatMap[row][col] = types[nextIndex];
-
-                        const seatElement = document.querySelector(`.seat[data-row="${row}"][data-col="${col}"]`);
-                        seatElement.className = `seat seat-${types[nextIndex]}`;
-
-                        updateSeatCounts();
-                    }
-
-                    function updateCapacityDisplay() {
-                        const rows = parseInt(document.getElementById('rows').value) || 10;
-                        const columns = parseInt(document.getElementById('columns').value) || 15;
-                        const capacity = rows * columns;
-
-                        document.getElementById('capacityDisplay').textContent =
-                            `${capacity} seats (${rows} rows × ${columns} columns)`;
-                    }
-
-                    function updateSeatCounts() {
-                        const counts = {
-                            regular: 0,
-                            vip: 0,
-                            wheelchair: 0,
-                            unavailable: 0
-                        };
-
-                        for (const row of seatMap) {
-                            for (const seat of row) {
-                                counts[seat]++;
-                            }
-                        }
-
-                        document.getElementById('regularCount').textContent = counts.regular;
-                        document.getElementById('vipCount').textContent = counts.vip;
-                        document.getElementById('wheelchairCount').textContent = counts.wheelchair;
-                        document.getElementById('unavailableCount').textContent = counts.unavailable;
-                    }
-
-                    function updateMaintenanceFields() {
-                        const status = document.getElementById('status').value;
-                        const maintenanceFields = document.getElementById('maintenanceFields');
-
-                        if (status === 'maintenance') {
-                            maintenanceFields.style.display = 'block';
-                            document.getElementById('maintenanceStartDate').required = true;
-                            document.getElementById('maintenanceEndDate').required = true;
-                        } else {
-                            maintenanceFields.style.display = 'none';
-                            document.getElementById('maintenanceStartDate').required = false;
-                            document.getElementById('maintenanceEndDate').required = false;
-                        }
-                    }
-
-    <% } else { %>
-                    // Create Mode: Simple seat type configuration
+                document.addEventListener('DOMContentLoaded', function () {
+                    // Update capacity display when dimensions change
                     function updateCapacity() {
                         const rows = parseInt(document.getElementById('rows').value) || 0;
                         const columns = parseInt(document.getElementById('columns').value) || 0;
                         const capacity = rows * columns;
-
-                        document.getElementById('capacityDisplay').textContent =
+                        
+                        document.getElementById('capacityDisplay').textContent = 
                             `${capacity} seats (${rows} rows × ${columns} columns)`;
-                        document.getElementById('maxCapacity').textContent = capacity;
-
-                        // Update max values for seat inputs
-                        document.querySelectorAll('.seat-input').forEach(input => {
-                            input.max = capacity;
-                        });
-
-                        validateSeats();
                     }
 
-                    function validateSeats() {
-                        const rows = parseInt(document.getElementById('rows').value) || 0;
-                        const columns = parseInt(document.getElementById('columns').value) || 0;
-                        const capacity = rows * columns;
-
-                        const regular = parseInt(document.getElementById('regularSeats').value) || 0;
-                        const vip = parseInt(document.getElementById('vipSeats').value) || 0;
-                        const wheelchair = parseInt(document.getElementById('wheelchairSeats').value) || 0;
-
-                        const total = regular + vip + wheelchair;
-
-                        document.getElementById('totalConfigured').textContent = total;
-
-                        const validationDiv = document.getElementById('seatValidation');
-
-                        if (total > capacity) {
-                            validationDiv.className = 'alert alert-danger mb-4';
-                            validationDiv.innerHTML = `
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>Error:</strong> Total configured (${total}) exceeds capacity (${capacity})
-                `;
-                        } else if (total < capacity && total > 0) {
-                            validationDiv.className = 'alert alert-warning mb-4';
-                            validationDiv.innerHTML = `
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Total Configured:</strong> ${total} seats / ${capacity} capacity
-                    (${capacity - total} seats will be regular by default)
-                `;
-                        } else if (total === capacity) {
-                            validationDiv.className = 'alert alert-success mb-4';
-                            validationDiv.innerHTML = `
-                    <i class="bi bi-check-circle me-2"></i>
-                    <strong>Perfect!</strong> All ${capacity} seats configured
-                `;
-                        } else {
-                            validationDiv.className = 'alert alert-info mb-4';
-                            validationDiv.innerHTML = `
-                    <i class="bi bi-info-circle me-2"></i>
-                    All ${capacity} seats will be regular (default)
-                `;
-                        }
-                    }
-
+                    // Update maintenance fields visibility
                     function updateMaintenanceFields() {
                         const status = document.getElementById('status').value;
                         const maintenanceFields = document.getElementById('maintenanceFields');
 
-                        if (status === 'maintenance') {
-                            maintenanceFields.style.display = 'block';
-                            document.getElementById('maintenanceStartDate').required = true;
-                            document.getElementById('maintenanceEndDate').required = true;
-                        } else {
-                            maintenanceFields.style.display = 'none';
-                            document.getElementById('maintenanceStartDate').required = false;
-                            document.getElementById('maintenanceEndDate').required = false;
+                        if (maintenanceFields) {
+                            if (status === 'maintenance') {
+                                maintenanceFields.style.display = 'block';
+                                document.getElementById('maintenanceStartDate').required = true;
+                                document.getElementById('maintenanceEndDate').required = true;
+                            } else {
+                                maintenanceFields.style.display = 'none';
+                                document.getElementById('maintenanceStartDate').required = false;
+                                document.getElementById('maintenanceEndDate').required = false;
+                            }
                         }
                     }
 
                     // Event listeners
                     document.getElementById('rows').addEventListener('input', updateCapacity);
                     document.getElementById('columns').addEventListener('input', updateCapacity);
-                    document.querySelectorAll('.seat-input').forEach(input => {
-                        input.addEventListener('input', validateSeats);
-                    });
                     document.getElementById('status').addEventListener('change', updateMaintenanceFields);
 
                     // Initialize on page load
                     updateCapacity();
-                    validateSeats();
                     updateMaintenanceFields();
+                });
 
-                    // Form validation before submit
-                    document.getElementById('hallForm').addEventListener('submit', function (e) {
-                        const rows = parseInt(document.getElementById('rows').value) || 0;
-                        const columns = parseInt(document.getElementById('columns').value) || 0;
-                        const capacity = rows * columns;
 
-                        const regular = parseInt(document.getElementById('regularSeats').value) || 0;
-                        const vip = parseInt(document.getElementById('vipSeats').value) || 0;
-                        const wheelchair = parseInt(document.getElementById('wheelchairSeats').value) || 0;
 
-                        const total = regular + vip + wheelchair;
 
-                        if (total > capacity) {
-                            e.preventDefault();
-                            alert(`Total seat types (${total}) cannot exceed hall capacity (${capacity})`);
-                            return false;
+
+
+
+
+
+
+
+                    function updateMaintenanceFields() {
+                        const status = document.getElementById('status').value;
+                        const maintenanceFields = document.getElementById('maintenanceFields');
+
+                        if (status === 'maintenance') {
+                            maintenanceFields.style.display = 'block';
+                            document.getElementById('maintenanceStartDate').required = true;
+                            document.getElementById('maintenanceEndDate').required = true;
+                        } else {
+                            maintenanceFields.style.display = 'none';
+                            document.getElementById('maintenanceStartDate').required = false;
+                            document.getElementById('maintenanceEndDate').required = false;
                         }
-                    });
-    <% } %>
+                    }
+
+                // Seat Matrix Configuration Data
+                <% if (isEditMode && typeof seatMatrix !== 'undefined' && seatMatrix) { %>
+                    // Pass existing seat matrix data to JavaScript
+                    window.seatMatrix = <%- JSON.stringify(seatMatrix) %>;
+                <% } %>
             </script>
