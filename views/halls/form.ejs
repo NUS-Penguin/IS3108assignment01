@@ -360,7 +360,7 @@
 
     <% if (isEditMode) { %>
         // Edit Mode: Interactive seat grid
-        const existingSeatMap = <% - JSON.stringify(seatMap) %>;
+        const existingSeatMap = <%- JSON.stringify(seatMap) %>;
                     let seatMap = existingSeatMap;
 
                     document.addEventListener('DOMContentLoaded', function () {
