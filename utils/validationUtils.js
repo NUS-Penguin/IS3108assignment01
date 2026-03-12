@@ -33,13 +33,42 @@ exports.isValidURL = (url) => {
 
 /**
  * Validate password strength
- * At least 6 characters, contains letter and number
+ * Requirements:
+ * - Minimum length: 8 characters
+ * - At least one uppercase letter
+ * - At least one number
+ * - At least one special character
  */
 exports.isStrongPassword = (password) => {
-    if (password.length < 6) return false;
-    const hasLetter = /[a-zA-Z]/.test(password);
+    if (password.length < 8) return false;
+
+    const hasUppercase = /[A-Z]/.test(password);
     const hasNumber = /\d/.test(password);
-    return hasLetter && hasNumber;
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+    return hasUppercase && hasNumber && hasSpecialChar;
+};
+
+/**
+ * Get detailed password validation errors
+ */
+exports.getPasswordErrors = (password) => {
+    const errors = [];
+
+    if (password.length < 8) {
+        errors.push('Password must be at least 8 characters long');
+    }
+    if (!/[A-Z]/.test(password)) {
+        errors.push('Password must contain at least one uppercase letter');
+    }
+    if (!/\d/.test(password)) {
+        errors.push('Password must contain at least one number');
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+        errors.push('Password must contain at least one special character');
+    }
+
+    return errors;
 };
 
 /**

@@ -18,7 +18,8 @@
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 
-<body>
+<body data-authenticated="<%= user ? 'true' : 'false' %>"
+    data-session-max-age="<%= typeof process !== 'undefined' && process.env.SESSION_MAX_AGE ? process.env.SESSION_MAX_AGE : '86400000' %>">
     <div class="d-flex" id="wrapper">
 
         <% if (user) { %>

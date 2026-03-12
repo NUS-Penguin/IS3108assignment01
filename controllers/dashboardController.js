@@ -7,6 +7,7 @@
 const Movie = require('../models/Movie');
 const Hall = require('../models/Hall');
 const Screening = require('../models/Screening');
+const User = require('../models/User');
 
 /**
  * Render dashboard with statistics and upcoming screenings
@@ -17,6 +18,9 @@ exports.index = async (req, res, next) => {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+        // Fetch user information
+        const user = await User.findById(req.session.userId).select('username email role lastLogin');
 
         // Gather statistics
         const [activeMovies, activeHalls, screeningsToday, upcomingScreenings] = await Promise.all([
@@ -40,6 +44,12 @@ exports.index = async (req, res, next) => {
         res.render('dashboard/index', {
             title: 'Dashboard',
             username: req.session.username,
+            user: {
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                lastLogin: user.lastLogin
+            },
             stats: {
                 activeMovies,
                 activeHalls,

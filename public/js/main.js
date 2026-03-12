@@ -123,5 +123,123 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 3000);
     };
 
+    // Session expiry warning
+    // Session max age is 24 hours (86400000 ms) by default
+    // Show warning 5 minutes before expiry
+    const SESSION_MAX_AGE = parseInt(document.body.dataset.sessionMaxAge) || 86400000; // 24 hours default
+    const WARNING_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
+    const TIME_UNTIL_WARNING = SESSION_MAX_AGE - WARNING_TIME;
+
+    let sessionWarningShown = false;
+    let sessionWarningTimer = null;
+    let lastActivityTime = Date.now();
+    let sessionStartTime = Date.now();
+
+    // Function to show session expiry warning
+    function showSessionWarning() {
+        if (sessionWarningShown) return;
+
+        sessionWarningShown = true;
+
+        // Create modal for session expiry warning
+        const modalHTML = `
+            <div class="modal fade" id="sessionWarningModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                Session Expiring Soon
+                            </h5>
+                        </div>
+                        <div class="modal-body">
+                            <p>Your session will expire in <strong><span id="sessionCountdown">5:00</span></strong>.</p>
+                            <p>Any unsaved changes will be lost. Click "Continue" to keep your session active.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" id="continueSession">
+                                <i class="bi bi-check-circle me-1"></i> Continue Session
+                            </button>
+                            <a href="/logout" class="btn btn-outline-secondary">
+                                <i class="bi bi-box-arrow-right me-1"></i> Logout Now
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        const modal = new bootstrap.Modal(document.getElementById('sessionWarningModal'));
+        modal.show();
+
+        // Start countdown
+        let timeLeft = WARNING_TIME / 1000; // Convert to seconds
+        const countdownElement = document.getElementById('sessionCountdown');
+
+        const countdownInterval = setInterval(() => {
+            timeLeft--;
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            countdownElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                window.location.href = '/login?expired=true';
+            }
+        }, 1000);
+
+        // Continue session button
+        document.getElementById('continueSession').addEventListener('click', () => {
+            // Make a request to refresh the session
+            fetch('/admin/dashboard', { method: 'HEAD' })
+                .then(() => {
+                    clearInterval(countdownInterval);
+                    modal.hide();
+                    sessionWarningShown = false;
+                    sessionStartTime = Date.now();
+                    scheduleSessionWarning();
+                })
+                .catch(() => {
+                    window.location.href = '/login?expired=true';
+                });
+        });
+    }
+
+    // Function to schedule session warning
+    function scheduleSessionWarning() {
+        if (sessionWarningTimer) {
+            clearTimeout(sessionWarningTimer);
+        }
+
+        sessionWarningTimer = setTimeout(() => {
+            showSessionWarning();
+        }, TIME_UNTIL_WARNING);
+    }
+
+    // Reset session timer on user activity (for authenticated pages only)
+    function resetSessionTimer() {
+        const now = Date.now();
+
+        // Only reset if more than 1 minute has passed since last activity
+        if (now - lastActivityTime > 60000) {
+            lastActivityTime = now;
+            sessionStartTime = now;
+            sessionWarningShown = false;
+            scheduleSessionWarning();
+        }
+    }
+
+    // Track user activity for session management (only on authenticated pages)
+    if (document.body.dataset.authenticated === 'true') {
+        scheduleSessionWarning();
+
+        // Activity events that should reset the session timer
+        ['mousedown', 'keypress', 'scroll', 'click'].forEach(event => {
+            document.addEventListener(event, resetSessionTimer, { passive: true });
+        });
+    }
+
     console.log('🎬 CineVillage Admin Portal initialized');
 });

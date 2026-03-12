@@ -10,41 +10,53 @@
                         <p class="text-muted">Sign in to manage cinema operations</p>
                     </div>
 
-                    <% if (error) { %>
-                        <div class="alert alert-danger" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            <%= error %>
+                    <% if (typeof message !=='undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            <%= message %>
                         </div>
                         <% } %>
 
-                            <form action="/login" method="POST">
-                                <div class="mb-3">
-                                    <label for="username" class="form-label">Username</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="bi bi-person"></i></span>
-                                        <input type="text" class="form-control" id="username" name="username" required
-                                            autofocus placeholder="Enter your username">
-                                    </div>
+                            <% if (error) { %>
+                                <div class="alert alert-danger" role="alert">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <%= error %>
                                 </div>
+                                <% } %>
 
-                                <div class="mb-3">
-                                    <label for="password" class="form-label">Password</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                                        <input type="password" class="form-control" id="password" name="password"
-                                            required placeholder="Enter your password">
-                                    </div>
-                                </div>
+                                    <form action="/login" method="POST">
+                                        <div class="mb-3">
+                                            <label for="username" class="form-label">Username</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                                <input type="text" class="form-control" id="username" name="username"
+                                                    required autofocus placeholder="Enter your username">
+                                            </div>
+                                        </div>
 
-                                <button type="submit" class="btn btn-primary w-100 mb-3">
-                                    <i class="bi bi-box-arrow-in-right me-2"></i> Login
-                                </button>
+                                        <div class="mb-3">
+                                            <label for="password" class="form-label">Password</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                                <input type="password" class="form-control" id="password"
+                                                    name="password" required placeholder="Enter your password">
+                                            </div>
+                                        </div>
 
-                                <div class="text-center">
-                                    <small class="text-muted">Don't have an account? <a href="/register">Register
-                                            here</a></small>
-                                </div>
-                            </form>
+                                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                                            <i class="bi bi-box-arrow-in-right me-2"></i> Login
+                                        </button>
+
+                                        <div class="text-center mb-2">
+                                            <small><a href="/forgot-password">Forgot your password?</a></small>
+                                        </div>
+
+                                        <div class="text-center">
+                                            <small class="text-muted">Don't have an account? <a
+                                                    href="/register">Register
+                                                    here</a></small>
+                                        </div>
+                                    </form>
                 </div>
             </div>
         </div>

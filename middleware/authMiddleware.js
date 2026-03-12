@@ -25,12 +25,34 @@ exports.requireAdmin = (req, res, next) => {
     if (req.session.role !== 'admin') {
         return res.status(403).render('error', {
             title: 'Access Denied',
-            message: 'You do not have permission to access this resource',
+            message: 'You do not have permission to access this resource. Admin access required.',
             user: res.locals.user
         });
     }
 
     next();
+};
+
+/**
+ * Require specific role(s) for route access
+ * Usage: requireRole(['admin', 'manager'])
+ */
+exports.requireRole = (roles) => {
+    return (req, res, next) => {
+        if (!req.session || !req.session.userId) {
+            return res.redirect('/login');
+        }
+
+        if (!roles.includes(req.session.role)) {
+            return res.status(403).render('error', {
+                title: 'Access Denied',
+                message: `You do not have permission to access this resource. Required role: ${roles.join(' or ')}`,
+                user: res.locals.user
+            });
+        }
+
+        next();
+    };
 };
 
 /**
