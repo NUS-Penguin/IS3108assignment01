@@ -927,6 +927,114 @@ app.use(errorHandler);
 
 <ui_requirements>
 
+<styling_philosophy>
+<!-- CRITICAL: Minimize custom CSS and maximize Bootstrap utility classes -->
+
+<principle>
+Use Bootstrap 5 utility classes for ALL styling needs. Custom CSS should ONLY contain:
+1. Essential layout rules that Bootstrap doesn't provide
+2. Responsive adjustments specific to the sidebar
+3. Absolutely necessary custom styles (rare exceptions)
+</principle>
+
+<custom_css_rules>
+The public/css/styles.css file should contain MINIMAL custom CSS:
+
+```css
+/* 
+ * Minimal Custom CSS for CineVillage Admin Portal
+ * Relies primarily on Bootstrap 5 utility classes
+ * Only essential custom styles that Bootstrap doesn't provide
+ */
+
+/* Basic Layout - Sidebar and Page Wrapper */
+#sidebar-wrapper {
+    min-width: 250px;
+    max-width: 250px;
+}
+
+#page-content-wrapper {
+    min-width: 0;
+    width: 100%;
+}
+
+/* Responsive: Hide sidebar on mobile */
+@media (max-width: 768px) {
+    #sidebar-wrapper {
+        margin-left: -250px;
+    }
+
+    #sidebar-wrapper.show {
+        margin-left: 0;
+    }
+}
+```
+
+<forbidden_css>
+NEVER add custom CSS for:
+- Colors (use Bootstrap color utilities: bg-primary, text-danger, etc.)
+- Spacing (use Bootstrap spacing: m-3, p-4, mb-2, etc.)
+- Typography (use Bootstrap typography: fs-1, fw-bold, text-center, etc.)
+- Shadows (use Bootstrap shadows: shadow, shadow-sm, shadow-lg)
+- Borders (use Bootstrap borders: border, border-bottom, rounded, etc.)
+- Display/Flexbox (use Bootstrap utilities: d-flex, justify-content-between, etc.)
+- Animations (avoid unless absolutely necessary)
+- Hover effects (avoid unless absolutely necessary)
+</forbidden_css>
+
+</custom_css_rules>
+
+<inline_styles_forbidden>
+NEVER use inline styles in EJS templates.
+Use Bootstrap utility classes instead:
+
+❌ BAD:
+```ejs
+<i class="bi bi-film" style="font-size: 3rem; color: #0d6efd;"></i>
+<div class="card" style="box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);"></div>
+```
+
+✓ GOOD:
+```ejs
+<i class="bi bi-film fs-1 text-primary"></i>
+<div class="card shadow"></div>
+```
+</inline_styles_forbidden>
+
+<bootstrap_utility_reference>
+Common Bootstrap 5 utilities to use:
+
+**Font Sizes:**
+- fs-1 to fs-6 (larger to smaller)
+- display-1 to display-6 (extra large display text)
+
+**Colors:**
+- text-primary, text-secondary, text-success, text-danger, text-warning, text-info
+- bg-primary, bg-light, bg-dark, bg-success, etc.
+
+**Spacing:**
+- m-{0-5} (margin), p-{0-5} (padding)
+- mt-3 (margin-top), mb-4 (margin-bottom), px-2 (padding x-axis)
+
+**Flexbox:**
+- d-flex, justify-content-{start|center|end|between|around}
+- align-items-{start|center|end|stretch}
+
+**Display:**
+- d-none, d-block, d-inline-block
+- opacity-{0|25|50|75|100}
+
+**Shadows:**
+- shadow-sm, shadow, shadow-lg
+
+**Borders:**
+- border, border-{top|bottom|left|right}
+- border-{0-5} (thickness), rounded, rounded-{top|bottom|circle}
+
+</bootstrap_utility_reference>
+
+</styling_philosophy>
+
 <layout_structure>
 
 <description>
@@ -1001,25 +1109,26 @@ Professional admin dashboard layout with:
 ```ejs
 <!-- views/partials/sidebar.ejs -->
 
-<div class="bg-dark border-end" id="sidebar-wrapper" style="width: 250px; min-height: 100vh;">
-  <div class="sidebar-heading text-white p-3 border-bottom border-secondary">
-    <h4><i class="bi bi-film"></i> CineVillage</h4>
+<nav class="bg-dark text-white vh-100" id="sidebar-wrapper">
+  <div class="border-bottom border-secondary p-3 mb-3">
+    <h4 class="mb-0"><i class="bi bi-film"></i> CineVillage</h4>
+    <small class="text-secondary">Admin Portal</small>
   </div>
   <div class="list-group list-group-flush">
-    <a href="/admin/dashboard" class="list-group-item list-group-item-action bg-dark text-white">
-      <i class="bi bi-speedometer2"></i> Dashboard
+    <a href="/admin/dashboard" class="list-group-item list-group-item-action bg-dark text-white border-0">
+      <i class="bi bi-speedometer2 me-2"></i> Dashboard
     </a>
-    <a href="/admin/halls" class="list-group-item list-group-item-action bg-dark text-white">
-      <i class="bi bi-building"></i> Cinema Halls
+    <a href="/admin/halls" class="list-group-item list-group-item-action bg-dark text-white border-0">
+      <i class="bi bi-building me-2"></i> Cinema Halls
     </a>
-    <a href="/admin/movies" class="list-group-item list-group-item-action bg-dark text-white">
-      <i class="bi bi-camera-reels"></i> Movies
+    <a href="/admin/movies" class="list-group-item list-group-item-action bg-dark text-white border-0">
+      <i class="bi bi-camera-reels me-2"></i> Movies
     </a>
-    <a href="/admin/screenings" class="list-group-item list-group-item-action bg-dark text-white">
-      <i class="bi bi-calendar-event"></i> Screenings
+    <a href="/admin/screenings" class="list-group-item list-group-item-action bg-dark text-white border-0">
+      <i class="bi bi-calendar-event me-2"></i> Screenings
     </a>
   </div>
-</div>
+</nav>
 ```
 </sidebar_template>
 
@@ -1027,21 +1136,25 @@ Professional admin dashboard layout with:
 ```ejs
 <!-- views/partials/header.ejs -->
 
-<nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+<nav class="navbar navbar-light bg-light border-bottom">
   <div class="container-fluid">
-    <button class="btn btn-primary" id="sidebar-toggle">
+    <button class="btn btn-sm btn-outline-secondary" id="sidebar-toggle" type="button">
       <i class="bi bi-list"></i>
     </button>
-    
-    <span class="navbar-text ms-auto me-3">
-      Welcome, <strong><%= username || 'Admin' %></strong>
+    <span class="navbar-brand mb-0 h5">
+      <%= title || 'Dashboard' %>
     </span>
-    
-    <form action="/logout" method="POST" class="d-inline">
-      <button type="submit" class="btn btn-outline-danger btn-sm">
-        <i class="bi bi-box-arrow-right"></i> Logout
-      </button>
-    </form>
+    <div class="d-flex align-items-center">
+      <span class="me-3 small">
+        <i class="bi bi-person-circle me-1"></i>
+        <strong><%= username || user.username %></strong>
+      </span>
+      <form action="/logout" method="POST">
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-box-arrow-right"></i> Logout
+        </button>
+      </form>
+    </div>
   </div>
 </nav>
 ```
@@ -1051,29 +1164,120 @@ Professional admin dashboard layout with:
 
 <component_guidelines>
 
+<styling_approach>
+Use ONLY Bootstrap 5 utility classes. Avoid custom CSS and inline styles entirely.
+</styling_approach>
+
 <tables>
 Use Bootstrap table classes for data display:
 - .table .table-striped .table-hover
-- Include action buttons (Edit, Delete)
-- Use icons from Bootstrap Icons
-- Add pagination for large datasets (optional)
+- .table-responsive for horizontal scrolling
+- Include action buttons (Edit, Delete) using .btn .btn-sm classes
+- Use Bootstrap Icons (.bi) for visual clarity
+- Empty states: Use display-1 or fs-1 instead of inline font-size styles
+
+Example:
+```ejs
+<div class="table-responsive">
+  <table class="table table-hover">
+    <thead class="table-light">
+      <tr><th>Column</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Data</td></tr>
+    </tbody>
+  </table>
+</div>
+```
 </tables>
 
 <forms>
-Use Bootstrap form classes:
-- .form-control for inputs
+Use Bootstrap form classes - NO inline styles:
+- .form-control for text inputs
 - .form-select for dropdowns
 - .form-label for labels
+- .form-check and .form-check-input for checkboxes/radios
 - .btn .btn-primary for submit buttons
-- Include validation feedback (invalid-feedback class)
+- .invalid-feedback for validation messages
+- Use .mb-3 for spacing between form groups
+
+Example:
+```ejs
+<div class="mb-3">
+  <label for="title" class="form-label">Title</label>
+  <input type="text" class="form-control" id="title" name="title" required>
+</div>
+```
 </forms>
 
 <cards>
-Use Bootstrap cards for dashboard widgets:
-- .card .card-body
-- Include icons and statistics
-- Use color utilities (bg-primary, bg-success, etc.)
+Use Bootstrap cards - NO shadow-sm or inline styles:
+- .card with .card-body for content
+- .card-header with .bg-white for headers
+- Use Bootstrap color utilities: .bg-primary .bg-success .bg-info
+- Use .text-white for white text on colored backgrounds
+- Icons: Use fs-1, fs-2, display-1 for icon sizing (NOT inline styles)
+- Use .opacity-25, .opacity-50 for icon opacity
+
+Example:
+```ejs
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Title</h5>
+    <p class="card-text">Content</p>
+  </div>
+</div>
+```
+
+Colored stat card:
+```ejs
+<div class="card bg-primary text-white">
+  <div class="card-body">
+    <div class="d-flex justify-content-between">
+      <div>
+        <h6 class="text-white-50">Label</h6>
+        <h2>42</h2>
+      </div>
+      <i class="bi bi-icon fs-1 opacity-25"></i>
+    </div>
+  </div>
+</div>
+```
 </cards>
+
+<icons>
+Use Bootstrap Icons with Bootstrap utility classes for sizing:
+- Size: .fs-1 to .fs-6, .display-1 to .display-6
+- Color: .text-primary, .text-secondary, .text-danger, etc.
+- Opacity: .opacity-25, .opacity-50, .opacity-75, .opacity-100
+- Spacing: .me-1, .me-2, .ms-2, etc.
+
+NEVER use inline styles like style="font-size: 3rem"
+</icons>
+
+<spacing>
+Use Bootstrap spacing utilities exclusively:
+- Margin: .m-{0-5}, .mt-3, .mb-4, .mx-auto, .my-2
+- Padding: .p-{0-5}, .pt-3, .pb-4, .px-3, .py-2
+- Gap: .g-4 (for grid gaps), .gap-2 (for flexbox gaps)
+
+NEVER use custom padding/margin classes or inline styles
+</spacing>
+
+<buttons>
+Use Bootstrap button classes:
+- .btn with color: .btn-primary, .btn-outline-secondary, .btn-danger
+- Size: .btn-sm, .btn-lg
+- Width: .w-100 for full width
+- Groups: .btn-group for action groups
+
+Example:
+```ejs
+<a href="/create" class="btn btn-primary">
+  <i class="bi bi-plus-circle me-2"></i> Create New
+</a>
+```
+</buttons>
 
 </component_guidelines>
 
@@ -1248,6 +1452,8 @@ When generating code or guidance, follow this structure:
 ✓ Is the screening overlap logic correct?
 ✓ Can a student understand and explain this code?
 ✓ Is the response complete (no placeholders)?
+✓ Am I using Bootstrap utility classes instead of inline styles?
+✓ Is custom CSS kept to absolute minimum?
 </before_responding>
 
 </self_validation_checklist>
@@ -1264,6 +1470,8 @@ When generating code or guidance, follow this structure:
 7. Code must be UNDERSTANDABLE by students
 8. NO placeholders or incomplete code
 9. ALWAYS implement the full feature, not just outlines
+10. USE Bootstrap utility classes ONLY - NO inline styles
+11. MINIMAL custom CSS - only essential layout rules
 </must_follow>
 
 <common_mistakes_to_avoid>
@@ -1277,6 +1485,9 @@ When generating code or guidance, follow this structure:
 ❌ Missing error handling
 ❌ Incomplete validation
 ❌ Overly complex code that students can't explain
+❌ Using inline styles in templates
+❌ Adding custom CSS for colors, spacing, shadows, etc.
+❌ Creating elaborate hover effects or animations
 </common_mistakes_to_avoid>
 
 </critical_reminders>
