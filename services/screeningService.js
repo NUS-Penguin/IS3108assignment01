@@ -122,6 +122,55 @@ class ScreeningService {
     }
 
     /**
+     * Update an existing screening with overlap detection
+     * 
+     * @param {ObjectId} screeningId - ID of screening to update
+     * @param {Object} data - Screening data { movie, hall, startTime }
+     * @returns {Promise<Screening>} Updated screening
+     * @throws {AppError} If validation fails or overlap detected
+     */
+    static async updateScreening(screeningId, data) {
+        const { movie, hall, startTime } = data;
+
+        // 1. Validate screening exists
+        const screening = await Screening.findById(screeningId);
+        if (!screening) {
+            throw new AppError('Screening not found', 404);
+        }
+
+        // 2. Validate movie exists
+        const movieDoc = await Movie.findById(movie);
+        if (!movieDoc) {
+            throw new AppError('Movie not found', 404);
+        }
+
+        // 3. Validate hall exists and is available
+        const hallDoc = await Hall.findById(hall);
+        if (!hallDoc) {
+            throw new AppError('Hall not found', 404);
+        }
+
+        if (hallDoc.status !== 'active') {
+            throw new AppError('Cannot schedule screening in a hall under maintenance', 400);
+        }
+
+        // 4. Calculate end time
+        const endTime = new Date(startTime.getTime() + movieDoc.durationMinutes * 60000);
+
+        // 5. CRITICAL: Check for overlaps (excluding current screening)
+        await this._checkForOverlap(hall, startTime, endTime, screeningId);
+
+        // 6. Update screening
+        screening.movie = movie;
+        screening.hall = hall;
+        screening.startTime = startTime;
+        screening.endTime = endTime;
+
+        await screening.save();
+        return screening;
+    }
+
+    /**
      * Get upcoming screenings for dashboard
      */
     static async getUpcomingScreenings(limit = 10) {

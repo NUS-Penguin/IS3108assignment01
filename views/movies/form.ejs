@@ -1,0 +1,96 @@
+<% // Determine if we're in edit mode or create mode const isEditMode=typeof movie !=='undefined' && movie; const
+    formAction=isEditMode ? `/admin/movies/${movie._id}?_method=PUT` : '/admin/movies' ; const formTitle=isEditMode
+    ? 'Edit Movie' : 'Add New Movie' ; const formIcon=isEditMode ? 'bi-pencil' : 'bi-plus-circle' ; const
+    submitButtonText=isEditMode ? 'Update Movie' : 'Add Movie' ; // Use movie data in edit mode, empty strings in create
+    mode const movieTitle=isEditMode ? movie.title : '' ; const movieDescription=isEditMode ? movie.description : '' ;
+    const movieDuration=isEditMode ? movie.durationMinutes : '' ; const movieGenre=isEditMode ? movie.genre : '' ; const
+    movieReleaseDate=isEditMode ? movie.releaseDate.toISOString().split('T')[0] : '' ; const moviePosterURL=isEditMode ?
+    (movie.posterURL || '' ) : '' ; %>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="<%= formIcon %> me-2"></i>
+                        <%= formTitle %>
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <%= error %>
+                        </div>
+                        <% } %>
+
+                            <form action="<%= formAction %>" method="POST">
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Movie Title <span
+                                            class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="title" name="title" required
+                                        maxlength="200" value="<%= movieTitle %>" placeholder="e.g., The Matrix">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description <span
+                                            class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="description" name="description" required rows="4"
+                                        minlength="10" maxlength="1000"
+                                        placeholder="Brief description of the movie"><%= movieDescription %></textarea>
+                                    <div class="form-text">10-1000 characters</div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="durationMinutes" class="form-label">Duration (minutes) <span
+                                                class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="durationMinutes"
+                                            name="durationMinutes" required min="1" max="500"
+                                            value="<%= movieDuration %>" placeholder="e.g., 120">
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="genre" class="form-label">Genre <span
+                                                class="text-danger">*</span></label>
+                                        <select class="form-select" id="genre" name="genre" required>
+                                            <% if (!isEditMode) { %>
+                                                <option value="">Select genre...</option>
+                                                <% } %>
+                                                    <% genres.forEach(genre=> { %>
+                                                        <option value="<%= genre %>" <%=movieGenre===genre ? 'selected'
+                                                            : '' %>>
+                                                            <%= genre %>
+                                                        </option>
+                                                        <% }); %>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="releaseDate" class="form-label">Release Date <span
+                                            class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="releaseDate" name="releaseDate" required
+                                        value="<%= movieReleaseDate %>">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="posterURL" class="form-label">Poster URL (optional)</label>
+                                    <input type="url" class="form-control" id="posterURL" name="posterURL"
+                                        value="<%= moviePosterURL %>" placeholder="https://example.com/poster.jpg">
+                                    <div class="form-text">URL to movie poster image</div>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        <%= submitButtonText %>
+                                    </button>
+                                    <a href="/admin/movies" class="btn btn-secondary">
+                                        <i class="bi bi-x-circle me-2"></i>Cancel
+                                    </a>
+                                </div>
+                            </form>
+                </div>
+            </div>
+        </div>
+    </div>

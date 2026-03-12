@@ -16,13 +16,13 @@ router.use(requireAuth);
 router.get('/', movieController.index);
 
 // Show create form
-router.get('/new', movieController.renderCreate);
+router.get('/new', movieController.renderForm);
 
 // Create new movie
 router.post('/', movieController.create);
 
 // Show edit form
-router.get('/:id/edit', movieController.renderEdit);
+router.get('/:id/edit', movieController.renderForm);
 
 // Update movie
 router.put('/:id', movieController.update);

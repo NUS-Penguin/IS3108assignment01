@@ -16,10 +16,16 @@ router.use(requireAuth);
 router.get('/', screeningController.index);
 
 // Show create form
-router.get('/new', screeningController.renderCreate);
+router.get('/new', screeningController.renderForm);
 
 // Create new screening
 router.post('/', screeningController.create);
+
+// Show edit form
+router.get('/:id/edit', screeningController.renderForm);
+
+// Update screening
+router.put('/:id', screeningController.update);
 
 // Delete screening
 router.delete('/:id', screeningController.delete);

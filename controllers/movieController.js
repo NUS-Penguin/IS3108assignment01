@@ -26,14 +26,41 @@ exports.index = async (req, res, next) => {
 
 /**
  * GET /admin/movies/new - Render create movie form
+ * GET /admin/movies/:id/edit - Render edit movie form
+ * Unified form handler for both create and edit operations
  */
-exports.renderCreate = (req, res) => {
-    res.render('movies/create', {
-        title: 'Add New Movie',
-        username: req.session.username,
-        genres: ['Action', 'Drama', 'Comedy', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Documentary', 'Animation', 'Fantasy'],
-        error: null
-    });
+exports.renderForm = async (req, res, next) => {
+    try {
+        const isEditMode = !!req.params.id;
+        const genres = ['Action', 'Drama', 'Comedy', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Documentary', 'Animation', 'Fantasy'];
+
+        if (isEditMode) {
+            // Edit mode - fetch movie data
+            const movie = await Movie.findById(req.params.id);
+
+            if (!movie) {
+                throw new AppError('Movie not found', 404);
+            }
+
+            res.render('movies/form', {
+                title: 'Edit Movie',
+                username: req.session.username,
+                movie,
+                genres,
+                error: null
+            });
+        } else {
+            // Create mode - no movie data
+            res.render('movies/form', {
+                title: 'Add New Movie',
+                username: req.session.username,
+                genres,
+                error: null
+            });
+        }
+    } catch (error) {
+        next(error);
+    }
 };
 
 /**
@@ -63,37 +90,13 @@ exports.create = async (req, res, next) => {
 
     } catch (error) {
         if (error.name === 'ValidationError') {
-            return res.render('movies/create', {
+            return res.render('movies/form', {
                 title: 'Add New Movie',
                 username: req.session.username,
                 genres: ['Action', 'Drama', 'Comedy', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Documentary', 'Animation', 'Fantasy'],
                 error: Object.values(error.errors).map(e => e.message).join(', ')
             });
         }
-        next(error);
-    }
-};
-
-/**
- * GET /admin/movies/:id/edit - Render edit movie form
- */
-exports.renderEdit = async (req, res, next) => {
-    try {
-        const movie = await Movie.findById(req.params.id);
-
-        if (!movie) {
-            throw new AppError('Movie not found', 404);
-        }
-
-        res.render('movies/edit', {
-            title: 'Edit Movie',
-            username: req.session.username,
-            movie,
-            genres: ['Action', 'Drama', 'Comedy', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Documentary', 'Animation', 'Fantasy'],
-            error: null
-        });
-
-    } catch (error) {
         next(error);
     }
 };
@@ -130,7 +133,7 @@ exports.update = async (req, res, next) => {
     } catch (error) {
         if (error.name === 'ValidationError') {
             const movie = await Movie.findById(req.params.id);
-            return res.render('movies/edit', {
+            return res.render('movies/form', {
                 title: 'Edit Movie',
                 username: req.session.username,
                 movie,

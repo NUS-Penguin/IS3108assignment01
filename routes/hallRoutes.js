@@ -16,7 +16,7 @@ router.use(requireAuth);
 router.get('/', hallController.index);
 
 // Show create form
-router.get('/new', hallController.renderCreate);
+router.get('/new', hallController.renderForm);
 
 // Create new hall
 router.post('/', hallController.create);
@@ -25,7 +25,7 @@ router.post('/', hallController.create);
 router.get('/:id', hallController.show);
 
 // Show edit form
-router.get('/:id/edit', hallController.renderEdit);
+router.get('/:id/edit', hallController.renderForm);
 
 // Update hall
 router.put('/:id', hallController.update);

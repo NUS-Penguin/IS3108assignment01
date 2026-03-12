@@ -49,13 +49,56 @@ exports.show = async (req, res, next) => {
 
 /**
  * GET /admin/halls/new - Render create hall form
+ * GET /admin/halls/:id/edit - Render edit hall form
+ * Unified form handler for both create and edit operations
  */
-exports.renderCreate = (req, res) => {
-    res.render('halls/create', {
-        title: 'Create New Hall',
-        username: req.session.username,
-        error: null
-    });
+exports.renderForm = async (req, res, next) => {
+    try {
+        const isEditMode = !!req.params.id;
+
+        if (isEditMode) {
+            // Edit mode - fetch hall data
+            const hall = await Hall.findById(req.params.id);
+
+            if (!hall) {
+                throw new AppError('Hall not found', 404);
+            }
+
+            // Extract seat type counts for form
+            const seatTypeCounts = {
+                regular: 0,
+                vip: 0,
+                wheelchair: 0
+            };
+
+            if (hall.seatTypes && hall.seatTypes.length > 0) {
+                hall.seatTypes.forEach(seat => {
+                    seatTypeCounts[seat.type] = seat.count;
+                });
+            }
+
+            // Generate seat map for interactive grid
+            const seatMap = hall.seatMap || [];
+
+            res.render('halls/form', {
+                title: 'Edit Hall',
+                username: req.session.username,
+                hall,
+                seatTypeCounts,
+                seatMap,
+                error: null
+            });
+        } else {
+            // Create mode - no hall data
+            res.render('halls/form', {
+                title: 'Create New Hall',
+                username: req.session.username,
+                error: null
+            });
+        }
+    } catch (error) {
+        next(error);
+    }
 };
 
 /**
@@ -125,7 +168,7 @@ exports.create = async (req, res, next) => {
 
     } catch (error) {
         if (error.name === 'ValidationError') {
-            return res.render('halls/create', {
+            return res.render('halls/form', {
                 title: 'Create New Hall',
                 username: req.session.username,
                 error: Object.values(error.errors).map(e => e.message).join(', ')
@@ -133,50 +176,13 @@ exports.create = async (req, res, next) => {
         }
 
         if (error instanceof AppError) {
-            return res.render('halls/create', {
+            return res.render('halls/form', {
                 title: 'Create New Hall',
                 username: req.session.username,
                 error: error.message
             });
         }
 
-        next(error);
-    }
-};
-
-/**
- * GET /admin/halls/:id/edit - Render edit hall form
- */
-exports.renderEdit = async (req, res, next) => {
-    try {
-        const hall = await Hall.findById(req.params.id);
-
-        if (!hall) {
-            throw new AppError('Hall not found', 404);
-        }
-
-        // Extract seat type counts for form
-        const seatTypeCounts = {
-            regular: 0,
-            vip: 0,
-            wheelchair: 0
-        };
-
-        if (hall.seatTypes && hall.seatTypes.length > 0) {
-            hall.seatTypes.forEach(seat => {
-                seatTypeCounts[seat.type] = seat.count;
-            });
-        }
-
-        res.render('halls/edit', {
-            title: 'Edit Hall',
-            username: req.session.username,
-            hall,
-            seatTypeCounts,
-            error: null
-        });
-
-    } catch (error) {
         next(error);
     }
 };
@@ -194,6 +200,7 @@ exports.update = async (req, res, next) => {
             regularSeats,
             vipSeats,
             wheelchairSeats,
+            seatMapData,
             maintenanceStartDate,
             maintenanceEndDate,
             maintenanceReason
@@ -208,16 +215,24 @@ exports.update = async (req, res, next) => {
         const rowsInt = parseInt(rows);
         const colsInt = parseInt(columns);
 
-        // Process seat types
-        const seatTypes = HallService.processSeatTypes(
-            regularSeats,
-            vipSeats,
-            wheelchairSeats
-        );
+        // Process seat types (if provided) or seat map
+        if (seatMapData) {
+            // Use interactive seat map if provided
+            hall.seatMap = JSON.parse(seatMapData);
+        } else {
+            // Use simple seat type counts
+            const seatTypes = HallService.processSeatTypes(
+                regularSeats,
+                vipSeats,
+                wheelchairSeats
+            );
 
-        // Validate seat types don't exceed capacity
-        if (seatTypes.length > 0) {
-            HallService.validateSeatTypes(rowsInt, colsInt, seatTypes);
+            // Validate seat types don't exceed capacity
+            if (seatTypes.length > 0) {
+                HallService.validateSeatTypes(rowsInt, colsInt, seatTypes);
+            }
+
+            hall.seatTypes = seatTypes.length > 0 ? seatTypes : [];
         }
 
         // Update basic fields
@@ -225,7 +240,6 @@ exports.update = async (req, res, next) => {
         hall.rows = rowsInt;
         hall.columns = colsInt;
         hall.status = status;
-        hall.seatTypes = seatTypes.length > 0 ? seatTypes : [];
 
         // Handle maintenance fields
         if (status === 'maintenance') {
@@ -274,11 +288,13 @@ exports.update = async (req, res, next) => {
                     seatTypeCounts[seat.type] = seat.count;
                 });
             }
-            return res.render('halls/edit', {
+            const seatMap = hall.seatMap || [];
+            return res.render('halls/form', {
                 title: 'Edit Hall',
                 username: req.session.username,
                 hall,
                 seatTypeCounts,
+                seatMap,
                 error: Object.values(error.errors).map(e => e.message).join(', ')
             });
         }
@@ -295,11 +311,13 @@ exports.update = async (req, res, next) => {
                     seatTypeCounts[seat.type] = seat.count;
                 });
             }
-            return res.render('halls/edit', {
+            const seatMap = hall.seatMap || [];
+            return res.render('halls/form', {
                 title: 'Edit Hall',
                 username: req.session.username,
                 hall,
                 seatTypeCounts,
+                seatMap,
                 error: error.message
             });
         }
