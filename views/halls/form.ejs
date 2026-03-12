@@ -189,43 +189,6 @@ const seatTypeCounts = isEditMode && seatTypeCounts ? seatTypeCounts : { regular
                                         <!-- Hidden input to store seat matrix -->
                                         <input type="hidden" id="seatMatrix" name="seatMatrix">
 
-                                        <% if (!isEditMode) { %>
-                                            <!-- Fallback: Simple Seat Type Configuration (Create Mode Only) -->
-                                            <div class="mt-4" id="simpleSeatConfig">
-                                                <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-grid-3x3 me-2"></i>Alternative: Simple Seat Configuration</h6>
-                                                <p class="text-muted small mb-3">Use these inputs as a fallback if visual configuration is not used.</p>
-
-                                                <div class="row">
-                                                    <div class="col-md-4 mb-3">
-                                                        <label for="regularSeats" class="form-label">
-                                                            <i class="bi bi-circle me-1"></i> Regular Seats
-                                                        </label>
-                                                        <input type="number" class="form-control seat-input"
-                                                            id="regularSeats" name="regularSeats" min="0" value="0"
-                                                            placeholder="0">
-                                                    </div>
-
-                                                    <div class="col-md-4 mb-3">
-                                                        <label for="vipSeats" class="form-label">
-                                                            <i class="bi bi-star-fill me-1"></i> VIP Seats
-                                                        </label>
-                                                        <input type="number" class="form-control seat-input"
-                                                            id="vipSeats" name="vipSeats" min="0" value="0"
-                                                            placeholder="0">
-                                                    </div>
-
-                                                    <div class="col-md-4 mb-3">
-                                                        <label for="wheelchairSeats" class="form-label">
-                                                            <i class="bi bi-person-wheelchair me-1"></i> Wheelchair Accessible
-                                                        </label>
-                                                        <input type="number" class="form-control seat-input"
-                                                            id="wheelchairSeats" name="wheelchairSeats" min="0"
-                                                            value="0" placeholder="0">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        <% } %>
-
                                                     <!-- Status and Maintenance -->
                                                     <h5 class="border-bottom pb-2 mb-3 mt-4"><i
                                                             class="bi bi-toggle-on me-2"></i>Hall Status</h5>

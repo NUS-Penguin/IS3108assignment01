@@ -111,9 +111,6 @@ exports.create = async (req, res, next) => {
             rows,
             columns,
             status,
-            regularSeats,
-            vipSeats,
-            wheelchairSeats,
             maintenanceStartDate,
             maintenanceEndDate,
             maintenanceReason,
@@ -123,22 +120,18 @@ exports.create = async (req, res, next) => {
         const rowsInt = parseInt(rows);
         const colsInt = parseInt(columns);
 
-        // Process seat matrix if provided
+        // Process seat matrix - required for all halls
         let seatsArray = [];
+        let seatTypes = [];
+
         if (seatMatrix && Array.isArray(seatMatrix)) {
             seatsArray = HallService.processSeatMatrix(seatMatrix, rowsInt, colsInt);
-        }
-
-        // Process seat types (fallback for non-matrix mode)
-        const seatTypes = HallService.processSeatTypes(
-            regularSeats,
-            vipSeats,
-            wheelchairSeats
-        );
-
-        // Validate seat types don't exceed capacity
-        if (seatTypes.length > 0) {
-            HallService.validateSeatTypes(rowsInt, colsInt, seatTypes);
+            // Calculate seat types from matrix
+            seatTypes = HallService.calculateSeatTypesFromMatrix(seatsArray);
+        } else {
+            // Generate default regular seat matrix if none provided
+            seatsArray = HallService.generateDefaultSeatMatrix(rowsInt, colsInt);
+            seatTypes = [{ type: 'regular', count: rowsInt * colsInt }];
         }
 
         // Create hall object
@@ -147,7 +140,7 @@ exports.create = async (req, res, next) => {
             rows: rowsInt,
             columns: colsInt,
             status: status || 'active',
-            seatTypes: seatTypes.length > 0 ? seatTypes : [],
+            seatTypes: seatTypes,
             seats: seatsArray
         };
 
@@ -205,9 +198,6 @@ exports.update = async (req, res, next) => {
             rows,
             columns,
             status,
-            regularSeats,
-            vipSeats,
-            wheelchairSeats,
             seatMatrix,
             maintenanceStartDate,
             maintenanceEndDate,
@@ -223,25 +213,23 @@ exports.update = async (req, res, next) => {
         const rowsInt = parseInt(rows);
         const colsInt = parseInt(columns);
 
-        // Process seat matrix if provided
+        // Process seat matrix - required for all halls
+        let seatsArray = [];
+        let seatTypes = [];
+
         if (seatMatrix && Array.isArray(seatMatrix)) {
-            const seatsArray = HallService.processSeatMatrix(seatMatrix, rowsInt, colsInt);
-            hall.seats = seatsArray;
+            seatsArray = HallService.processSeatMatrix(seatMatrix, rowsInt, colsInt);
+            // Calculate seat types from matrix
+            seatTypes = HallService.calculateSeatTypesFromMatrix(seatsArray);
         } else {
-            // Use simple seat type counts (fallback)
-            const seatTypes = HallService.processSeatTypes(
-                regularSeats,
-                vipSeats,
-                wheelchairSeats
-            );
-
-            // Validate seat types don't exceed capacity
-            if (seatTypes.length > 0) {
-                HallService.validateSeatTypes(rowsInt, colsInt, seatTypes);
-            }
-
-            hall.seatTypes = seatTypes.length > 0 ? seatTypes : [];
+            // Generate default regular seat matrix if none provided
+            seatsArray = HallService.generateDefaultSeatMatrix(rowsInt, colsInt);
+            seatTypes = [{ type: 'regular', count: rowsInt * colsInt }];
         }
+
+        // Update seat data
+        hall.seats = seatsArray;
+        hall.seatTypes = seatTypes;
 
         // Update basic fields
         hall.name = name;

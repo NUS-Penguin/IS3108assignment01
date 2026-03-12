@@ -303,13 +303,13 @@ document.addEventListener('DOMContentLoaded', function () {
             columnsInput.addEventListener('input', updateCapacityDisplay);
         }
 
-        // Generate seat matrix based on dimensions
+        // Generate seat matrix based on dimensions (defaults to regular seats)
         function generateSeatMatrix() {
             seatMatrix = [];
             for (let row = 0; row < rows; row++) {
                 const currentRow = [];
                 for (let col = 0; col < columns; col++) {
-                    currentRow.push('empty');
+                    currentRow.push('regular');
                 }
                 seatMatrix.push(currentRow);
             }
@@ -323,6 +323,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('seatGridContainer').style.display = 'block';
 
             renderSeatGrid();
+            updateSeatStatistics();
         }
 
         // Render the seat grid
@@ -360,10 +361,14 @@ document.addEventListener('DOMContentLoaded', function () {
             for (let row = 0; row < rows; row++) {
                 for (let col = 0; col < columns; col++) {
                     const seat = document.createElement('div');
-                    seat.className = 'seat seat-empty';
+
+                    // Get seat type from matrix, default to 'regular' if not set
+                    const seatType = seatMatrix[row] && seatMatrix[row][col] ? seatMatrix[row][col] : 'regular';
+
+                    seat.className = `seat seat-${seatType}`;
                     seat.dataset.row = row;
                     seat.dataset.column = col;
-                    seat.dataset.seatType = 'empty';
+                    seat.dataset.seatType = seatType;
 
                     // Add click handler
                     seat.addEventListener('click', function () {
@@ -449,23 +454,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Auto-generate and show the seat configuration
                 showSeatConfiguration();
-                updateSeatStatistics();
-
-                // Update seat visual states
-                setTimeout(() => {
-                    for (let row = 0; row < rows; row++) {
-                        for (let col = 0; col < columns; col++) {
-                            const seatType = seatMatrix[row][col];
-                            const seat = document.querySelector(`[data-row="${row}"][data-column="${col}"]`);
-                            if (seat) {
-                                seat.classList.remove('seat-empty');
-                                seat.classList.add(`seat-${seatType}`);
-                                seat.dataset.seatType = seatType;
-                            }
-                        }
-                    }
-                    updateFormData();
-                }, 100);
+                updateFormData();
             }
         }
 

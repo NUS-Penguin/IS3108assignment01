@@ -269,6 +269,64 @@ class HallService {
             utilizationRate
         };
     }
+
+    /**
+     * Calculate seat type counts from a seat matrix
+     * Analyzes the 2D seat matrix to determine seat type distribution
+     */
+    static calculateSeatTypesFromMatrix(seatMatrix) {
+        const counts = {
+            regular: 0,
+            vip: 0,
+            wheelchair: 0,
+            unavailable: 0,
+            empty: 0
+        };
+
+        // Count each seat type in the matrix
+        for (const row of seatMatrix) {
+            for (const seat of row) {
+                if (counts.hasOwnProperty(seat)) {
+                    counts[seat]++;
+                }
+            }
+        }
+
+        // Convert to seatTypes array format (exclude empty and unavailable for capacity calculation)
+        const seatTypes = [];
+
+        if (counts.regular > 0) {
+            seatTypes.push({ type: 'regular', count: counts.regular });
+        }
+
+        if (counts.vip > 0) {
+            seatTypes.push({ type: 'vip', count: counts.vip });
+        }
+
+        if (counts.wheelchair > 0) {
+            seatTypes.push({ type: 'wheelchair', count: counts.wheelchair });
+        }
+
+        return seatTypes;
+    }
+
+    /**
+     * Generate default seat matrix with all regular seats
+     * Used when no seat matrix is provided in the form
+     */
+    static generateDefaultSeatMatrix(rows, columns) {
+        const result = [];
+
+        for (let row = 0; row < rows; row++) {
+            const currentRow = [];
+            for (let col = 0; col < columns; col++) {
+                currentRow.push('regular');
+            }
+            result.push(currentRow);
+        }
+
+        return result;
+    }
 }
 
 module.exports = HallService;
