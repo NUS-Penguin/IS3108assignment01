@@ -21,6 +21,9 @@ router.get('/new', hallController.renderCreate);
 // Create new hall
 router.post('/', hallController.create);
 
+// Show hall details (must come before /:id/edit)
+router.get('/:id', hallController.show);
+
 // Show edit form
 router.get('/:id/edit', hallController.renderEdit);
 

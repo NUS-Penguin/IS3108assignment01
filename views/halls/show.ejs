@@ -1,0 +1,345 @@
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2><i class="bi bi-building me-2"></i>
+                <%= hall.name %>
+            </h2>
+            <p class="text-muted mb-0">Hall Details and Seating Configuration</p>
+        </div>
+        <div>
+            <a href="/admin/halls/<%= hall._id %>/edit" class="btn btn-primary me-2">
+                <i class="bi bi-pencil me-2"></i> Edit Hall
+            </a>
+            <a href="/admin/halls" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-2"></i> Back to List
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Hall Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Total Capacity</h6>
+                        <h2 class="mb-0">
+                            <%= stats.capacity %>
+                        </h2>
+                        <small>
+                            <%= hall.rows %> × <%= hall.columns %>
+                        </small>
+                    </div>
+                    <i class="bi bi-grid-3x3 fs-1 opacity-25"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Today's Screenings</h6>
+                        <h2 class="mb-0">
+                            <%= stats.todayScreenings %>
+                        </h2>
+                        <small>Scheduled today</small>
+                    </div>
+                    <i class="bi bi-calendar-check fs-1 opacity-25"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50 mb-1">Upcoming Screenings</h6>
+                        <h2 class="mb-0">
+                            <%= stats.upcomingScreenings %>
+                        </h2>
+                        <small>In the future</small>
+                    </div>
+                    <i class="bi bi-calendar3 fs-1 opacity-25"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div
+            class="card <%= hall.status === 'active' ? 'bg-success' : (hall.status === 'maintenance' ? 'bg-danger' : 'bg-warning') %> text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="<%= hall.status === 'cleaning' ? 'text-dark' : 'text-white-50' %> mb-1">Status</h6>
+                        <h5 class="mb-0 <%= hall.status === 'cleaning' ? 'text-dark' : '' %>">
+                            <% if (hall.status==='active' ) { %>
+                                <i class="bi bi-check-circle"></i> Active
+                                <% } else if (hall.status==='maintenance' ) { %>
+                                    <i class="bi bi-tools"></i> Maintenance
+                                    <% } else { %>
+                                        <i class="bi bi-droplet"></i> Cleaning
+                                        <% } %>
+                        </h5>
+                    </div>
+                    <i class="bi bi-toggle-on fs-1 opacity-25 <%= hall.status === 'cleaning' ? 'text-dark' : '' %>"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<% if (hall.status==='maintenance' && hall.maintenanceStartDate && hall.maintenanceEndDate) { %>
+    <div class="alert alert-danger mb-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill fs-2 me-3"></i>
+            <div>
+                <h6 class="mb-1">Maintenance Period:</h6>
+                <strong>
+                    <%= hall.maintenanceStartDate.toLocaleDateString('en-US', { month: 'long' , day: 'numeric' ,
+                        year: 'numeric' }) %>
+                        –
+                        <%= hall.maintenanceEndDate.toLocaleDateString('en-US', { month: 'long' , day: 'numeric' ,
+                            year: 'numeric' }) %>
+                </strong>
+                <% if (hall.maintenanceReason) { %>
+                    <br>
+                    <span class="text-muted">Reason: <%= hall.maintenanceReason %></span>
+                    <% } %>
+            </div>
+        </div>
+    </div>
+    <% } %>
+
+        <div class="row">
+            <!-- Seat Type Distribution -->
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Seat Type Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <% if (seatDistribution && seatDistribution.length> 0) { %>
+                            <% seatDistribution.forEach((seat, index)=> { %>
+                                <div
+                                    class="mb-3 <%= index < seatDistribution.length - 1 ? 'pb-3 border-bottom' : '' %>">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span class="fw-bold">
+                                            <% if (seat.type==='regular' ) { %>
+                                                <i class="bi bi-circle text-primary"></i> Regular Seats
+                                                <% } else if (seat.type==='vip' ) { %>
+                                                    <i class="bi bi-star-fill text-warning"></i> VIP Seats
+                                                    <% } else if (seat.type==='wheelchair' ) { %>
+                                                        <i class="bi bi-person-wheelchair text-info"></i> Wheelchair
+                                                        <% } %>
+                                        </span>
+                                        <span class="badge bg-primary">
+                                            <%= seat.count %> seats
+                                        </span>
+                                    </div>
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar <%= seat.type === 'vip' ? 'bg-warning' : (seat.type === 'wheelchair' ? 'bg-info' : 'bg-primary') %>"
+                                            role="progressbar" style="width: <%= seat.percentage %>%;"
+                                            aria-valuenow="<%= seat.percentage %>" aria-valuemin="0"
+                                            aria-valuemax="100">
+                                            <%= seat.percentage %>%
+                                        </div>
+                                    </div>
+                                </div>
+                                <% }); %>
+                                    <% } else { %>
+                                        <div class="text-center text-muted">
+                                            <i class="bi bi-circle fs-1"></i>
+                                            <p class="mt-2">All <%= stats.capacity %> seats are Regular</p>
+                                        </div>
+                                        <% } %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seating Layout Preview -->
+            <div class="col-md-8 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-grid-3x3-gap me-2"></i>Seating Layout Preview</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Screen Indicator -->
+                        <div class="text-center mb-4">
+                            <div class="border border-dark border-2 rounded p-2 d-inline-block">
+                                <i class="bi bi-tv me-2"></i>
+                                <strong>SCREEN</strong>
+                            </div>
+                        </div>
+
+                        <!-- Legend -->
+                        <div class="mb-3 p-3 bg-light rounded">
+                            <strong class="me-3">Legend:</strong>
+                            <span class="badge bg-primary me-2">
+                                <i class="bi bi-circle"></i> O = Regular
+                            </span>
+                            <span class="badge bg-warning text-dark me-2">
+                                <i class="bi bi-star-fill"></i> V = VIP
+                            </span>
+                            <span class="badge bg-info me-2">
+                                <i class="bi bi-person-wheelchair"></i> W = Wheelchair
+                            </span>
+                        </div>
+
+                        <!-- Seating Grid -->
+                        <div class="seating-layout">
+                            <% if (seatingLayout && seatingLayout.length> 0) { %>
+                                <% seatingLayout.forEach(row=> { %>
+                                    <div class="seat-row mb-2">
+                                        <span class="row-label fw-bold me-2"
+                                            style="display: inline-block; width: 30px;">
+                                            <%= row.rowLabel %>
+                                        </span>
+                                        <% row.seats.forEach(seat=> { %>
+                                            <span class="seat <%= seat.type %>"
+                                                title="<%= row.rowLabel %><%= seat.column %> - <%= seat.type %>">
+                                                <%= seat.label %>
+                                            </span>
+                                            <% }); %>
+                                    </div>
+                                    <% }); %>
+                                        <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hall Information -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Hall Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <th width="40%">Hall Name:</th>
+                                        <td><strong>
+                                                <%= hall.name %>
+                                            </strong></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Rows:</th>
+                                        <td>
+                                            <%= hall.rows %> (A-<%= String.fromCharCode(64 + hall.rows) %>)
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Columns:</th>
+                                        <td>
+                                            <%= hall.columns %>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Total Capacity:</th>
+                                        <td><strong>
+                                                <%= stats.capacity %> seats
+                                            </strong></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <th width="40%">Status:</th>
+                                        <td>
+                                            <span class="badge <%= hall.getStatusBadgeClass() %>">
+                                                <%= hall.status.charAt(0).toUpperCase() + hall.status.slice(1) %>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Created:</th>
+                                        <td>
+                                            <%= hall.createdAt.toLocaleDateString('en-US', { month: 'long' ,
+                                                day: 'numeric' , year: 'numeric' }) %>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Last Updated:</th>
+                                        <td>
+                                            <%= hall.updatedAt.toLocaleDateString('en-US', { month: 'long' ,
+                                                day: 'numeric' , year: 'numeric' }) %>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>Total Screenings:</th>
+                                        <td>
+                                            <%= stats.totalScreenings %> (all time)
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .seating-layout {
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                overflow-x: auto;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 5px;
+            }
+
+            .seat-row {
+                white-space: nowrap;
+            }
+
+            .seat {
+                display: inline-block;
+                width: 25px;
+                height: 25px;
+                line-height: 25px;
+                text-align: center;
+                margin: 2px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background: #fff;
+                font-weight: bold;
+                cursor: help;
+            }
+
+            .seat.regular {
+                background: #e3f2fd;
+                border-color: #2196f3;
+                color: #1976d2;
+            }
+
+            .seat.vip {
+                background: #fff3e0;
+                border-color: #ff9800;
+                color: #f57c00;
+            }
+
+            .seat.wheelchair {
+                background: #e1f5fe;
+                border-color: #03a9f4;
+                color: #0288d1;
+            }
+
+            .row-label {
+                color: #6c757d;
+                text-align: right;
+            }
+        </style>

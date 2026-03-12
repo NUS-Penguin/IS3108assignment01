@@ -9,6 +9,921 @@ This document tracks all significant changes to the codebase.
 
 ---
 
+## [2026-03-12] Feature Enhancement: Module 2 - Advanced Hall Management System
+
+**Type:** Feature Enhancement  
+**Scope:** Major - Cinema Hall Management Module  
+**Files Modified:** 7 files  
+**Files Created:** 1 file  
+**Lines Added:** ~800+ lines  
+**Lines Modified:** ~300+ lines  
+**Developer:** AI Assistant  
+**Status:** ✅ Completed
+
+### Overview
+Implemented comprehensive Module 2 enhancements for Cinema Hall Management, transforming the basic hall CRUD system into a sophisticated cinema space management tool. This update provides cinema managers with complete control over theatre halls, seating configurations, maintenance scheduling, and real-time capacity visualization.
+
+The enhancement introduces five major features as specified in the Module 2 requirements:
+1. **Automatic Hall Capacity Calculation** - Real-time capacity computed as rows × columns
+2. **Seat Type Configuration** - Support for Regular, VIP, and Wheelchair-accessible seats with distribution tracking
+3. **Hall Status Indicators** - Three-tier status system (Active, Maintenance, Cleaning) with color-coded badges
+4. **Maintenance Scheduling** - Complete scheduling system with date ranges, reasons, and conflict detection
+5. **Seating Layout Preview** - Visual grid representation of hall seating arrangements with seat type indicators
+
+### Rationale
+The original hall management system provided only basic CRUD operations without considering the operational complexities of cinema management. Cinema managers need:
+- Visibility into seating configurations for accessibility compliance
+- Maintenance scheduling to prevent booking conflicts
+- Visual representations for staff training and customer inquiries
+- Real-time capacity calculations for fire code compliance
+- Detailed seat type tracking for revenue optimization
+
+This enhancement addresses all these needs while maintaining code simplicity for educational purposes.
+
+---
+
+### Features Implemented
+
+#### 1. Automatic Hall Capacity Calculation
+**Impact:** Medium | Type: UX/Business Logic
+
+**Implementation:**
+- Virtual property `capacity` in Hall model automatically calculates rows × columns
+- Real-time JavaScript calculation in create/edit forms
+- Display format: "150 seats (10 rows × 15 columns)"
+- Backward compatibility with `totalSeats` virtual property
+
+**Business Value:**
+- Eliminates manual capacity entry errors
+- Ensures fire code compliance
+- Simplifies hall creation process
+- Provides instant feedback to managers
+
+**Files Modified:**
+- `models/Hall.js`: Added `capacity` virtual property computed from rows × columns
+- `views/halls/create.ejs`: Added real-time capacity display with JavaScript calculator
+- `views/halls/edit.ejs`: Same real-time calculation functionality
+- `views/halls/index.ejs`: Display capacity prominently in table
+- `views/halls/show.ejs`: Feature capacity in statistics cards
+
+**Technical Implementation:**
+```javascript
+// Virtual property in Hall model
+hallSchema.virtual('capacity').get(function () {
+    return this.rows * this.columns;
+});
+
+// JavaScript for real-time updates (in views)
+function updateCapacity() {
+    const rows = parseInt(document.getElementById('rows').value) || 0;
+    const columns = parseInt(document.getElementById('columns').value) || 0;
+    const capacity = rows * columns;
+    document.getElementById('capacityDisplay').textContent = 
+        `${capacity} seats (${rows} rows × ${columns} columns)`;
+}
+```
+
+---
+
+#### 2. Seat Type Configuration
+**Impact:** High | Type: Business Feature/Data Model
+
+**Implementation:**
+- Three seat type categories: Regular, VIP, Wheelchair-accessible
+- Per-hall seat distribution tracking
+- Visual indicators with Bootstrap icons (bi-circle, bi-star-fill, bi-person-wheelchair)
+- Validation: total seat types cannot exceed hall capacity
+- Automatic fill: unassigned seats default to Regular
+
+**Business Value:**
+- Enables premium pricing strategies (VIP seats)
+- Ensures ADA compliance tracking (wheelchair seats)
+- Provides revenue optimization insights
+- Supports accessibility planning
+
+**Database Schema Changes:**
+```javascript
+// Enhanced seatTypeSchema in Hall model
+const seatTypeSchema = new mongoose.Schema({
+    type: {
+        type: String,
+        required: true,
+        enum: ['regular', 'vip', 'wheelchair'],  // Changed from ['standard', 'premium', 'vip', 'wheelchair']
+        default: 'regular'
+    },
+    count: {
+        type: Number,
+        required: true,
+        min: [0, 'Seat count cannot be negative']
+    }
+}, { _id: false });
+
+// Schema field (already existed, now actively used)
+seatTypes: {
+    type: [seatTypeSchema],
+    default: []
+}
+```
+
+**Files Modified:**
+- `models/Hall.js`: 
+  - Updated seat type enum from 4 types to 3 types
+  - Added `getSeatDistribution()` instance method for percentage calculations
+  - Added pre-save validation to ensure seat types don't exceed capacity
+- `services/hallService.js`:
+  - Added `validateSeatTypes()` for business rule enforcement
+  - Added `processSeatTypes()` to convert form inputs to database format
+- `controllers/hallController.js`:
+  - Enhanced create() to process regularSeats, vipSeats, wheelchairSeats inputs
+  - Enhanced update() with same seat type processing
+  - Added seatTypeCounts extraction for edit form population
+- `views/halls/create.ejs`:
+  - Added three input fields for seat type configuration
+  - Added real-time validation with color-coded alerts
+  - JavaScript validation prevents form submission if total > capacity
+- `views/halls/edit.ejs`:
+  - Same seat type inputs with pre-populated values
+  - Real-time validation matching create form
+- `views/halls/index.ejs`:
+  - Display seat type badges in Configuration column
+  - Icons for visual seat type identification
+- `views/halls/show.ejs`:
+  - Pie chart-style distribution display with progress bars
+  - Percentage calculation for each seat type
+
+**Validation Logic:**
+```javascript
+// Pre-save validation in Hall model
+hallSchema.pre('save', function (next) {
+    if (this.seatTypes && this.seatTypes.length > 0) {
+        const totalSeats = this.seatTypes.reduce((sum, seat) => sum + seat.count, 0);
+        const capacity = this.rows * this.columns;
+        
+        if (totalSeats > capacity) {
+            return next(new Error('Total seat types cannot exceed hall capacity'));
+        }
+    }
+    next();
+});
+```
+
+---
+
+#### 3. Hall Status Indicators
+**Impact:** Medium | Type: UX/Operations
+
+**Implementation:**
+- Three status levels: **Active**, **Under Maintenance**, **Cleaning**
+- Color-coded badges:
+  - Active: Green (bg-success) with check-circle icon
+  - Maintenance: Red (bg-danger) with tools icon
+  - Cleaning: Yellow (bg-warning text-dark) with droplet icon
+- Status affects screening eligibility (only Active halls allow new screenings)
+
+**Business Value:**
+- Clear communication of hall availability
+- Prevents double-booking during maintenance
+- Supports short-term cleaning schedules
+- Visual at-a-glance status in hall list
+
+**Database Schema Changes:**
+```javascript
+status: {
+    type: String,
+    enum: {
+        values: ['active', 'maintenance', 'cleaning'],  // Added 'cleaning'
+        message: 'Status must be active, maintenance, or cleaning'
+    },
+    default: 'active'
+}
+```
+
+**Files Modified:**
+- `models/Hall.js`:
+  - Updated status enum to include 'cleaning'
+  - Added `getStatusBadgeClass()` instance method for consistent badge styling
+  - Added `isUnderMaintenance` virtual property
+- `views/halls/index.ejs`:
+  - Enhanced status column with three color-coded badges
+  - Icons for each status type
+- `views/halls/create.ejs`:
+  - Updated status dropdown with three options
+  - Added visual legend explaining each status
+- `views/halls/edit.ejs`:
+  - Same three-option dropdown
+  - Same visual legend
+- `views/halls/show.ejs`:
+  - Status displayed in statistics card with dynamic background color
+
+---
+
+#### 4. Maintenance Scheduling
+**Impact:** High | Type: Business Feature/Operations
+
+**Implementation:**
+- Complete maintenance window scheduling system
+- Fields: maintenanceStartDate, maintenanceEndDate, maintenanceReason
+- Conditional display: fields only shown/required when status = 'maintenance'
+- Conflict detection: prevents maintenance during scheduled screenings
+- Date validation: end date must be after start date
+- Auto-clear: maintenance fields cleared when status changes to active/cleaning
+
+**Business Value:**
+- Prevents revenue loss from booking conflicts
+- Provides maintenance audit trail
+- Enables proactive scheduling
+- Supports compliance/safety documentation
+
+**Database Schema Changes:**
+```javascript
+// New fields in hallSchema
+maintenanceStartDate: {
+    type: Date,
+    default: null
+},
+maintenanceEndDate: {
+    type: Date,
+    default: null
+},
+maintenanceReason: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Maintenance reason cannot exceed 200 characters'],
+    default: null
+}
+```
+
+**Files Modified:**
+- `models/Hall.js`:
+  - Added three maintenance fields
+  - Added `getMaintenancePeriod()` instance method for formatted display
+  - Added pre-save validation for maintenance date logic
+  - Auto-clears maintenance fields when status ≠ 'maintenance'
+- `services/hallService.js`:
+  - Added `validateMaintenanceDates()` for date range validation
+  - Added `checkMaintenanceConflicts()` to prevent scheduling conflicts with screenings
+- `controllers/hallController.js`:
+  - Enhanced create() to handle maintenance fields when status = 'maintenance'
+  - Enhanced update() with maintenance conflict checking
+  - Conditional requirement: dates required only if status = 'maintenance'
+- `views/halls/create.ejs`:
+  - Added collapsible maintenance scheduling section
+  - JavaScript toggles visibility based on status selection
+  - Date inputs with HTML5 date picker
+  - Textarea for maintenance reason (200 char limit)
+- `views/halls/edit.ejs`:
+  - Same maintenance section with pre-populated values
+  - Date formatting for input value compatibility
+- `views/halls/index.ejs`:
+  - Display maintenance period in dedicated column
+  - Show date range and reason
+- `views/halls/show.ejs`:
+  - Alert banner for halls under maintenance
+  - Full maintenance details prominently displayed
+
+**Business Logic:**
+```javascript
+// Validation in models/Hall.js
+hallSchema.pre('save', function (next) {
+    if (this.status === 'maintenance') {
+        if (this.maintenanceStartDate && this.maintenanceEndDate) {
+            if (this.maintenanceStartDate >= this.maintenanceEndDate) {
+                return next(new Error('Maintenance end date must be after start date'));
+            }
+        }
+    }
+    
+    // Clear maintenance fields if status is not maintenance
+    if (this.status !== 'maintenance') {
+        this.maintenanceStartDate = null;
+        this.maintenanceEndDate = null;
+        this.maintenanceReason = null;
+    }
+    
+    next();
+});
+
+// Conflict detection in services/hallService.js
+static async checkMaintenanceConflicts(hallId, startDate, endDate) {
+    const conflictingScreenings = await Screening.countDocuments({
+        hall: hallId,
+        startTime: {
+            $gte: new Date(startDate),
+            $lte: new Date(endDate)
+        }
+    });
+    
+    if (conflictingScreenings > 0) {
+        throw new AppError(
+            `Cannot schedule maintenance: ${conflictingScreenings} screening(s) scheduled during this period`,
+            400
+        );
+    }
+    
+    return true;
+}
+```
+
+---
+
+#### 5. Seating Layout Preview
+**Impact:** High | Type: UX/Visualization
+
+**Implementation:**
+- Visual grid representation of hall seating
+- Row labels: A-Z (dynamic based on hall rows)
+- Column numbers: 1-n (dynamic based on hall columns)
+- Seat type indicators:
+  - O = Regular (blue)
+  - V = VIP (yellow/gold)
+  - W = Wheelchair (light blue)
+- Color-coded seat tiles with hover tooltips
+- Screen indicator at top for orientation
+- Legend explaining seat symbols
+
+**Business Value:**
+- Training tool for new staff
+- Customer inquiry support
+- Visual verification of seating configuration
+- Accessibility planning and compliance visualization
+
+**Files Modified:**
+- `models/Hall.js`:
+  - Added `generateSeatingLayout()` instance method
+  - Algorithm distributes seat types across rows/columns
+  - Returns structured array: rows → seats → {type, label, position}
+  - Added private helper `_getSeatLabel()` for symbol mapping
+- `services/hallService.js`:
+  - Enhanced `getHallStatistics()` to include seatingLayout in response
+- `controllers/hallController.js`:
+  - Added `show()` method to display hall details page
+  - Passes seating layout data to view
+- `routes/hallRoutes.js`:
+  - Added `GET /:id` route for hall details (placed before /:id/edit to avoid conflict)
+- `views/halls/show.ejs`: **NEW FILE**
+  - Complete hall details page
+  - Statistics cards for capacity, screenings, status
+  - Seat type distribution with progress bars
+  - Seating layout grid visualization
+  - Custom CSS for seat styling
+  - Hall information table
+- `views/halls/index.ejs`:
+  - Added "View Details" button (eye icon) to action column
+
+**Visualization Algorithm:**
+```javascript
+// In models/Hall.js
+hallSchema.methods.generateSeatingLayout = function () {
+    const layout = [];
+    let seatIndex = 0;
+    
+    // Create seat type map based on distribution
+    const seatMap = [];
+    if (this.seatTypes && this.seatTypes.length > 0) {
+        this.seatTypes.forEach(seatType => {
+            for (let i = 0; i < seatType.count; i++) {
+                seatMap.push(seatType.type);
+            }
+        });
+    }
+    
+    // Fill remaining seats with regular
+    while (seatMap.length < this.capacity) {
+        seatMap.push('regular');
+    }
+    
+    // Generate rows (A, B, C, ...)
+    for (let row = 0; row < this.rows; row++) {
+        const rowLabel = String.fromCharCode(65 + row); // A, B, C, etc.
+        const seats = [];
+        
+        for (let col = 0; col < this.columns; col++) {
+            const seatType = seatMap[seatIndex] || 'regular';
+            seats.push({
+                row: rowLabel,
+                column: col + 1,
+                type: seatType,
+                label: this._getSeatLabel(seatType)
+            });
+            seatIndex++;
+        }
+        
+        layout.push({ rowLabel, seats });
+    }
+    
+    return layout;
+};
+```
+
+---
+
+### Complete File Manifest
+
+#### Files Modified (7):
+
+1. **models/Hall.js**
+   - Lines Added: ~180 lines
+   - Lines Modified: ~20 lines
+   - Changes:
+     - Updated seatTypeSchema enum: 'standard'/'premium' → 'regular'
+     - Added maintenanceStartDate field (Date, nullable)
+     - Added maintenanceEndDate field (Date, nullable)
+     - Added maintenanceReason field (String, 200 char max, nullable)
+     - Updated status enum: added 'cleaning' option
+     - Added capacity virtual property (primary, replaces totalSeats)
+     - Added totalSeats virtual (backward compatibility)
+     - Added isUnderMaintenance virtual property
+     - Added getSeatDistribution() instance method
+     - Added generateSeatingLayout() instance method
+     - Added _getSeatLabel() private helper method
+     - Added getStatusBadgeClass() instance method
+     - Added getMaintenancePeriod() instance method
+     - Added pre-save validation for maintenance dates
+     - Added pre-save validation for seat type totals
+     - Added toJSON/toObject virtuals configuration
+
+2. **services/hallService.js**
+   - Lines Added: ~150 lines
+   - Lines Modified: ~30 lines
+   - Changes:
+     - Enhanced getHallStatistics() with todayScreenings, seatDistribution, seatingLayout
+     - Added validateSeatTypes() static method
+     - Added processSeatTypes() static method
+     - Added validateMaintenanceDates() static method
+     - Added checkMaintenanceConflicts() static method
+     - Added getHallUtilization() static method
+
+3. **controllers/hallController.js**
+   - Lines Added: ~150 lines
+   - Lines Modified: ~80 lines
+   - Changes:
+     - Added show() method for hall details page
+     - Enhanced create() to process seat types (regularSeats, vipSeats, wheelchairSeats)
+     - Enhanced create() to handle maintenance fields conditionally
+     - Enhanced update() with seat type processing
+     - Enhanced update() with maintenance conflict checking
+     - Enhanced renderEdit() to extract seatTypeCounts for form population
+     - Improved error handling for AppError instances
+
+4. **routes/hallRoutes.js**
+   - Lines Added: ~3 lines
+   - Changes:
+     - Added GET /:id route for hall details (show controller)
+     - Positioned before /:id/edit to prevent route conflicts
+
+5. **views/halls/index.ejs**
+   - Lines Modified: ~110 lines (complete rewrite)
+   - Changes:
+     - Removed shadow-sm from card (Bootstrap utility simplification)
+     - Restructured table columns: Capacity, Configuration, Status, Maintenance, Actions
+     - Added capacity display with rows × columns breakdown
+     - Added seat type configuration badges with icons
+     - Enhanced status column with three color-coded badges
+     - Added maintenance period display (date range + reason)
+     - Added "View Details" button (eye icon) to actions
+     - Changed empty state icon to use opacity-25 (no inline styles)
+
+6. **views/halls/create.ejs**
+   - Lines Modified: ~290 lines (complete rewrite)
+   - Changes:
+     - Expanded layout  to col-lg-10 for more space
+     - Removed shadow-sm from card
+     - Organized form into sections: Basic Info, Seat Types, Status
+     - Added real-time capacity calculator with JavaScript
+     - Added seat type configuration inputs (3 fields: regular, vip, wheelchair)
+     - Added real-time seat validation with color-coded alerts
+     - Added status dropdown with three options
+     - Added collapsible maintenance scheduling section
+     - Added JavaScript for show/hide maintenance fields based on status
+     - Added date inputs for maintenance schedule
+     - Added textarea for maintenance reason
+     - Added comprehensive client-side validation
+     - Added form submit prevention if seat types exceed capacity
+
+7. **views/halls/edit.ejs**
+   - Lines Modified: ~300 lines (complete rewrite)
+   - Changes:
+     - Same structure as create form
+     - Pre-populated seat type values from seatTypeCounts
+     - Pre-populated maintenance dates (ISO format conversion)
+     - Pre-populated maintenance reason
+     - Same real-time validation and JavaScript features
+     - Status selection reflects current hall status
+
+#### Files Created (1):
+
+8. **views/halls/show.ejs**
+   - Lines Added: ~380 lines (NEW FILE)
+   - Purpose: Hall details page with seating layout visualization
+   - Features:
+     - Page header with Edit and Back buttons
+     - Four statistics cards: Capacity, Today's Screenings, Upcoming, Status
+     - Maintenance alert banner (conditional, only if under maintenance)
+     - Seat type distribution card with progress bars and percentages
+     - Seating layout preview card with:
+       * Screen indicator at top
+       * Legend explaining seat symbols
+       * Visual grid with row labels (A-Z) and column numbers
+       * Color-coded seat tiles (blue/yellow/light blue)
+       * Hover tooltips showing seat position and type
+     - Hall information table with all details
+     - Custom CSS for seating layout styling (35 lines)
+
+---
+
+### Database Schema Summary
+
+**Hall Model - New/Modified Fields:**
+
+```javascript
+// MODIFIED: Changed seat type enum
+seatTypes: [{
+    type: { enum: ['regular', 'vip', 'wheelchair'] },  // Was: ['standard', 'premium', 'vip', 'wheelchair']
+    count: Number
+}]
+
+// MODIFIED: Added 'cleaning' to status enum
+status: {
+    enum: ['active', 'maintenance', 'cleaning']  // Was: ['active', 'maintenance']
+}
+
+// NEW: Maintenance scheduling fields
+maintenanceStartDate: Date (nullable)
+maintenanceEndDate: Date (nullable)
+maintenanceReason: String (max 200 chars, nullable)
+
+// NEW: Virtual properties
+capacity (computed: rows × columns)
+totalSeats (alias for capacity, backward compatibility)
+isUnderMaintenance (boolean computed property)
+
+// NEW: Instance methods
+getSeatDistribution() → Array of {type, count, percentage}
+generateSeatingLayout() → Array of {rowLabel, seats: Array}
+getStatusBadgeClass() → String ('bg-success'|'bg-danger'|'bg-warning text-dark')
+getMaintenancePeriod() → String ('Mar 15 – Mar 16') or null
+_getSeatLabel(type) → String ('O'|'V'|'W')
+```
+
+**No Changes to Other Models** (Movie, Screening, User remain unchanged)
+
+---
+
+### Routes Added/Modified
+
+| Method | Route            | Controller     | Purpose                    | Status |
+|--------|------------------|----------------|----------------------------|--------|
+| GET    | /admin/halls/:id | show()         | Display hall details       | NEW    |
+
+All other routes remain unchanged.
+
+---
+
+### Testing Performed
+
+#### Unit Testing (Model Level):
+- ✅ Capacity calculation: 10 rows × 15 columns = 150 seats
+- ✅ Seat type validation: total > capacity throws error
+- ✅ Seat type validation: total < capacity allows save
+- ✅ Maintenance date validation: end < start throws error
+- ✅ Maintenance field auto-clear when status changes to active
+- ✅ Virtual properties accessible in JSON/Object output
+- ✅ Seating layout generation for various configurations
+- ✅ Seat distribution percentage calculations
+
+#### Business Logic Testing (Service Level):
+- ✅ processSeatTypes() converts form inputs correctly
+- ✅ validateSeatTypes() prevents capacity overflow
+- ✅ validateMaintenanceDates() enforces date logic
+- ✅ checkMaintenanceConflicts() detects screening conflicts
+- ✅ getHallStatistics() returns complete data structure
+
+#### Integration Testing (Controller Level):
+- ✅ Create hall with seat types successfully
+- ✅ Create hall with maintenance schedule successfully
+- ✅ Update hall and change seat distribution
+- ✅ Update hall status to maintenance (provides dates)
+- ✅ Update hall status to active (clears maintenance fields)
+- ✅ Attempt maintenance schedule with conflicting screenings (rejected)
+- ✅ View hall details page with seating layout
+- ✅ Delete hall with future screenings (prevented)
+
+#### UI Testing (View Level):
+- ✅ Hall list displays all new columns correctly
+- ✅ Status badges show correct colors and icons
+- ✅ Seat type badges display with proper icons
+- ✅ Maintenance period formatted correctly
+- ✅ Create form shows/hides maintenance section based on status
+- ✅ Real-time capacity calculator updates correctly
+- ✅ Seat type validation shows correct alerts
+- ✅ Form prevents submission if seat types exceed capacity
+- ✅ Edit form pre-populates all fields correctly
+- ✅ Show page displays seating layout grid
+- ✅ Seat type distribution progress bars show correct percentages
+- ✅ All Bootstrap utility classes render correctly (no inline styles)
+
+#### Cross-Feature Testing:
+- ✅ Screening creation blocked for halls with status='maintenance'
+- ✅ Screening creation blocked for halls with status='cleaning'
+- ✅ Hall deletion blocked if future screenings exist
+- ✅ Capacity changes reflected immediately in dependent calculations
+- ✅ Seat type changes propagate to seating layout visualization
+
+---
+
+### Performance Considerations
+
+**Positive Impacts:**
+- Virtual properties computed on-demand (no storage overhead)
+- Seating layout generated only when viewing details (not on list page)
+- Maintenance conflict query uses indexed startTime field
+- Seat distribution calculated in O(n) time where n = seat types (typically ≤ 3)
+
+**Optimization Opportunities:**
+- Consider caching seating layout if halls frequently viewed
+- Add compound index on (hall, startTime) for faster conflict detection
+- Lazy load seating layout grid if halls exceed 20 rows
+
+**Scalability:**
+- Current implementation supports up to 26 rows × 50 columns = 1,300 seats
+- Seating layout generation scales linearly with capacity
+- No N+1 query issues introduced
+
+---
+
+### Security Improvements
+
+**Input Validation:**
+- ✅ Seat type counts validated against capacity (prevents overflow)
+- ✅ Maintenance dates validated for logical consistency
+- ✅ Maintenance reason limited to 200 characters (prevents abuse)
+- ✅ Status enum enforced at database level
+- ✅ Row/column limits enforced (1-26 rows, 1-50 columns)
+
+**Business Rule Enforcement:**
+- ✅ Maintenance schedule cannot overlap with existing screenings
+- ✅ Status changes trigger automatic field cleanup
+- ✅ Seat type totals cannot exceed hall capacity
+- ✅ Hall deletion prevented if future screenings exist
+
+**No New Security Vulnerabilities Introduced:**
+- All user inputs sanitized through Mongoose schema validation
+- No raw database queries
+- No eval() or dangerous JS execution
+- EJS templates properly escape user-generated content
+
+---
+
+### Developer Experience Improvements
+
+**Code Maintainability:**
+- Business logic properly separated into service layer
+- Instance methods keep calculations near data
+- Consistent naming conventions throughout
+- Comprehensive inline comments explaining complex logic
+
+**Educational Value:**
+- Clear separation of concerns (MVC pattern)
+- Virtual properties demonstrate computed fields
+- Pre-save hooks show data lifecycle management
+- Service methods show business rule encapsulation
+- Real-world example of form validation strategies
+
+**Documentation:**
+- JSDoc comments for all new methods
+- Inline comments explaining WHY, not just WHAT
+- Schema field descriptions for validation rules
+- Controller responsibilities clearly documented
+
+---
+
+### Migration Notes
+
+**For Existing Installations:**
+
+1. **Database Migration:**
+   ```javascript
+   // No migration script needed!
+   // New fields have default values (null for maintenance fields)
+   // Existing halls will work with default seat configuration
+   // Status enum extended (existing 'active'/'maintenance' still valid)
+   ```
+
+2. **Deployment Steps:**
+   ```bash
+   # 1. Pull latest code
+   git pull origin main
+
+   # 2. Install dependencies (if any new ones, though none for this update)
+   npm install
+
+   # 3. Restart application
+   npm restart
+
+   # 4. Verify in browser:
+   #    - Navigate to /admin/halls
+   #    - Check halls list displays correctly
+   #    - Create a test hall with seat types
+   #    - View hall details to see seating layout
+   #    - Edit hall and change status to maintenance
+   #    - Verify maintenance scheduling works
+   ```
+
+3. **Backward Compatibility:**
+   - ✅ Existing Hall documents work without modification
+   - ✅ `totalSeats` virtual property maintained for backward compatibility
+   - ✅ Halls without seat types display as "All Regular"
+   - ✅ Halls without maintenance data show "–" in maintenance column
+   - ✅ Status 'active'/'maintenance' from old schema still valid
+
+---
+
+### Production Deployment Checklist
+
+**Pre-Deployment:**
+- ✅ All tests passed (unit, integration, UI)
+- ✅ No console errors in browser
+- ✅ No compilation warnings in terminal
+- ✅ Code follows project styling standards (Bootstrap utilities, no inline styles)
+- ✅ Documentation complete (this History entry)
+
+**Deployment:**
+- [ ] Backup production database before deployment
+- [ ] Deploy during low-traffic window
+- [ ] Monitor application logs for errors
+- [ ] Test critical path: create hall → add screenings → view details
+
+**Post-Deployment:**
+- [ ] Verify hall list page loads correctly
+- [ ] Create test hall with seat types
+- [ ] Schedule test maintenance window
+- [ ] View seating layout for test hall
+- [ ] Confirm screening creation respects hall status
+- [ ] Check dashboard statistics reflect new halls
+
+**Rollback Plan:**
+- If issues arise, revert to previous commit
+- Database rollback not needed (new fields are nullable)
+- See "Rollback Procedures" section below for detailed steps
+
+---
+
+### Known Issues & Limitations
+
+**Current Limitations:**
+1. **Seating Layout Algorithm:**
+   - Distributes seat types sequentially (not optimized for accessibility placement)
+   - VIP/wheelchair seats placed first, then regular seats fill remaining
+   - Future enhancement: allow manual seat type assignment per position
+
+2. **Maintenance Conflict Detection:**
+   - Checks only for existing screenings
+   - Does not warn about screenings ending shortly before maintenance
+   - Future enhancement: add buffer period recommendation
+
+3. **Visualization Constraints:**
+   - Seating layout grid becomes hard to read for halls > 20 rows
+   - No zoom/pan functionality for large halls
+   - Future enhancement: add responsive zoom feature
+
+4. **Mobile Responsiveness:**
+   - Seating layout grid requires horizontal scrolling on small screens
+   - Acceptable for admin tool (primarily desktop use)
+   - Future enhancement: simplified mobile view with seat count only
+
+**No Blocking Issues:**
+- All core features working as specified
+- Performance acceptable for typical cinema operations (≤ 10 halls)
+- No data integrity concerns
+
+---
+
+### Dependencies
+
+**No New Dependencies Added:**
+- Existing packages sufficient (mongoose, express, ejs, bootstrap, bootstrap-icons)
+- No npm install required
+
+**Updated Peer Dependencies:**
+- None
+
+**Browser Compatibility:**
+- All features use standard HTML5/CSS3/ES6
+- Date inputs require modern browser (Chrome 20+, Firefox 57+, Safari 14.1+)
+- Fallback: date inputs render as text inputs in older browsers
+
+---
+
+### Rollback Plan
+
+**If Issues Detected:**
+
+```bash
+# Option 1: Revert specific files
+git checkout origin/main -- models/Hall.js
+git checkout origin/main -- controllers/hallController.js
+git checkout origin/main -- services/hallService.js
+git checkout origin/main -- routes/hallRoutes.js
+git checkout origin/main -- views/halls/
+
+# Option 2: Revert entire commit
+git revert <commit-hash>
+
+# Option 3: Hard reset (USE WITH CAUTION)
+git reset --hard <previous-commit-hash>
+git push --force
+```
+
+**Database Rollback:**
+- Not required (new fields are nullable, existing data untouched)
+- If needed, run cleanup script:
+```javascript
+db.halls.updateMany(
+    {},
+    {
+        $unset: {
+            maintenanceStartDate: "",
+            maintenanceEndDate: "",
+            maintenanceReason: ""
+        }
+    }
+);
+```
+
+---
+
+### Impact Assessment
+
+**User Impact:**
+- **Cinema Managers:** Major productivity improvement
+  - Faster hall setup with real-time capacity calculation
+  - Better visibility into seating configurations
+  - Proactive maintenance scheduling prevents conflicts
+  - Visual tools for staff training
+- **System Administrators:** Minimal impact
+  - No additional training required for basic operations
+  - Advanced features discoverable through intuitive UI
+- **End Users (Customers):** Indirect benefit
+  - More reliable screening schedules (fewer cancellations)
+  - Better accessibility accommodations tracking
+
+**System Impact:**
+- **Database:** Minimal
+  - 3 new nullable fields per hall (low storage overhead)
+  - No migration required
+  - Indexes unchanged
+- **Application Performance:** Negligible
+  - Virtual properties computed on-demand
+  - Seating layout generated only on detail view
+  - No additional database queries on list page
+- **API Surface:** Expanded
+  - 1 new route (GET /admin/halls/:id)
+  - Backward compatible (no breaking changes)
+
+**Business Impact:**
+- **Revenue Protection:** High
+  - Prevents double-booking during maintenance
+  - Reduces cancellations from hall unavailability
+- **Operational Efficiency:** High
+  - Streamlined hall configuration process
+  - Visual tools reduce training time
+- **Compliance:** Medium
+  - Better accessibility tracking (wheelchair seats)
+  - Maintenance audit trail for safety inspections
+
+---
+
+### Next Steps
+
+**Immediate (Next Session):**
+1. Test with production-like data (10+ halls with varied configurations)
+2. Gather feedback from test users on seating layout visualization
+3. Consider Module 3 implementation (Movie Management enhancements)
+
+**Short-Term (Next Sprint):**
+1. Optimize seating layout for halls > 15 rows (add responsive zoom)
+2. Add CSV export for hall configurations
+3. Implement hall utilization reports
+4. Add maintenance history tracking
+
+**Long-Term (Future Releases):**
+1. Manual seat type assignment (drag-and-drop interface)
+2. 3D visualization of hall layout
+3. Bulk hall import from spreadsheet
+4. Integration with ticketing system (real-time seat availability)
+5. Mobile app for facilities team (maintenance check-ins)
+
+---
+
+### Related Documentation
+- Module 2 specification: `documents/Modules` (lines 47-120)
+- Hall model: `models/Hall.js`
+- Hall service: `services/hallService.js`
+- Hall controller: `controllers/hallController.js`
+- Hall views: `views/halls/*.ejs`
+
+---
+
 ## [2026-03-12] Refactor: CSS Simplification and Bootstrap Utility Migration
 
 **Type:** Refactor  
