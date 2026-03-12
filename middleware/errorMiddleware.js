@@ -40,7 +40,8 @@ const errorHandler = (err, req, res, next) => {
         return res.status(400).render('error', {
             title: 'Validation Error',
             message,
-            user: res.locals.user
+            user: res.locals.user,
+            layout: false
         });
     }
 
@@ -52,7 +53,8 @@ const errorHandler = (err, req, res, next) => {
         return res.status(400).render('error', {
             title: 'Duplicate Entry',
             message,
-            user: res.locals.user
+            user: res.locals.user,
+            layout: false
         });
     }
 
@@ -62,7 +64,8 @@ const errorHandler = (err, req, res, next) => {
         return res.status(400).render('error', {
             title: 'Invalid ID',
             message,
-            user: res.locals.user
+            user: res.locals.user,
+            layout: false
         });
     }
 
@@ -71,7 +74,8 @@ const errorHandler = (err, req, res, next) => {
         return res.status(err.statusCode).render('error', {
             title: 'Error',
             message: err.message,
-            user: res.locals.user
+            user: res.locals.user,
+            layout: false
         });
     }
 
@@ -81,7 +85,8 @@ const errorHandler = (err, req, res, next) => {
         message: process.env.NODE_ENV === 'development'
             ? err.message
             : 'An unexpected error occurred. Please try again later.',
-        user: res.locals.user
+        user: res.locals.user,
+        layout: false
     });
 };
 

@@ -1334,6 +1334,250 @@ We'll implement the screening creation feature across 4 layers: route, controlle
 
 </example_interaction>
 
+<change_documentation_requirements>
+<!-- MANDATORY for significant changes -->
+
+<threshold_criteria>
+Document changes in the `prompts/History` file when EITHER condition is met:
+1. Changes affect **3 or more files**, OR
+2. Changes add/modify **30 or more lines of code**
+</threshold_criteria>
+
+<history_entry_format>
+
+Each history entry MUST include:
+
+```markdown
+## [YYYY-MM-DD] [Module/Feature Name]
+
+**Type:** [Feature Enhancement | Bug Fix | Refactor | Security Update]
+**Scope:** [Major | Medium | Minor] - [Brief scope description]
+**Files Modified:** [count] files
+**Files Created:** [count] files
+**Lines Added:** ~[approximate count]+ lines
+**Developer:** [Name/ID]
+**Status:** [✅ Completed | 🚧 In Progress | ⏳ Pending]
+
+### Overview
+[2-3 paragraphs describing what was changed and why]
+
+### Features Implemented
+[For each major feature:]
+
+#### [Feature Number]. [Feature Name]
+**Impact:** [High/Medium/Low] [Type: Security/Performance/UX/etc.]
+
+**Changes:**
+- [Bullet points of what changed]
+
+**Files Modified:**
+- `path/to/file.js`
+  - [Specific changes made]
+  - Lines added: ~[count] lines
+
+**Technical Details:**
+```[language]
+[Key code snippets if relevant]
+```
+
+**Database Schema Changes:**
+```javascript
+[Show new/modified fields]
+```
+
+### Complete File Manifest
+
+#### Files Modified ([count]):
+[List each file with:]
+- **path/to/file.js**
+  - Lines Added: ~[count]
+  - Changes: [Brief description]
+
+#### Files Created ([count]):
+[List each file with purpose and line count]
+
+### Database Schema Summary
+[Show all model changes in one place]
+
+### Routes Added/Modified
+[Table format showing route changes]
+
+### Testing Performed
+[Checklist of what was tested]
+
+### Security Improvements
+[Before/After comparison if security-related]
+
+### Performance Considerations
+[Any performance impacts or optimizations]
+
+### Migration Notes
+[Instructions for existing installations]
+
+### Production Deployment Checklist
+[Required steps before deploying]
+
+### Known Issues & Limitations
+[Current limitations and future enhancements]
+
+### Dependencies
+[New dependencies added or updated]
+
+### Rollback Plan
+[How to revert if issues arise]
+
+### Impact Assessment
+[User/System/Business impact analysis]
+
+### Next Steps
+[Immediate, short-term, and long-term follow-ups]
+
+---
+```
+
+</history_entry_format>
+
+<documentation_best_practices>
+
+**When to Document:**
+- ✅ Multi-file changes (3+ files)
+- ✅ Large code additions (30+ lines)
+- ✅ New features or modules
+- ✅ Security enhancements
+- ✅ Database schema changes
+- ✅ Breaking changes
+- ✅ Dependency updates
+
+**When NOT to Document:**
+- ⛔ Single-file minor edits
+- ⛔ Typo fixes
+- ⛔ Comment updates only
+- ⛔ Formatting changes (unless many files)
+- ⛔ Documentation-only updates
+
+**Quality Standards:**
+1. Be specific with line counts and file lists
+2. Include actual code snippets for complex logic
+3. Explain WHY decisions were made, not just WHAT
+4. Provide rollback procedures
+5. Include testing evidence
+6. Document known issues honestly
+7. Link to related documentation
+
+**Maintenance:**
+- Keep History file chronologically ordered (newest first)
+- Use consistent formatting across entries
+- Update entry status as implementation progresses
+- Cross-reference related changes
+- Archive old entries annually if file becomes too large
+
+</documentation_best_practices>
+
+<automatic_history_tracking>
+
+**Assistant Responsibilities:**
+
+When implementing changes meeting the threshold criteria:
+
+1. **Before Starting Implementation:**
+   - Assess if changes will exceed thresholds
+   - Plan documentation structure
+
+2. **During Implementation:**
+   - Track all files modified/created
+   - Note approximate line counts
+   - Document key decisions and rationale
+   - Keep list of testing performed
+
+3. **After Implementation:**
+   - Create comprehensive History entry
+   - Include all sections from format template
+   - Provide complete file manifest
+   - Document rollback procedures
+   - List production requirements
+
+4. **Delivery to User:**
+   - Summarize changes in conversational message
+   - Point to History file for detailed documentation
+   - Highlight any action items or production requirements
+   - Provide testing guidance
+
+**History File Structure:**
+
+```
+prompts/History
+├── Latest changes (top)
+├── Previous changes
+├── Older changes
+└── Oldest changes (bottom)
+```
+
+Reserve with most recent changes at the top for easy reference.
+
+</automatic_history_tracking>
+
+<example_history_entry>
+
+**Minimal Example** (for smaller changes at threshold):
+
+```markdown
+## [2026-03-12] Bug Fix: Session Cookie Configuration
+
+**Type:** Bug Fix
+**Scope:** Minor - Session Management
+**Files Modified:** 2 files
+**Lines Modified:** ~15 lines
+**Status:** ✅ Completed
+
+### Overview
+Fixed session cookie configuration to ensure secure flag is set in production and httpOnly flag is always enabled.
+
+### Changes Made
+- `app.js`: Updated session middleware configuration
+- `.env.example`: Added SECURE_COOKIES environment variable
+
+### Testing
+- ✅ Verified cookies are httpOnly in all environments
+- ✅ Verified secure flag set when NODE_ENV=production
+
+---
+```
+
+**Comprehensive Example** (for major changes):
+[See actual History file entry for Module 1 implementation]
+
+</example_history_entry>
+
+<integration_with_workflow>
+
+This documentation requirement integrates with existing workflows:
+
+**Code Implementation Workflow:**
+1. Understand requirements
+2. Plan implementation
+3. **→ Assess documentation needs** ← NEW STEP
+4. Implement changes
+5. Test thoroughly
+6. **→ Create History entry if threshold met** ← NEW STEP
+7. Deliver to user with summary
+
+**Quality Gates:**
+- Before marking work complete: ✅ History documented (if applicable)
+- Before production deploy: ✅ History reviewed and accurate
+- Before code review: ✅ Changes traceable in History
+
+**Benefits:**
+- Provides audit trail for all major changes
+- Helps onboarding new developers
+- Documents design decisions and rationale
+- Facilitates troubleshooting and debugging
+- Supports compliance and governance requirements
+- Creates institutional knowledge repository
+
+</integration_with_workflow>
+
+</change_documentation_requirements>
+
 </system_prompt>
 
 <!-- 
