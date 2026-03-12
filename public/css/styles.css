@@ -1,0 +1,187 @@
+/* Custom Styles for CineVillage Admin Portal */
+
+/* Sidebar Styling */
+#sidebar-wrapper {
+    min-width: 250px;
+    max-width: 250px;
+    transition: all 0.3s ease;
+}
+
+#sidebar-wrapper .list-group-item {
+    border: none;
+    padding: 12px 20px;
+    transition: all 0.2s ease;
+}
+
+#sidebar-wrapper .list-group-item:hover {
+    background-color: #495057 !important;
+    padding-left: 25px;
+}
+
+#sidebar-wrapper .list-group-item.active {
+    background-color: #007bff !important;
+}
+
+/* Page Content Wrapper */
+#page-content-wrapper {
+    min-width: 0;
+    width: 100%;
+}
+
+/* Card Hover Effects */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Table Styling */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* Button Group Spacing */
+.btn-group .btn {
+    margin-right: 0;
+}
+
+/* Badge Styling */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+/* Alert Animation */
+.alert {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Sidebar Toggle Button */
+#sidebar-toggle {
+    border: 1px solid #dee2e6;
+}
+
+#sidebar-toggle:hover {
+    background-color: #f8f9fa;
+}
+
+/* Form Validation */
+.was-validated .form-control:invalid {
+    border-color: #dc3545;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+.was-validated .form-control:valid {
+    border-color: #28a745;
+}
+
+/* Card Statistics */
+.card.bg-primary,
+.card.bg-success,
+.card.bg-info {
+    border: none;
+}
+
+.card.bg-primary a,
+.card.bg-success a,
+.card.bg-info a {
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+/* Loading State */
+.btn.loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn.loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    #sidebar-wrapper {
+        margin-left: -250px;
+    }
+
+    #sidebar-wrapper.show {
+        margin-left: 0;
+    }
+
+    .card-body .btn-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .card-body .btn-group .btn {
+        width: 100%;
+    }
+}
+
+/* Footer Styling */
+footer {
+    margin-top: auto;
+}
+
+/* Empty State Icons */
+.text-muted i[style*="font-size: 3rem"],
+.text-muted i[style*="font-size: 4rem"] {
+    opacity: 0.3;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

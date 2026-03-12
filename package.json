@@ -1,0 +1,37 @@
+{
+    "name": "cinevillage-admin",
+    "version": "1.0.0",
+    "description": "Internal Admin Portal for CineVillage cinema chain",
+    "main": "app.js",
+    "scripts": {
+        "start": "node app.js",
+        "dev": "nodemon app.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "express",
+        "mongodb",
+        "ejs",
+        "admin",
+        "cinema"
+    ],
+    "author": "IS3108 Student",
+    "license": "ISC",
+    "dependencies": {
+        "bcrypt": "^5.1.1",
+        "connect-mongo": "^5.1.0",
+        "dotenv": "^16.3.1",
+        "ejs": "^3.1.9",
+        "express": "^4.18.2",
+        "express-ejs-layouts": "^2.5.1",
+        "express-session": "^1.17.3",
+        "method-override": "^3.0.0",
+        "mongoose": "^8.0.3"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.2"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    }
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= title || 'CineVillage Admin' %>
+    </title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <div class="d-flex" id="wrapper">
+
+        <% if (user) { %>
+            <!-- Sidebar -->
+            <%- include('../partials/sidebar') %>
+                <% } %>
+
+                    <!-- Page Content -->
+                    <div id="page-content-wrapper" class="w-100">
+
+                        <% if (user) { %>
+                            <!-- Top Navigation -->
+                            <%- include('../partials/header') %>
+                                <% } %>
+
+                                    <!-- Main Content -->
+                                    <div class="<%= user ? 'container-fluid p-4' : 'container mt-5' %>">
+
+                                        <!-- Flash Messages -->
+                                        <% if (typeof flash !=='undefined' && flash) { %>
+                                            <div class="alert alert-<%= flash.type %> alert-dismissible fade show"
+                                                role="alert">
+                                                <%= flash.message %>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                                        aria-label="Close"></button>
+                                            </div>
+                                            <% } %>
+
+                                                <!-- Page Content -->
+                                                <%- body %>
+
+                                    </div>
+
+                                    <% if (user) { %>
+                                        <%- include('../partials/footer') %>
+                                            <% } %>
+                    </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/js/main.js"></script>
+</body>
+
+</html>
