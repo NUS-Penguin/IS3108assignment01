@@ -33,7 +33,8 @@ exports.index = async (req, res, next) => {
                 }
             }),
             Screening.find({
-                startTime: { $gt: now }
+                startTime: { $gt: now },
+                status: 'Scheduled'
             })
                 .populate('movie', 'title durationMinutes genre')
                 .populate('hall', 'name')

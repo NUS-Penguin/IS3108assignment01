@@ -16,15 +16,28 @@ const { AppError } = require('../middleware/errorMiddleware');
  */
 exports.index = async (req, res, next) => {
     try {
-        const screenings = await Screening.find()
-            .populate('movie', 'title durationMinutes genre')
-            .populate('hall', 'name status')
-            .sort({ startTime: 1 });
+        await ScreeningService.markCompletedScreenings();
+
+        const selectedDate = req.query.date ? new Date(req.query.date) : new Date();
+        const normalizedDate = isNaN(selectedDate.getTime()) ? new Date() : selectedDate;
+        const selectedDateValue = new Date(normalizedDate.getTime() - normalizedDate.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 10);
+
+        const [screenings, dailySchedule] = await Promise.all([
+            Screening.find()
+                .populate('movie', 'title durationMinutes genre')
+                .populate('hall', 'name status')
+                .sort({ startTime: 1 }),
+            ScreeningService.getDailyScheduleOverview(normalizedDate)
+        ]);
 
         res.render('screenings/index', {
             title: 'Screenings',
             username: req.session.username,
-            screenings
+            screenings,
+            dailySchedule,
+            selectedDateValue
         });
     } catch (error) {
         next(error);
@@ -179,6 +192,24 @@ exports.delete = async (req, res, next) => {
 
         res.redirect('/admin/screenings');
 
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * PATCH /admin/screenings/:id/cancel - Cancel screening
+ */
+exports.cancel = async (req, res, next) => {
+    try {
+        const screening = await ScreeningService.cancelScreening(req.params.id);
+
+        req.session.flash = {
+            type: 'warning',
+            message: `Screening for "${screening.movie?.title || 'movie'}" in ${screening.hall?.name || 'hall'} has been cancelled`
+        };
+
+        res.redirect('/admin/screenings');
     } catch (error) {
         next(error);
     }

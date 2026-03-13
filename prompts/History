@@ -9,6 +9,195 @@ This document tracks all significant changes to the codebase.
 
 ---
 
+## [2026-03-13] Module 4: Screening Scheduling (Operations)
+
+**Type:** Feature Enhancement
+**Scope:** Major - Complete screening scheduling rules and operations workflow
+**Files Modified:** 8 files
+**Files Created:** 0 files
+**Lines Added:** ~280+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Implemented Module 4 end-to-end for screening scheduling with full business-rule enforcement in the service layer. The implementation now supports robust overlap prevention, duplicate screening prevention, automatic end-time calculation reliability on updates, explicit screening lifecycle states, and actionable conflict feedback for cinema managers.
+
+The screening list UI was upgraded with a daily hall timeline view, status-aware actions, and cancellation controls. Controllers remain thin and delegate all scheduling rules to `ScreeningService`, preserving MVC separation and making the logic easier to explain during technical evaluation.
+
+### Features Implemented
+
+#### 1. Automatic End Time and Date Consistency
+**Impact:** High – Data Integrity
+
+**Changes:**
+- Fixed `Screening` pre-save behavior so `endTime` and `date` are recalculated when either `startTime` OR `movie` changes
+- Added safe error path if referenced movie is missing during calculation
+
+**Files Modified:**
+- `models/Screening.js`
+  - Reworked pre-save hook logic and error handling
+  - Lines added: ~35 lines
+
+#### 2. Conflict Detection with Detailed Error Messaging
+**Impact:** High – Business Logic / UX
+
+**Changes:**
+- Conflict detection now excludes cancelled screenings
+- Error messages now include hall name, movie title, conflicting time range, and enforced buffer details
+
+**Files Modified:**
+- `services/screeningService.js`
+  - Enhanced `_checkForOverlap()` with populated context and detailed `AppError` messages
+  - Lines added: ~40 lines
+
+#### 3. Cleaning Buffer Enforcement
+**Impact:** High – Operations Safety
+
+**Changes:**
+- Added cleaning buffer logic in overlap checks using `SCREENING_BUFFER_MINUTES` (default `15`)
+- Buffer applies between adjacent screenings in the same hall
+
+**Files Modified:**
+- `services/screeningService.js`
+  - Added `DEFAULT_CLEANING_BUFFER_MINUTES` constant and buffer-aware overlap formula
+  - Lines added: ~20 lines
+
+#### 4. Screening Status Tracking and Cancellation
+**Impact:** High – Operations Control
+
+**Changes:**
+- Added schema status enum: `Scheduled`, `Cancelled`, `Completed`
+- Added service methods to cancel screenings and auto-mark elapsed screenings as completed
+- Added controller endpoint and route for manager cancellation action
+
+**Files Modified:**
+- `models/Screening.js` — status field, status-aware updates
+- `services/screeningService.js` — `cancelScreening()`, `markCompletedScreenings()`
+- `controllers/screeningController.js` — `cancel()` endpoint and index sync call
+- `routes/screeningRoutes.js` — `PATCH /:id/cancel`
+
+#### 5. Duplicate Screening Prevention
+**Impact:** High – Data Quality
+
+**Changes:**
+- Added explicit duplicate checks for exact same `movie + hall + startTime` in both create and update flows
+- Excludes cancelled screenings and self-record during updates
+
+**Files Modified:**
+- `services/screeningService.js`
+  - Duplicate checks in `createScreening()` and `updateScreening()`
+  - Lines added: ~30 lines
+
+#### 6. Daily Schedule Overview UI
+**Impact:** Medium – UX / Planner Visibility
+
+**Changes:**
+- Added date-filtered daily overview grouped by hall on screening index page
+- Displays timeline blocks per hall with movie title and time range
+
+**Files Modified:**
+- `controllers/screeningController.js` — date query handling and overview data injection
+- `services/screeningService.js` — `getDailyScheduleOverview()`
+- `views/screenings/index.ejs` — daily schedule overview card and date filter form
+
+### Complete File Manifest
+
+#### Files Modified (8):
+- **models/Screening.js**
+  - Lines Added: ~45
+  - Changes: status enum, robust pre-save calculation, status-aware helpers
+- **services/screeningService.js**
+  - Lines Added: ~140
+  - Changes: duplicate prevention, buffered overlap detection, detailed conflict errors, cancel/complete flows, daily overview service
+- **controllers/screeningController.js**
+  - Lines Added: ~40
+  - Changes: status sync on index, daily schedule date support, cancel action
+- **routes/screeningRoutes.js**
+  - Lines Added: ~6
+  - Changes: validation middleware on create/update, cancel route
+- **views/screenings/index.ejs**
+  - Lines Added: ~90
+  - Changes: daily overview UI, status badges, Edit/Cancel/Delete action set
+- **views/screenings/form.ejs**
+  - Lines Added: ~3
+  - Changes: updated operational guidance text and Bootstrap card usage
+- **controllers/dashboardController.js**
+  - Lines Added: ~2
+  - Changes: upcoming dashboard screenings filtered to `Scheduled`
+- **prompts/History**
+  - Lines Added: ~170
+  - Changes: module change documentation entry
+
+#### Files Created (0):
+- None
+
+### Database Schema Summary
+```javascript
+// models/Screening.js
+status: {
+  type: String,
+  enum: ['Scheduled', 'Cancelled', 'Completed'],
+  default: 'Scheduled'
+}
+```
+
+### Routes Added/Modified
+
+| Method | Route | Change |
+|--------|-------|--------|
+| POST | /admin/screenings | Added `validateScreening` middleware |
+| PUT | /admin/screenings/:id | Added `validateScreening` middleware |
+| PATCH | /admin/screenings/:id/cancel | New cancellation action |
+| GET | /admin/screenings | Added optional `?date=YYYY-MM-DD` overview filter |
+
+### Testing Performed
+- ✅ Static diagnostics check via `get_errors` on all changed files
+- ✅ Verified no syntax problems in updated model/service/controller/route/view files
+- ✅ Verified status-aware rendering paths and route/controller wiring
+
+### Security Improvements
+- Added request-level validation middleware to screening create/update routes
+- Retained centralized `AppError`-based error handling for operational failures
+- Preserved authenticated access requirement on all screening routes
+
+### Performance Considerations
+- Overlap checks remain scoped to same hall + same date query window
+- Daily overview groups fetched records in-memory after indexed query filter
+
+### Migration Notes
+- Existing screenings will default to `Scheduled` unless already persisted with status
+- Optional env configuration: set `SCREENING_BUFFER_MINUTES` to tune cleaning gap
+
+### Production Deployment Checklist
+- [ ] Set `SCREENING_BUFFER_MINUTES` in `.env` if non-default buffer required
+- [ ] Validate existing screening documents include status as expected
+- [ ] Confirm managers can access cancel flow from screening index
+- [ ] Smoke test scheduling conflict and duplicate rejection in staging
+
+### Known Issues & Limitations
+- Buffer value is global (per application), not per hall
+- Completed status is synchronized during screening list load (not cron-based)
+
+### Dependencies
+- No new dependencies added
+
+### Rollback Plan
+1. Revert files in this change set via git restore/reset
+2. Remove `status` field usage from screening UI/service/controller
+3. Remove `PATCH /admin/screenings/:id/cancel` route
+4. Re-run app smoke tests for screening create/update/delete
+
+### Impact Assessment
+- **User Impact:** Managers get clearer errors, safer scheduling, and cancellation controls
+- **System Impact:** Stronger screening integrity and explicit lifecycle state handling
+- **Business Impact:** Reduced scheduling mistakes and better daily operational visibility
+
+### Next Steps
+- Add optional per-hall configurable cleaning buffer
+- Add dedicated today-only compact schedule endpoint if needed for Module 5 dashboard cards
+
+---
+
 ## [2026-03-13] Module 3: Movie Management (Content)
 
 **Type:** Feature Enhancement

@@ -29,6 +29,14 @@ const screeningSchema = new mongoose.Schema({
     date: {
         type: Date,
         required: [true, 'Date is required']
+    },
+    status: {
+        type: String,
+        enum: {
+            values: ['Scheduled', 'Cancelled', 'Completed'],
+            message: 'Status must be Scheduled, Cancelled, or Completed'
+        },
+        default: 'Scheduled'
     }
 }, {
     timestamps: true
@@ -41,23 +49,30 @@ screeningSchema.index({ movie: 1 });
 
 // Pre-save hook to calculate endTime and extract date
 screeningSchema.pre('save', async function (next) {
-    if (this.isModified('startTime') || this.isNew) {
-        // Extract date from startTime (date only, no time)
-        const screeningDate = new Date(this.startTime);
-        screeningDate.setHours(0, 0, 0, 0);
-        this.date = screeningDate;
+    try {
+        if (this.isModified('startTime') || this.isModified('movie') || this.isNew) {
+            const screeningDate = new Date(this.startTime);
+            screeningDate.setHours(0, 0, 0, 0);
+            this.date = screeningDate;
 
-        // Calculate endTime if movie is populated
-        if (this.isModified('movie') || this.isNew) {
             const Movie = mongoose.model('Movie');
-            const movie = await Movie.findById(this.movie);
+            const movie = await Movie.findById(this.movie).select('durationMinutes');
 
-            if (movie) {
-                this.endTime = new Date(this.startTime.getTime() + movie.durationMinutes * 60000);
+            if (!movie) {
+                return next(new Error('Movie not found for screening time calculation'));
             }
+
+            this.endTime = new Date(this.startTime.getTime() + movie.durationMinutes * 60000);
         }
+
+        if (this.status === 'Scheduled' && this.endTime < new Date()) {
+            this.status = 'Completed';
+        }
+
+        next();
+    } catch (error) {
+        next(error);
     }
-    next();
 });
 
 // Virtual for formatted date and time
@@ -73,7 +88,7 @@ screeningSchema.virtual('startTimeFormatted').get(function () {
 
 // Static method to find upcoming screenings
 screeningSchema.statics.findUpcoming = function (limit = 10) {
-    return this.find({ startTime: { $gt: new Date() } })
+    return this.find({ startTime: { $gt: new Date() }, status: 'Scheduled' })
         .sort({ startTime: 1 })
         .limit(limit)
         .populate('movie', 'title durationMinutes genre')
@@ -88,6 +103,7 @@ screeningSchema.statics.findByDate = function (date) {
     dayEnd.setHours(23, 59, 59, 999);
 
     return this.find({
+        status: { $ne: 'Cancelled' },
         startTime: { $gte: dayStart, $lte: dayEnd }
     })
         .populate('movie', 'title durationMinutes')

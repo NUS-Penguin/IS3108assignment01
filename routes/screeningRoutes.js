@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const screeningController = require('../controllers/screeningController');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { validateScreening } = require('../middleware/validationMiddleware');
 
 // Apply authentication to all routes
 router.use(requireAuth);
@@ -19,13 +20,16 @@ router.get('/', screeningController.index);
 router.get('/new', screeningController.renderForm);
 
 // Create new screening
-router.post('/', screeningController.create);
+router.post('/', validateScreening, screeningController.create);
 
 // Show edit form
 router.get('/:id/edit', screeningController.renderForm);
 
 // Update screening
-router.put('/:id', screeningController.update);
+router.put('/:id', validateScreening, screeningController.update);
+
+// Cancel screening
+router.patch('/:id/cancel', screeningController.cancel);
 
 // Delete screening
 router.delete('/:id', screeningController.delete);

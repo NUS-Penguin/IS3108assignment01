@@ -1,14 +1,17 @@
-<% // Determine if we're in edit mode or create mode const isEditMode=typeof screening !=='undefined' && screening;
-    const formAction=isEditMode ? `/admin/screenings/${screening._id}?_method=PUT` : '/admin/screenings' ; const
-    formTitle=isEditMode ? 'Edit Screening' : 'Create New Screening' ; const formIcon=isEditMode ? 'bi-pencil'
-    : 'bi-plus-circle' ; const submitButtonText=isEditMode ? 'Update Screening' : 'Create Screening' ; // Use screening
-    data in edit mode, empty/defaults in create mode const selectedMovie=isEditMode ? screening.movie._id.toString()
-    : '' ; const selectedHall=isEditMode ? screening.hall._id.toString() : '' ; const screeningStartTime=isEditMode ?
-    new Date(screening.startTime).toISOString().slice(0, 16) : '' ; %>
+<%
+const isEditMode = typeof screening !== 'undefined' && screening;
+const formAction = isEditMode ? `/admin/screenings/${screening._id}?_method=PUT` : '/admin/screenings';
+const formTitle = isEditMode ? 'Edit Screening' : 'Create New Screening';
+const formIcon = isEditMode ? 'bi-pencil' : 'bi-plus-circle';
+const submitButtonText = isEditMode ? 'Update Screening' : 'Create Screening';
+const selectedMovie = isEditMode ? screening.movie._id.toString() : '';
+const selectedHall = isEditMode ? screening.hall._id.toString() : '';
+const screeningStartTime = isEditMode ? new Date(screening.startTime).toISOString().slice(0, 16) : '';
+%>
 
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm">
+            <div class="card">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0"><i class="<%= formIcon %> me-2"></i>
                         <%= formTitle %>
@@ -25,7 +28,8 @@
                             <div class="alert alert-info" role="alert">
                                 <i class="bi bi-info-circle me-2"></i>
                                 <strong>Important:</strong> The system will automatically check for screening overlaps
-                                in the same hall. Screenings cannot overlap on the same date.
+                                in the same hall, prevent duplicates, and enforce a cleaning buffer between screenings.
+                                New screenings are created with status <strong>Scheduled</strong>.
                             </div>
 
                             <form action="<%= formAction %>" method="POST">

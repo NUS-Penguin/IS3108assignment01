@@ -9,6 +9,8 @@ const Movie = require('../models/Movie');
 const Hall = require('../models/Hall');
 const { AppError } = require('../middleware/errorMiddleware');
 
+const DEFAULT_CLEANING_BUFFER_MINUTES = Number(process.env.SCREENING_BUFFER_MINUTES || 15);
+
 class ScreeningService {
 
     /**
@@ -20,6 +22,7 @@ class ScreeningService {
      */
     static async createScreening(data) {
         const { movie, hall, startTime } = data;
+        const parsedStartTime = new Date(startTime);
 
         // 1. Validate movie exists
         const movieDoc = await Movie.findById(movie);
@@ -53,22 +56,39 @@ class ScreeningService {
         }
 
         // 3. Validate start time is in the future
-        if (startTime <= new Date()) {
+        if (isNaN(parsedStartTime.getTime())) {
+            throw new AppError('Invalid screening start time', 400);
+        }
+
+        if (parsedStartTime <= new Date()) {
             throw new AppError('Start time must be in the future', 400);
         }
 
         // 4. Calculate end time
-        const endTime = new Date(startTime.getTime() + movieDoc.durationMinutes * 60000);
+        const endTime = new Date(parsedStartTime.getTime() + movieDoc.durationMinutes * 60000);
+
+        // 4b. Prevent accidental duplicates (same movie + hall + exact start time)
+        const duplicateScreening = await Screening.findOne({
+            movie,
+            hall,
+            startTime: parsedStartTime,
+            status: { $ne: 'Cancelled' }
+        });
+
+        if (duplicateScreening) {
+            throw new AppError('Duplicate screening detected: same movie, hall, and start time already exists', 400);
+        }
 
         // 5. CRITICAL: Check for overlaps
-        await this._checkForOverlap(hall, startTime, endTime);
+        await this._checkForOverlap(hall, parsedStartTime, endTime);
 
         // 6. Create screening
         const screening = new Screening({
             movie,
             hall,
-            startTime,
-            endTime
+            startTime: parsedStartTime,
+            endTime,
+            status: 'Scheduled'
         });
 
         await screening.save();
@@ -100,6 +120,7 @@ class ScreeningService {
         // Find all screenings in same hall on same day
         const query = {
             hall: hallId,
+            status: { $ne: 'Cancelled' },
             date: {
                 $gte: screeningDate,
                 $lt: nextDay
@@ -111,23 +132,30 @@ class ScreeningService {
             query._id = { $ne: excludeScreeningId };
         }
 
-        const existingScreenings = await Screening.find(query);
+        const existingScreenings = await Screening.find(query)
+            .populate('movie', 'title')
+            .populate('hall', 'name');
+
+        const cleaningBufferMs = Math.max(0, DEFAULT_CLEANING_BUFFER_MINUTES) * 60000;
+        const newEndWithBuffer = new Date(endTime.getTime() + cleaningBufferMs);
 
         // Check for overlap with each existing screening
         for (const existing of existingScreenings) {
             const existingStart = existing.startTime;
-            const existingEnd = existing.endTime;
+            const existingEndWithBuffer = new Date(existing.endTime.getTime() + cleaningBufferMs);
 
             // CRITICAL OVERLAP FORMULA
             // Overlap occurs if: (existingStart < newEnd) AND (existingEnd > newStart)
-            const hasOverlap = (existingStart < endTime) && (existingEnd > startTime);
+            const hasOverlap = (existingStart < newEndWithBuffer) && (existingEndWithBuffer > startTime);
 
             if (hasOverlap) {
-                const existingMovie = await Movie.findById(existing.movie);
+                const hallName = existing.hall?.name || 'Unknown hall';
+                const movieTitle = existing.movie?.title || 'Unknown movie';
                 throw new AppError(
-                    `Screening overlaps with existing screening of "${existingMovie.title}" ` +
+                    `Scheduling conflict: ${hallName} already has a screening for "${movieTitle}" ` +
                     `from ${existingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} ` +
-                    `to ${existingEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+                    `to ${existing.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}. ` +
+                    `A cleaning buffer of ${Math.max(0, DEFAULT_CLEANING_BUFFER_MINUTES)} minutes is enforced. Please select another time slot.`,
                     400
                 );
             }
@@ -146,6 +174,7 @@ class ScreeningService {
      */
     static async updateScreening(screeningId, data) {
         const { movie, hall, startTime } = data;
+        const parsedStartTime = new Date(startTime);
 
         // 1. Validate screening exists
         const screening = await Screening.findById(screeningId);
@@ -169,27 +198,86 @@ class ScreeningService {
             throw new AppError('Cannot schedule screening in a hall under maintenance', 400);
         }
 
+        if (isNaN(parsedStartTime.getTime())) {
+            throw new AppError('Invalid screening start time', 400);
+        }
+
+        if (parsedStartTime <= new Date()) {
+            throw new AppError('Start time must be in the future', 400);
+        }
+
         // 4. Calculate end time
-        const endTime = new Date(startTime.getTime() + movieDoc.durationMinutes * 60000);
+        const endTime = new Date(parsedStartTime.getTime() + movieDoc.durationMinutes * 60000);
+
+        // 4b. Prevent accidental duplicates when updating
+        const duplicateScreening = await Screening.findOne({
+            _id: { $ne: screeningId },
+            movie,
+            hall,
+            startTime: parsedStartTime,
+            status: { $ne: 'Cancelled' }
+        });
+
+        if (duplicateScreening) {
+            throw new AppError('Duplicate screening detected: same movie, hall, and start time already exists', 400);
+        }
 
         // 5. CRITICAL: Check for overlaps (excluding current screening)
-        await this._checkForOverlap(hall, startTime, endTime, screeningId);
+        await this._checkForOverlap(hall, parsedStartTime, endTime, screeningId);
 
         // 6. Update screening
         screening.movie = movie;
         screening.hall = hall;
-        screening.startTime = startTime;
+        screening.startTime = parsedStartTime;
         screening.endTime = endTime;
+        screening.status = 'Scheduled';
 
         await screening.save();
         return screening;
+    }
+
+    static async cancelScreening(screeningId) {
+        const screening = await Screening.findById(screeningId)
+            .populate('movie', 'title')
+            .populate('hall', 'name');
+
+        if (!screening) {
+            throw new AppError('Screening not found', 404);
+        }
+
+        if (screening.status === 'Cancelled') {
+            throw new AppError('Screening is already cancelled', 400);
+        }
+
+        screening.status = 'Cancelled';
+        await screening.save();
+        return screening;
+    }
+
+    static async markCompletedScreenings() {
+        await Screening.updateMany(
+            {
+                status: 'Scheduled',
+                endTime: { $lt: new Date() }
+            },
+            {
+                $set: { status: 'Completed' }
+            }
+        );
     }
 
     /**
      * Get upcoming screenings for dashboard
      */
     static async getUpcomingScreenings(limit = 10) {
-        return await Screening.findUpcoming(limit);
+        return await Screening.find({
+            startTime: { $gt: new Date() },
+            status: 'Scheduled'
+        })
+            .sort({ startTime: 1 })
+            .limit(limit)
+            .populate('movie', 'title durationMinutes genre')
+            .populate('hall', 'name');
     }
 
     /**
@@ -197,6 +285,34 @@ class ScreeningService {
      */
     static async getScreeningsByDate(date) {
         return await Screening.findByDate(date);
+    }
+
+    static async getDailyScheduleOverview(date = new Date()) {
+        const dayStart = new Date(date);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+
+        const screenings = await Screening.find({
+            date: { $gte: dayStart, $lt: dayEnd },
+            status: { $ne: 'Cancelled' }
+        })
+            .populate('movie', 'title')
+            .populate('hall', 'name')
+            .sort({ 'hall.name': 1, startTime: 1 });
+
+        const hallMap = new Map();
+        screenings.forEach((screening) => {
+            const hallName = screening.hall?.name || 'Unknown hall';
+            if (!hallMap.has(hallName)) {
+                hallMap.set(hallName, []);
+            }
+            hallMap.get(hallName).push(screening);
+        });
+
+        return Array.from(hallMap.entries())
+            .map(([hallName, hallScreenings]) => ({ hallName, screenings: hallScreenings }))
+            .sort((a, b) => a.hallName.localeCompare(b.hallName));
     }
 }
 
