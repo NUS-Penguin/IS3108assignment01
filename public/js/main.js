@@ -467,5 +467,440 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // ========================================
+    // SCREENING TIMELINE SCHEDULER
+    // ========================================
+    if (document.getElementById('screeningScheduler')) {
+        const MINUTES_IN_DAY = 24 * 60;
+        const SLOT_MINUTES = 15;
+
+        const schedulerRoot = document.getElementById('screeningScheduler');
+        const timelineRows = document.getElementById('timelineRows');
+        const timelineHourAxis = document.getElementById('timelineHourAxis');
+        const datePicker = document.getElementById('timelineDatePicker');
+        const prevDateBtn = document.getElementById('timelinePrevDate');
+        const nextDateBtn = document.getElementById('timelineNextDate');
+        const todayBtn = document.getElementById('timelineToday');
+        const timelineAlert = document.getElementById('timelineAlert');
+
+        const cleaningBuffer = Number(schedulerRoot.dataset.cleaningBuffer || 15);
+        let selectedDate = datePicker ? datePicker.value : schedulerRoot.dataset.selectedDate;
+        let halls = [];
+        let screenings = [];
+        let dragPayload = null;
+
+        const parseJsonScript = (elementId, fallbackValue) => {
+            const element = document.getElementById(elementId);
+            if (!element || !element.textContent) return fallbackValue;
+            try {
+                return JSON.parse(element.textContent);
+            } catch (error) {
+                return fallbackValue;
+            }
+        };
+
+        const parseEncodedDataAttribute = (value, fallbackValue) => {
+            if (!value) return fallbackValue;
+            try {
+                return JSON.parse(decodeURIComponent(value));
+            } catch (error) {
+                return fallbackValue;
+            }
+        };
+
+        halls = parseEncodedDataAttribute(schedulerRoot.dataset.halls, parseJsonScript('timelineHallsData', []));
+        screenings = parseEncodedDataAttribute(schedulerRoot.dataset.screenings, parseJsonScript('timelineScreeningsData', []));
+
+        const showAlert = (message, type = 'warning') => {
+            if (!timelineAlert) return;
+            timelineAlert.className = `alert alert-${type}`;
+            timelineAlert.textContent = message;
+            timelineAlert.classList.remove('d-none');
+            setTimeout(() => {
+                timelineAlert.classList.add('d-none');
+            }, 5000);
+        };
+
+        const getDayStart = (value) => {
+            const date = new Date(value);
+            date.setHours(0, 0, 0, 0);
+            return date;
+        };
+
+        const getISODate = (date) => {
+            const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+            return adjusted.toISOString().slice(0, 10);
+        };
+
+        const formatTime = (dateValue) => {
+            return new Date(dateValue).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+        };
+
+        const formatDateTimeLocal = (date) => {
+            const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+            return adjusted.toISOString().slice(0, 16);
+        };
+
+        const renderHourAxis = () => {
+            if (!timelineHourAxis) return;
+            timelineHourAxis.innerHTML = '';
+            for (let hour = 0; hour < 24; hour++) {
+                const cell = document.createElement('div');
+                cell.className = 'timeline-hour-cell border-end small text-muted';
+                cell.textContent = `${String(hour).padStart(2, '0')}:00`;
+                timelineHourAxis.appendChild(cell);
+            }
+        };
+
+        const getOverlapForDay = (screening, dayStart, dayEnd) => {
+            const start = new Date(screening.startTime);
+            const end = new Date(screening.endTime);
+
+            if (start >= dayEnd || end <= dayStart) {
+                return null;
+            }
+
+            const visibleStart = start < dayStart ? dayStart : start;
+            const visibleEnd = end > dayEnd ? dayEnd : end;
+
+            return {
+                visibleStart,
+                visibleEnd,
+                clippedAtStart: start < dayStart,
+                clippedAtEnd: end > dayEnd
+            };
+        };
+
+        const minutesSinceDayStart = (date, dayStart) => {
+            return Math.floor((date.getTime() - dayStart.getTime()) / 60000);
+        };
+
+        const buildScreeningBlock = (screening, overlapInfo, dayStart) => {
+            const block = document.createElement('div');
+            const status = screening.status || 'Scheduled';
+            const badgeClass = status === 'Completed' ? 'bg-secondary' : 'bg-primary';
+
+            block.className = `timeline-screening-block ${badgeClass} text-white`;
+            block.draggable = status === 'Scheduled';
+            block.dataset.screeningId = screening.id;
+            block.dataset.hallId = screening.hall?.id || '';
+
+            const startMinutes = minutesSinceDayStart(overlapInfo.visibleStart, dayStart);
+            const durationMinutes = Math.max(15, minutesSinceDayStart(overlapInfo.visibleEnd, dayStart) - startMinutes);
+            const leftPercent = (startMinutes / MINUTES_IN_DAY) * 100;
+            const widthPercent = (durationMinutes / MINUTES_IN_DAY) * 100;
+
+            block.style.left = `${leftPercent}%`;
+            block.style.width = `${widthPercent}%`;
+
+            block.innerHTML = `
+                <div class="fw-semibold text-truncate">${screening.movie?.title || 'Movie'}</div>
+                <div class="small">${formatTime(overlapInfo.visibleStart)} - ${formatTime(overlapInfo.visibleEnd)}</div>
+                <div class="small">${screening.movie?.durationMinutes || 0} min</div>
+                <div class="d-flex gap-1 mt-1">
+                    <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="edit">Edit</button>
+                    <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="cancel">Cancel</button>
+                    <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="delete">Delete</button>
+                </div>
+            `;
+
+            block.addEventListener('click', (event) => {
+                const action = event.target.dataset.action;
+                if (action === 'edit') {
+                    event.stopPropagation();
+                    window.location.href = `/admin/screenings/${screening.id}/edit`;
+                    return;
+                }
+
+                if (action === 'delete') {
+                    event.stopPropagation();
+                    const confirmed = confirm('Delete this screening?');
+                    if (confirmed) {
+                        deleteTimelineScreening(screening.id);
+                    }
+                    return;
+                }
+
+                if (action === 'cancel') {
+                    event.stopPropagation();
+                    const confirmed = confirm('Cancel this screening?');
+                    if (confirmed) {
+                        cancelTimelineScreening(screening.id);
+                    }
+                }
+            });
+
+            block.addEventListener('dragstart', (event) => {
+                if (status !== 'Scheduled') {
+                    event.preventDefault();
+                    return;
+                }
+
+                dragPayload = {
+                    type: 'screening',
+                    screeningId: screening.id
+                };
+                event.dataTransfer.setData('text/plain', JSON.stringify(dragPayload));
+                event.dataTransfer.effectAllowed = 'move';
+            });
+
+            return block;
+        };
+
+        const renderRows = () => {
+            if (!timelineRows) return;
+
+            timelineRows.innerHTML = '';
+            const dayStart = getDayStart(selectedDate);
+            const dayEnd = new Date(dayStart);
+            dayEnd.setDate(dayEnd.getDate() + 1);
+
+            halls.forEach((hall) => {
+                const row = document.createElement('div');
+                row.className = 'timeline-row border-bottom';
+
+                const hallColumn = document.createElement('div');
+                hallColumn.className = 'timeline-hall-column';
+                hallColumn.innerHTML = `
+                    <div class="fw-semibold">${hall.name}</div>
+                    <small class="text-muted text-capitalize">${hall.status}</small>
+                `;
+
+                const track = document.createElement('div');
+                track.className = 'timeline-track';
+                track.dataset.hallId = hall.id;
+
+                const grid = document.createElement('div');
+                grid.className = 'timeline-track-grid';
+                for (let hour = 0; hour < 24; hour++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'timeline-track-cell border-end';
+                    grid.appendChild(cell);
+                }
+
+                const blockLayer = document.createElement('div');
+                blockLayer.className = 'timeline-block-layer';
+
+                screenings
+                    .filter((screening) => screening.hall && screening.hall.id === hall.id && screening.status !== 'Cancelled')
+                    .forEach((screening) => {
+                        const overlapInfo = getOverlapForDay(screening, dayStart, dayEnd);
+                        if (!overlapInfo) return;
+                        blockLayer.appendChild(buildScreeningBlock(screening, overlapInfo, dayStart));
+                    });
+
+                track.appendChild(grid);
+                track.appendChild(blockLayer);
+
+                track.addEventListener('dragover', (event) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                    track.classList.add('timeline-track-drop');
+                });
+
+                track.addEventListener('dragleave', () => {
+                    track.classList.remove('timeline-track-drop');
+                });
+
+                track.addEventListener('drop', async (event) => {
+                    event.preventDefault();
+                    track.classList.remove('timeline-track-drop');
+
+                    let payload = dragPayload;
+                    if (!payload) {
+                        try {
+                            payload = JSON.parse(event.dataTransfer.getData('text/plain') || '{}');
+                        } catch (parseError) {
+                            payload = null;
+                        }
+                    }
+                    if (!payload || !payload.type) return;
+
+                    if (hall.status !== 'active') {
+                        showAlert(`Cannot schedule in ${hall.name} because it is ${hall.status}.`, 'warning');
+                        return;
+                    }
+
+                    const startDateTime = getDropDateTime(event, track, selectedDate);
+                    if (!startDateTime) return;
+
+                    const now = new Date();
+                    if (startDateTime < now) {
+                        showAlert('Cannot schedule screenings in the past.', 'warning');
+                        return;
+                    }
+
+                    if (payload.type === 'movie') {
+                        await createTimelineScreening(payload.movieId, hall.id, startDateTime);
+                    }
+
+                    if (payload.type === 'screening') {
+                        await moveTimelineScreening(payload.screeningId, hall.id, startDateTime);
+                    }
+
+                    dragPayload = null;
+                });
+
+                row.appendChild(hallColumn);
+                row.appendChild(track);
+                timelineRows.appendChild(row);
+            });
+        };
+
+        const getDropDateTime = (event, trackElement, selectedDateValue) => {
+            const trackRect = trackElement.getBoundingClientRect();
+            const x = Math.min(Math.max(event.clientX - trackRect.left, 0), trackRect.width);
+            const minuteRaw = (x / trackRect.width) * MINUTES_IN_DAY;
+            const snappedMinutes = Math.floor(minuteRaw / SLOT_MINUTES) * SLOT_MINUTES;
+
+            const start = getDayStart(selectedDateValue);
+            start.setMinutes(snappedMinutes);
+            return start;
+        };
+
+        const requestJson = async (url, options = {}) => {
+            const response = await fetch(url, {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                ...options
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Operation failed');
+            }
+            return result;
+        };
+
+        const refreshTimelineData = async () => {
+            try {
+                const result = await requestJson(`/admin/screenings/timeline/data?date=${selectedDate}`);
+                screenings = result.screenings || [];
+                renderRows();
+            } catch (error) {
+                showAlert(error.message, 'danger');
+            }
+        };
+
+        const createTimelineScreening = async (movieId, hallId, startDate) => {
+            try {
+                await requestJson('/admin/screenings/timeline', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        movieId,
+                        hallId,
+                        startDateTime: formatDateTimeLocal(startDate)
+                    })
+                });
+
+                await refreshTimelineData();
+            } catch (error) {
+                showAlert(error.message, 'warning');
+            }
+        };
+
+        const moveTimelineScreening = async (screeningId, hallId, startDate) => {
+            try {
+                await requestJson(`/admin/screenings/timeline/${screeningId}/move`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        hallId,
+                        startDateTime: formatDateTimeLocal(startDate)
+                    })
+                });
+
+                await refreshTimelineData();
+            } catch (error) {
+                showAlert(error.message, 'warning');
+            }
+        };
+
+        const deleteTimelineScreening = async (screeningId) => {
+            try {
+                await requestJson(`/admin/screenings/timeline/${screeningId}`, {
+                    method: 'DELETE'
+                });
+                await refreshTimelineData();
+            } catch (error) {
+                showAlert(error.message, 'warning');
+            }
+        };
+
+        const cancelTimelineScreening = async (screeningId) => {
+            try {
+                await requestJson(`/admin/screenings/timeline/${screeningId}/cancel`, {
+                    method: 'PATCH'
+                });
+                await refreshTimelineData();
+            } catch (error) {
+                showAlert(error.message, 'warning');
+            }
+        };
+
+        const moveDateByDays = (dayDelta) => {
+            const current = getDayStart(selectedDate);
+            current.setDate(current.getDate() + dayDelta);
+            selectedDate = getISODate(current);
+            datePicker.value = selectedDate;
+            refreshTimelineData();
+        };
+
+        if (prevDateBtn) {
+            prevDateBtn.addEventListener('click', () => moveDateByDays(-1));
+        }
+
+        if (nextDateBtn) {
+            nextDateBtn.addEventListener('click', () => moveDateByDays(1));
+        }
+
+        if (todayBtn) {
+            todayBtn.addEventListener('click', () => {
+                selectedDate = getISODate(new Date());
+                datePicker.value = selectedDate;
+                refreshTimelineData();
+            });
+        }
+
+        if (datePicker) {
+            datePicker.addEventListener('change', () => {
+                selectedDate = datePicker.value;
+                refreshTimelineData();
+            });
+        }
+
+        const movieItems = document.querySelectorAll('.timeline-movie-item');
+        movieItems.forEach((item) => {
+            item.addEventListener('dragstart', (event) => {
+                dragPayload = {
+                    type: 'movie',
+                    movieId: item.dataset.movieId,
+                    durationMinutes: Number(item.dataset.duration || 0)
+                };
+                event.dataTransfer.setData('text/plain', JSON.stringify(dragPayload));
+                event.dataTransfer.effectAllowed = 'move';
+            });
+        });
+
+        renderHourAxis();
+        renderRows();
+
+        if (timelineHourAxis && timelineRows) {
+            timelineHourAxis.addEventListener('scroll', () => {
+                timelineRows.scrollLeft = timelineHourAxis.scrollLeft;
+            });
+
+            timelineRows.addEventListener('scroll', () => {
+                timelineHourAxis.scrollLeft = timelineRows.scrollLeft;
+            });
+        }
+
+        showAlert(`Drag and drop enabled. Cleaning buffer: ${cleaningBuffer} minutes.`, 'info');
+    }
+
     console.log('🎬 CineVillage Admin Portal initialized');
 });

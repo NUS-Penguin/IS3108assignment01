@@ -9,6 +9,347 @@ This document tracks all significant changes to the codebase.
 
 ---
 
+## [2026-03-13] Module 4 Bug Fix: Hall Bootstrap in Timeline Scheduler
+
+**Type:** Bug Fix
+**Scope:** Medium - Timeline data bootstrapping reliability
+**Files Modified:** 4 files
+**Files Created:** 0 files
+**Lines Added:** ~55+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Fixed an issue where halls were not appearing in the timeline scheduler for drag-and-drop operations. Hall data existed in MongoDB, but the frontend bootstrap path could fail in layout/script extraction scenarios, resulting in empty hall rows.
+
+The fix moves timeline bootstrap payloads to robust `data-*` attributes on the scheduler root and keeps a fallback parser for the previous script-tag approach. IDs are now normalized to strings in controller serialization to avoid type-mismatch issues in client-side comparisons.
+
+### Features Implemented
+
+#### 1. Reliable Timeline Data Bootstrap
+**Impact:** High - UX / Functional Correctness
+
+**Changes:**
+- Embedded `halls` and `screenings` payloads in encoded `data-halls` / `data-screenings` attributes
+- Removed dependency on JSON script-tag bootstrapping in primary path
+
+**Files Modified:**
+- `views/screenings/index.ejs`
+  - Added encoded bootstrap attributes to `#screeningScheduler`
+  - Removed JSON script payload blocks
+
+#### 2. ID Normalization for Client Matching
+**Impact:** High - Data Consistency
+
+**Changes:**
+- Converted screening/movie/hall IDs to `String(...)` in serializer
+- Added `timelineHalls` projection with string IDs for frontend rows
+
+**Files Modified:**
+- `controllers/screeningController.js`
+  - Added `timelineHalls` mapping and normalized serialized IDs
+
+#### 3. Frontend Parser Fallback Strategy
+**Impact:** Medium - Resilience
+
+**Changes:**
+- Added `parseEncodedDataAttribute()` helper
+- Timeline parser now reads `data-*` first, then script-tag fallback
+
+**Files Modified:**
+- `public/js/main.js`
+  - Updated initial hall/screening parsing logic
+
+### Complete File Manifest
+
+#### Files Modified (4):
+- **controllers/screeningController.js**
+  - Lines Added: ~20
+  - Changes: ID string normalization, timeline halls payload mapping
+- **views/screenings/index.ejs**
+  - Lines Added: ~8
+  - Changes: encoded bootstrap attributes on scheduler root
+- **public/js/main.js**
+  - Lines Added: ~14
+  - Changes: data-attribute parser and fallback path
+- **prompts/History**
+  - Lines Added: ~90
+  - Changes: this documentation entry
+
+#### Files Created (0):
+- None
+
+### Testing Performed
+- ✅ Verified hall data exists in DB (`hallCount=1`, Hall A active)
+- ✅ `get_errors` diagnostics for all changed files
+- ✅ Runtime smoke start successful (`node app.js`, MongoDB connected)
+
+### Rollback Plan
+1. Revert `controllers/screeningController.js` serialization/mapping changes
+2. Revert `views/screenings/index.ejs` bootstrap attribute changes
+3. Revert `public/js/main.js` parser update
+
+### Next Steps
+- Validate with multiple halls and mixed statuses to confirm row rendering and drop restrictions across all hall states
+
+---
+
+## [2026-03-13] Module 4 Upgrade: Cinema Timeline Scheduler
+
+**Type:** Feature Enhancement
+**Scope:** Major - Visual drag-and-drop scheduling system
+**Files Modified:** 7 files
+**Files Created:** 0 files
+**Lines Added:** ~520+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Implemented a full visual scheduling interface for Module 4 using Express + EJS + Vanilla JavaScript. The old table-based screening index was replaced by a timeline scheduler with halls on the Y-axis, 24-hour time axis on the X-axis, movie library drag source, and dynamic schedule block rendering.
+
+The backend was extended with timeline JSON endpoints for date-based loading, drag-create, drag-move, cancel, and delete operations. Core overlap logic was upgraded to support cross-midnight scenarios and buffered overlap detection using the required formula with cleaning buffer rules.
+
+### Features Implemented
+
+#### 1. Visual Timeline Scheduler UI
+**Impact:** High - UX / Operations
+
+**Changes:**
+- Added top date controls: previous day, date picker, next day, today
+- Added hall rows loaded from database and hourly timeline header
+- Added movie library panel with draggable movie items
+- Added scheduling blocks with title, duration/time range, edit/cancel/delete actions
+
+**Files Modified:**
+- `views/screenings/index.ejs`
+  - Replaced table layout with timeline scheduler structure
+  - Added JSON bootstrapping scripts for halls and screenings
+  - Lines added: ~170
+
+#### 2. Drag-and-Drop Scheduling (HTML5 API)
+**Impact:** High - Core Module 4 functionality
+
+**Changes:**
+- Drag movie from library to hall timeline row to create screening
+- Drag existing block to a new hall/time to move screening
+- Date navigation dynamically reloads timeline data
+- Added client-side past-time guard: cannot schedule earlier than current system time
+
+**Files Modified:**
+- `public/js/main.js`
+  - Added timeline rendering and drag/drop behavior
+  - Added API integration helpers and warning banner logic
+  - Lines added: ~280
+
+#### 3. Cross-Midnight and Overlap Rule Hardening
+**Impact:** High - Business Logic Correctness
+
+**Changes:**
+- Overlap candidate query now uses datetime range intersection instead of same-day-only date filter
+- Buffer-aware overlap check preserved with critical formula semantics
+- Daily/timeline queries now include screenings that overlap a day window (supports midnight crossing)
+
+**Files Modified:**
+- `services/screeningService.js`
+  - Added day-bound helper and timeline day query method
+  - Updated overlap query strategy for cross-midnight support
+  - Lines added: ~45
+
+#### 4. Timeline API Endpoints
+**Impact:** High - Dynamic UI Behavior
+
+**Changes:**
+- Added endpoint to load screenings by selected date
+- Added endpoint to create screening from timeline drop
+- Added endpoint to move screening via drag-and-drop
+- Added endpoint to cancel screening from timeline block
+- Added endpoint to delete screening from timeline block
+
+**Files Modified:**
+- `controllers/screeningController.js`
+  - Added serializer helpers and timeline endpoints
+  - Lines added: ~150
+- `routes/screeningRoutes.js`
+  - Added timeline API route definitions
+  - Lines added: ~8
+
+#### 5. Scheduler Layout Styling
+**Impact:** Medium - UI Structure
+
+**Changes:**
+- Added essential scheduler layout classes for axis, rows, track grid, and block positioning
+- Added responsive tweaks and horizontal scroll handling for timeline width
+
+**Files Modified:**
+- `public/css/styles.css`
+  - Added timeline-specific layout styles
+  - Lines added: ~70
+
+### Complete File Manifest
+
+#### Files Modified (7):
+- **controllers/screeningController.js**
+  - Lines Added: ~150
+  - Changes: timeline page data prep + JSON API handlers
+- **services/screeningService.js**
+  - Lines Added: ~45
+  - Changes: cross-midnight-safe overlap query + timeline fetch helpers
+- **routes/screeningRoutes.js**
+  - Lines Added: ~8
+  - Changes: timeline API routes
+- **views/screenings/index.ejs**
+  - Lines Added: ~170
+  - Changes: visual scheduler layout and bootstrap data payloads
+- **public/js/main.js**
+  - Lines Added: ~280
+  - Changes: drag/drop scheduler engine and date-sync logic
+- **public/css/styles.css**
+  - Lines Added: ~70
+  - Changes: timeline grid/axis/block layout styles
+- **prompts/History**
+  - Lines Added: ~150
+  - Changes: this documentation entry
+
+#### Files Created (0):
+- None
+
+### Database Schema Summary
+No new schema fields in this step. Existing `Screening` datetime fields (`startTime`, `endTime`) are used as full datetime values and now handled with cross-day overlap logic.
+
+### Routes Added/Modified
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | /admin/screenings/timeline/data | Load timeline screenings for selected date |
+| POST | /admin/screenings/timeline | Create screening via drag/drop |
+| PATCH | /admin/screenings/timeline/:id/move | Move screening via drag/drop |
+| PATCH | /admin/screenings/timeline/:id/cancel | Cancel screening from block action |
+| DELETE | /admin/screenings/timeline/:id | Delete screening from block action |
+
+### Testing Performed
+- ✅ Static diagnostics check (`get_errors`) across all modified files
+- ✅ Verified no template or JS parse errors
+- ⛳ Runtime restart command was skipped by user at tool prompt, so final boot verification was not re-run in this pass
+
+### Security Improvements
+- Reused authenticated `/admin` route protection for new timeline APIs
+- Kept service-layer validations for hall status, movie eligibility, duplicate prevention, and conflict detection
+
+### Performance Considerations
+- Timeline queries are constrained to day-overlap windows
+- Overlap checks use narrowed datetime intersection query before detailed validation
+
+### Migration Notes
+- No migration required
+- Optional environment setting remains: `SCREENING_BUFFER_MINUTES`
+
+### Production Deployment Checklist
+- [ ] Verify timeline drag/create/move/cancel/delete manually in staging
+- [ ] Confirm `SCREENING_BUFFER_MINUTES` value in production `.env`
+- [ ] Confirm timezone handling matches cinema operations policy
+
+### Known Issues & Limitations
+- Resize block interaction remains optional and is not implemented
+- Timeline shows 24-hour rows; advanced zoom levels are not implemented
+
+### Dependencies
+- No dependency changes
+
+### Rollback Plan
+1. Revert timeline routes in `routes/screeningRoutes.js`
+2. Revert timeline API handlers in `controllers/screeningController.js`
+3. Restore prior `views/screenings/index.ejs` table view
+4. Revert timeline JS/CSS sections
+
+### Impact Assessment
+- **User Impact:** Managers can schedule visually with faster planning workflow
+- **System Impact:** Stronger conflict handling for midnight-crossing schedules
+- **Business Impact:** Reduced scheduling mistakes and better operational visibility
+
+### Next Steps
+- Add optional 15-minute visual subdivision marks toggle
+- Add optional block resize capability for advanced operations
+
+---
+
+## [2026-03-13] Module 4 Follow-up: Scheduling Rule Consistency & Cancel Route Fix
+
+**Type:** Bug Fix
+**Scope:** Medium - Module 4 reliability and prompt-v2 compliance
+**Files Modified:** 3 files
+**Files Created:** 0 files
+**Lines Added:** ~40+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Applied a focused follow-up fix to complete Module 4 behavior under prompt-v2 rules. The update flow in `ScreeningService` now enforces the same movie eligibility checks as create flow (e.g., disallow scheduling `Archived` and unreleased `Coming Soon` movies), ensuring consistent business rule enforcement across all scheduling operations.
+
+Also fixed a route mismatch in the screenings list where the Cancel button posted to the wrong path. This prevented cancellation from hitting the intended `PATCH /admin/screenings/:id/cancel` route. Runtime smoke testing confirms successful boot and no template/runtime errors.
+
+### Features Implemented
+
+#### 1. Update Flow Rule Parity
+**Impact:** High - Business Logic
+
+**Changes:**
+- Added private helper `_validateMovieSchedulingEligibility(movieDoc)`
+- Reused the helper in both `createScreening()` and `updateScreening()`
+- Added named constant `MINUTE_IN_MILLISECONDS` to remove magic number usage
+
+**Files Modified:**
+- `services/screeningService.js`
+  - Added shared eligibility validator and wired into update path
+  - Lines added: ~35
+
+#### 2. Cancel Action Route Correction
+**Impact:** High - UX / Operations
+
+**Changes:**
+- Updated cancel form action from `/admin/screenings/:id?_method=PATCH` to `/admin/screenings/:id/cancel?_method=PATCH`
+
+**Files Modified:**
+- `views/screenings/index.ejs`
+  - Corrected cancel form endpoint
+  - Lines added: ~1
+
+### Complete File Manifest
+
+#### Files Modified (3):
+- **services/screeningService.js**
+  - Lines Added: ~35
+  - Changes: shared scheduling eligibility validation and update parity
+- **views/screenings/index.ejs**
+  - Lines Added: ~1
+  - Changes: fixed cancel route path
+- **prompts/History**
+  - Lines Added: ~80
+  - Changes: added this documentation entry
+
+#### Files Created (0):
+- None
+
+### Routes Added/Modified
+
+| Method | Route | Change |
+|--------|-------|--------|
+| PATCH | /admin/screenings/:id/cancel | Fixed UI action to correctly target this existing route |
+
+### Testing Performed
+- ✅ `get_errors` check on updated Module 4 files
+- ✅ Port cleanup and runtime smoke boot (`node app.js`) successful
+- ✅ No startup errors; MongoDB connection established
+
+### Dependencies
+- No dependency changes
+
+### Rollback Plan
+1. Revert `services/screeningService.js` helper method and update call
+2. Revert cancel form action in `views/screenings/index.ejs`
+3. Restart app and verify prior behavior
+
+---
+
 ## [2026-03-13] Module 4: Screening Scheduling (Operations)
 
 **Type:** Feature Enhancement

@@ -1,132 +1,79 @@
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Screenings</h2>
-    <a href="/admin/screenings/new" class="btn btn-primary">
-        <i class="bi bi-plus-circle me-2"></i>Create New Screening
-    </a>
-</div>
-
-<div class="card mb-4">
-    <div class="card-header bg-white">
-        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Daily Schedule Overview</h5>
+<div id="screeningScheduler"
+     data-selected-date="<%= selectedDateValue %>"
+    data-cleaning-buffer="<%= cleaningBufferMinutes %>"
+    data-halls="<%- encodeURIComponent(JSON.stringify(timelineHalls || [])) %>"
+    data-screenings="<%- encodeURIComponent(JSON.stringify(timelineScreenings || [])) %>">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Cinema Timeline Scheduler</h2>
+        <a href="/admin/screenings/new" class="btn btn-outline-primary">
+            <i class="bi bi-plus-circle me-2"></i>Manual Form
+        </a>
     </div>
-    <div class="card-body">
-        <form action="/admin/screenings" method="GET" class="row g-3 align-items-end mb-3">
-            <div class="col-md-4">
-                <label for="date" class="form-label">Select Date</label>
-                <input type="date" id="date" name="date" class="form-control" value="<%= selectedDateValue || '' %>">
-            </div>
-            <div class="col-md-8 d-flex gap-2">
-                <button type="submit" class="btn btn-outline-primary">
-                    <i class="bi bi-search me-1"></i>View Schedule
-                </button>
-                <a href="/admin/screenings" class="btn btn-outline-secondary">Today</a>
-            </div>
-        </form>
 
-        <% if (dailySchedule && dailySchedule.length > 0) { %>
-            <div class="row g-3">
-                <% dailySchedule.forEach((hallSchedule) => { %>
-                    <div class="col-lg-4 col-md-6">
-                        <div class="border rounded p-3 h-100">
-                            <h6 class="fw-bold mb-3"><i class="bi bi-building me-2"></i><%= hallSchedule.hallName %></h6>
-                            <% hallSchedule.screenings.forEach((screening) => { %>
-                                <div class="d-flex justify-content-between border-bottom pb-2 mb-2">
-                                    <div>
-                                        <div class="fw-semibold"><%= screening.movie.title %></div>
-                                        <small class="text-muted">
-                                            <%= screening.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %>
-                                            -
-                                            <%= screening.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %>
-                                        </small>
-                                    </div>
-                                </div>
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <button id="timelinePrevDate" type="button" class="btn btn-outline-secondary" aria-label="Previous day">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <input id="timelineDatePicker" type="date" class="form-control w-auto" value="<%= selectedDateValue %>">
+                <button id="timelineNextDate" type="button" class="btn btn-outline-secondary" aria-label="Next day">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+                <button id="timelineToday" type="button" class="btn btn-outline-primary">Today</button>
+                <span class="text-muted small ms-md-3">
+                    Cleaning buffer: <strong><%= cleaningBufferMinutes %> min</strong>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div id="timelineAlert" class="alert alert-warning d-none" role="alert"></div>
+
+    <div class="row g-3">
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="timeline-header-row border-bottom">
+                        <div class="timeline-hall-column fw-semibold">Halls</div>
+                        <div id="timelineHourAxis" class="timeline-hour-axis"></div>
+                    </div>
+                    <div id="timelineRows" class="timeline-rows"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-film me-2"></i>Movie Library</h5>
+                </div>
+                <div class="card-body">
+                    <% if (movies && movies.length > 0) { %>
+                        <div class="d-flex flex-column gap-2" id="timelineMovieLibrary">
+                            <% movies.forEach((movie) => { %>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-dark text-start timeline-movie-item"
+                                    draggable="true"
+                                    data-movie-id="<%= movie._id %>"
+                                    data-duration="<%= movie.durationMinutes %>"
+                                    data-title="<%= movie.title %>">
+                                    <span class="fw-semibold d-block"><%= movie.title %></span>
+                                    <small class="text-muted"><%= movie.durationMinutes %> min • <%= movie.genre %></small>
+                                </button>
                             <% }); %>
                         </div>
-                    </div>
-                <% }); %>
+                    <% } else { %>
+                        <p class="text-muted mb-0">No movies available for scheduling.</p>
+                    <% } %>
+                </div>
             </div>
-        <% } else { %>
-            <p class="text-muted mb-0">No active screenings scheduled for this date.</p>
-        <% } %>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <div class="card-body p-0">
-        <% if (screenings && screenings.length > 0) { %>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Movie</th>
-                            <th>Hall</th>
-                            <th>Date & Time</th>
-                            <th>Duration</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <% screenings.forEach((screening) => { %>
-                            <tr>
-                                <td>
-                                    <div class="fw-semibold"><%= screening.movie.title %></div>
-                                    <small class="text-muted"><%= screening.movie.genre %></small>
-                                </td>
-                                <td>
-                                    <span class="badge bg-secondary"><%= screening.hall.name %></span>
-                                </td>
-                                <td>
-                                    <%= screening.startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
-                                    <br>
-                                    <small class="text-muted">
-                                        <%= screening.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %>
-                                        -
-                                        <%= screening.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) %>
-                                    </small>
-                                </td>
-                                <td><%= screening.movie.durationMinutes %> min</td>
-                                <td>
-                                    <% if (screening.status === 'Cancelled') { %>
-                                        <span class="badge bg-danger">Cancelled</span>
-                                    <% } else if (screening.status === 'Completed') { %>
-                                        <span class="badge bg-secondary">Completed</span>
-                                    <% } else { %>
-                                        <span class="badge bg-success">Scheduled</span>
-                                    <% } %>
-                                </td>
-                                <td>
-                                    <div class="d-flex gap-2">
-                                        <% if (screening.status === 'Scheduled') { %>
-                                            <a href="/admin/screenings/<%= screening._id %>/edit" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-pencil"></i> Edit
-                                            </a>
-                                            <form action="/admin/screenings/<%= screening._id %>?_method=PATCH" method="POST" class="d-inline" onsubmit="return confirm('Cancel this screening?');">
-                                                <button type="submit" class="btn btn-sm btn-outline-warning">
-                                                    <i class="bi bi-x-circle"></i> Cancel
-                                                </button>
-                                            </form>
-                                        <% } %>
-                                        <form action="/admin/screenings/<%= screening._id %>?_method=DELETE" method="POST" class="d-inline" onsubmit="return confirm('Delete this screening?');">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        <% }); %>
-                    </tbody>
-                </table>
-            </div>
-        <% } else { %>
-            <div class="text-center p-5 text-muted">
-                <i class="bi bi-calendar-x display-1"></i>
-                <p class="mt-3 lead">No screenings found</p>
-                <a href="/admin/screenings/new" class="btn btn-primary mt-2">
-                    <i class="bi bi-plus-circle me-2"></i>Create First Screening
-                </a>
-            </div>
-        <% } %>
-    </div>
+    <p class="text-muted small mt-3 mb-0">
+        Drag a movie into a hall row to schedule. Drag an existing block to move. Click a block to edit; use the
+        delete icon to remove.
+    </p>
 </div>

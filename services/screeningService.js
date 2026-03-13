@@ -10,8 +10,38 @@ const Hall = require('../models/Hall');
 const { AppError } = require('../middleware/errorMiddleware');
 
 const DEFAULT_CLEANING_BUFFER_MINUTES = Number(process.env.SCREENING_BUFFER_MINUTES || 15);
+const MINUTE_IN_MILLISECONDS = 60000;
 
 class ScreeningService {
+
+    static _getDayBounds(date) {
+        const dayStart = new Date(date);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+        return { dayStart, dayEnd };
+    }
+
+    static _validateMovieSchedulingEligibility(movieDoc) {
+        if (movieDoc.status === 'Archived') {
+            throw new AppError(
+                `Cannot schedule screenings for archived movie "${movieDoc.title}". Update the movie status first.`,
+                400
+            );
+        }
+
+        if (movieDoc.status === 'Coming Soon' && new Date(movieDoc.releaseDate) > new Date()) {
+            const releaseStr = movieDoc.releaseDate.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            throw new AppError(
+                `Cannot schedule "${movieDoc.title}" yet — it is Coming Soon and releases on ${releaseStr}.`,
+                400
+            );
+        }
+    }
 
     /**
      * Create a new screening with overlap detection
@@ -31,19 +61,7 @@ class ScreeningService {
         }
 
         // 1b. Validate movie status allows scheduling
-        if (movieDoc.status === 'Archived') {
-            throw new AppError(
-                `Cannot schedule screenings for archived movie "${movieDoc.title}". Update the movie status first.`,
-                400
-            );
-        }
-        if (movieDoc.status === 'Coming Soon' && new Date(movieDoc.releaseDate) > new Date()) {
-            const releaseStr = movieDoc.releaseDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            throw new AppError(
-                `Cannot schedule "${movieDoc.title}" yet — it is Coming Soon and releases on ${releaseStr}.`,
-                400
-            );
-        }
+        this._validateMovieSchedulingEligibility(movieDoc);
 
         // 2. Validate hall exists and is available
         const hallDoc = await Hall.findById(hall);
@@ -65,7 +83,7 @@ class ScreeningService {
         }
 
         // 4. Calculate end time
-        const endTime = new Date(parsedStartTime.getTime() + movieDoc.durationMinutes * 60000);
+        const endTime = new Date(parsedStartTime.getTime() + movieDoc.durationMinutes * MINUTE_IN_MILLISECONDS);
 
         // 4b. Prevent accidental duplicates (same movie + hall + exact start time)
         const duplicateScreening = await Screening.findOne({
@@ -110,21 +128,16 @@ class ScreeningService {
      * @throws {AppError} If overlap detected
      */
     static async _checkForOverlap(hallId, startTime, endTime, excludeScreeningId = null) {
-        // Extract date for same-day comparison (date only, no time)
-        const screeningDate = new Date(startTime);
-        screeningDate.setHours(0, 0, 0, 0);
+        const cleaningBufferMs = Math.max(0, DEFAULT_CLEANING_BUFFER_MINUTES) * MINUTE_IN_MILLISECONDS;
+        const newEndWithBuffer = new Date(endTime.getTime() + cleaningBufferMs);
+        const newStartWithBuffer = new Date(startTime.getTime() - cleaningBufferMs);
 
-        const nextDay = new Date(screeningDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        // Find all screenings in same hall on same day
+        // Find candidate screenings in same hall that could overlap this new interval.
         const query = {
             hall: hallId,
             status: { $ne: 'Cancelled' },
-            date: {
-                $gte: screeningDate,
-                $lt: nextDay
-            }
+            startTime: { $lt: newEndWithBuffer },
+            endTime: { $gt: newStartWithBuffer }
         };
 
         // Exclude current screening if updating
@@ -135,9 +148,6 @@ class ScreeningService {
         const existingScreenings = await Screening.find(query)
             .populate('movie', 'title')
             .populate('hall', 'name');
-
-        const cleaningBufferMs = Math.max(0, DEFAULT_CLEANING_BUFFER_MINUTES) * 60000;
-        const newEndWithBuffer = new Date(endTime.getTime() + cleaningBufferMs);
 
         // Check for overlap with each existing screening
         for (const existing of existingScreenings) {
@@ -188,6 +198,8 @@ class ScreeningService {
             throw new AppError('Movie not found', 404);
         }
 
+        this._validateMovieSchedulingEligibility(movieDoc);
+
         // 3. Validate hall exists and is available
         const hallDoc = await Hall.findById(hall);
         if (!hallDoc) {
@@ -207,7 +219,7 @@ class ScreeningService {
         }
 
         // 4. Calculate end time
-        const endTime = new Date(parsedStartTime.getTime() + movieDoc.durationMinutes * 60000);
+        const endTime = new Date(parsedStartTime.getTime() + movieDoc.durationMinutes * MINUTE_IN_MILLISECONDS);
 
         // 4b. Prevent accidental duplicates when updating
         const duplicateScreening = await Screening.findOne({
@@ -288,18 +300,16 @@ class ScreeningService {
     }
 
     static async getDailyScheduleOverview(date = new Date()) {
-        const dayStart = new Date(date);
-        dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(dayStart);
-        dayEnd.setDate(dayEnd.getDate() + 1);
+        const { dayStart, dayEnd } = this._getDayBounds(date);
 
         const screenings = await Screening.find({
-            date: { $gte: dayStart, $lt: dayEnd },
+            startTime: { $lt: dayEnd },
+            endTime: { $gt: dayStart },
             status: { $ne: 'Cancelled' }
         })
             .populate('movie', 'title')
             .populate('hall', 'name')
-            .sort({ 'hall.name': 1, startTime: 1 });
+            .sort({ startTime: 1 });
 
         const hallMap = new Map();
         screenings.forEach((screening) => {
@@ -313,6 +323,19 @@ class ScreeningService {
         return Array.from(hallMap.entries())
             .map(([hallName, hallScreenings]) => ({ hallName, screenings: hallScreenings }))
             .sort((a, b) => a.hallName.localeCompare(b.hallName));
+    }
+
+    static async getTimelineScreeningsByDate(date = new Date()) {
+        const { dayStart, dayEnd } = this._getDayBounds(date);
+
+        return Screening.find({
+            status: { $ne: 'Cancelled' },
+            startTime: { $lt: dayEnd },
+            endTime: { $gt: dayStart }
+        })
+            .populate('movie', 'title durationMinutes genre')
+            .populate('hall', 'name status')
+            .sort({ startTime: 1 });
     }
 }
 

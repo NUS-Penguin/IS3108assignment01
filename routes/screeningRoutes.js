@@ -16,6 +16,13 @@ router.use(requireAuth);
 // List all screenings
 router.get('/', screeningController.index);
 
+// Timeline scheduler APIs
+router.get('/timeline/data', screeningController.getTimelineData);
+router.post('/timeline', screeningController.createFromTimeline);
+router.patch('/timeline/:id/move', screeningController.moveTimelineScreening);
+router.patch('/timeline/:id/cancel', screeningController.cancelTimelineScreening);
+router.delete('/timeline/:id', screeningController.deleteTimelineScreening);
+
 // Show create form
 router.get('/new', screeningController.renderForm);
 

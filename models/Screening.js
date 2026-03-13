@@ -47,8 +47,9 @@ screeningSchema.index({ hall: 1, date: 1 });
 screeningSchema.index({ startTime: 1 });
 screeningSchema.index({ movie: 1 });
 
-// Pre-save hook to calculate endTime and extract date
-screeningSchema.pre('save', async function (next) {
+// Pre-validate hook to calculate endTime and extract date
+// (required fields must be set before validation)
+screeningSchema.pre('validate', async function (next) {
     try {
         if (this.isModified('startTime') || this.isModified('movie') || this.isNew) {
             const screeningDate = new Date(this.startTime);
