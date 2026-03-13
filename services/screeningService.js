@@ -27,6 +27,21 @@ class ScreeningService {
             throw new AppError('Movie not found', 404);
         }
 
+        // 1b. Validate movie status allows scheduling
+        if (movieDoc.status === 'Archived') {
+            throw new AppError(
+                `Cannot schedule screenings for archived movie "${movieDoc.title}". Update the movie status first.`,
+                400
+            );
+        }
+        if (movieDoc.status === 'Coming Soon' && new Date(movieDoc.releaseDate) > new Date()) {
+            const releaseStr = movieDoc.releaseDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            throw new AppError(
+                `Cannot schedule "${movieDoc.title}" yet — it is Coming Soon and releases on ${releaseStr}.`,
+                400
+            );
+        }
+
         // 2. Validate hall exists and is available
         const hallDoc = await Hall.findById(hall);
         if (!hallDoc) {

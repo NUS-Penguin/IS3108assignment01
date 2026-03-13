@@ -9,6 +9,172 @@ This document tracks all significant changes to the codebase.
 
 ---
 
+## [2026-03-13] Module 3: Movie Management (Content)
+
+**Type:** Feature Enhancement
+**Scope:** Major - Full movie catalogue module
+**Files Modified:** 7 files
+**Files Created:** 1 file (`services/movieService.js`)
+**Lines Added:** ~400+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Implemented Module 3 (Movie Management) in full accordance with the Assignment-1-prompt-v2 guidelines. The existing movie CRUD scaffolding was upgraded to a production-quality module with a dedicated service layer, movie status lifecycle (`Now Showing`, `Coming Soon`, `Archived`), multi-field search and filtering, poster URL with live preview, detailed safe-deletion messages that include the exact upcoming screening count, and movie-status enforcement in the screening service.
+
+All code follows the MVC pattern with thin controllers delegating entirely to `MovieService`. Bootstrap 5 utility classes are used exclusively; no inline styles or custom CSS were added.
+
+### Features Implemented
+
+#### 1. Movie Status Lifecycle
+**Impact:** High – Business Logic / Scheduling
+
+**Changes:**
+- Added `status` field to `Movie` schema: enum `['Now Showing', 'Coming Soon', 'Archived']`, default `'Now Showing'`
+- `screeningService.createScreening` now blocks scheduling against `Archived` movies or `Coming Soon` movies whose release date is still in the future, with actionable error messages
+
+**Files Modified:**
+- `models/Movie.js` — new `status` field, ~10 lines
+- `services/screeningService.js` — status guard block, ~15 lines
+
+**Database Schema Changes:**
+```javascript
+status: {
+    type: String,
+    required: true,
+    enum: ['Now Showing', 'Coming Soon', 'Archived'],
+    default: 'Now Showing'
+}
+```
+
+#### 2. MovieService Business Logic Layer
+**Impact:** High – Architecture / Separation of Concerns
+
+**Changes:**
+- Created `services/movieService.js` with static methods: `getAllMovies`, `getMovieById`, `createMovie`, `updateMovie`, `deleteMovie`
+- Efficient `_attachScreeningCounts` using a single MongoDB aggregation pipeline
+- `getValidGenres()` and `getValidStatuses()` centralise enum lists
+
+**Files Created:**
+- `services/movieService.js` — ~180 lines
+
+#### 3. Safe Deletion with Actionable Error Message
+**Impact:** High – UX / Module 3 requirement
+
+**Changes:**
+- `Movie` model gains `getFutureScreeningsCount()` returning the numeric count
+- `MovieService.deleteMovie` throws `AppError` with message:
+  *"This movie has N future screenings scheduled. Please remove or reschedule them before deleting."*
+- Index view shows a Bootstrap modal (not a JS alert) with the movie title and count
+
+**Files Modified:**
+- `models/Movie.js` — `getFutureScreeningsCount()`, ~8 lines
+- `views/movies/index.ejs` — cannot-delete modal, ~30 lines
+
+#### 4. Search and Filtering
+**Impact:** Medium – UX
+
+**Changes:**
+- `Movie.search()` static method builds a dynamic Mongoose query from `{ search, genre, status, releaseYear }`
+- Controller `index()` reads `?search`, `?genre`, `?status`, `?releaseYear` query params
+- Filter bar in `index.ejs` with clear-filter link and result count
+
+**Files Modified:**
+- `models/Movie.js` — `search()` static, ~20 lines
+- `controllers/movieController.js` — query param reading, ~5 lines
+- `views/movies/index.ejs` — filter form, ~30 lines
+
+#### 5. Poster URL with Live Preview
+**Impact:** Medium – UX
+
+**Changes:**
+- Form shows a thumbnail beside the URL field that updates on input via a small vanilla JS function
+- Table in `index.ejs` shows a 48×68 poster thumbnail or a Bootstrap icon placeholder (no inline styles)
+
+**Files Modified:**
+- `views/movies/form.ejs` — preview HTML + JS, ~20 lines
+- `views/movies/index.ejs` — thumbnail column, ~15 lines
+
+#### 6. Refactored Controller (Thin Layer)
+**Impact:** Medium – Architecture
+
+**Changes:**
+- `movieController.js` fully rewritten to delegate all logic to `MovieService`
+- No direct database queries in any controller method
+
+**Files Modified:**
+- `controllers/movieController.js` — full rewrite, ~137 lines
+
+#### 7. Validation Middleware Update
+**Impact:** Low – Security
+
+**Changes:**
+- `validateMovie` middleware updated to also validate `status` against allowed values
+- Applied to POST and PUT movie routes
+
+**Files Modified:**
+- `middleware/validationMiddleware.js` — ~5 lines
+- `routes/movieRoutes.js` — added `validateMovie` to POST/PUT, ~2 lines
+
+### Complete File Manifest
+
+#### Files Modified (7):
+- **models/Movie.js** — Lines Added: ~45 — `status` field, `getFutureScreeningsCount()`, `search()` static
+- **controllers/movieController.js** — Lines Added: ~137 — full rewrite, thin layer using MovieService
+- **middleware/validationMiddleware.js** — Lines Added: ~6 — status validation
+- **routes/movieRoutes.js** — Lines Added: ~2 — `validateMovie` middleware on POST/PUT
+- **views/movies/index.ejs** — Lines Added: ~200 — filter bar, poster column, status badges, cannot-delete modal
+- **views/movies/form.ejs** — Lines Added: ~30 — status dropdown, poster preview
+- **services/screeningService.js** — Lines Added: ~15 — movie status guard
+
+#### Files Created (1):
+- **services/movieService.js** — ~180 lines — all movie business logic
+
+### Routes (unchanged structure, new search support)
+
+| Method | Route | Controller | Notes |
+|--------|-------|------------|-------|
+| GET | /admin/movies | `index()` | Accepts `?search&genre&status&releaseYear` |
+| GET | /admin/movies/new | `renderForm()` | |
+| POST | /admin/movies | `create()` | validateMovie middleware added |
+| GET | /admin/movies/:id/edit | `renderForm()` | |
+| PUT | /admin/movies/:id | `update()` | validateMovie middleware added |
+| DELETE | /admin/movies/:id | `delete()` | Blocked with count if future screenings exist |
+
+### Testing Checklist
+- ✅ Create movie — all fields including status
+- ✅ Edit movie — status updates correctly
+- ✅ Delete movie with no screenings — succeeds
+- ✅ Delete movie with future screenings — blocked, modal shows correct count
+- ✅ Filter by title search — case-insensitive partial match
+- ✅ Filter by genre — exact match
+- ✅ Filter by status — exact match
+- ✅ Filter by release year — date range
+- ✅ Clear-filter link resets to full list
+- ✅ Schedule `Archived` movie — rejected by screeningService
+- ✅ Schedule `Coming Soon` movie before release — rejected with date
+- ✅ Poster URL preview updates live in form
+- ✅ No inline styles in any template
+- ✅ No custom CSS added
+
+### Prompt Compliance Checklist
+- ✅ Controllers thin (<200 lines, no DB queries)
+- ✅ Business logic in `services/movieService.js`
+- ✅ `const` by default, `async/await`, destructuring, arrow functions
+- ✅ Bootstrap 5 utility classes exclusively (no inline styles)
+- ✅ Zero custom CSS added
+- ✅ All admin routes protected by `requireAuth`
+- ✅ Centralised error handling via `AppError` / `errorHandler`
+- ✅ Server-side validation (middleware) + Mongoose schema validation
+- ✅ No forbidden technologies (no JWT, no React, no TypeScript)
+
+### Known Limitations
+- Poster upload (local file) is not implemented — URL-only per spec
+- Genre is single-select (schema enum); multi-genre support would require schema change
+- `durationFormatted` virtual is not included when using `.toObject()` unless `{ virtuals: true }` is passed — `_attachScreeningCounts` handles this correctly
+
+---
+
 ## [2026-03-13] Seat Configuration Matrix Tool Enhancement
 
 **Type:** Feature Enhancement

@@ -45,6 +45,15 @@ const movieSchema = new mongoose.Schema({
         trim: true,
         match: [/^https?:\/\/.+/, 'Please provide a valid URL'],
         default: null
+    },
+    status: {
+        type: String,
+        required: [true, 'Movie status is required'],
+        enum: {
+            values: ['Now Showing', 'Coming Soon', 'Archived'],
+            message: 'Status must be Now Showing, Coming Soon, or Archived'
+        },
+        default: 'Now Showing'
     }
 }, {
     timestamps: true
@@ -57,19 +66,47 @@ movieSchema.virtual('durationFormatted').get(function () {
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 });
 
-// Instance method to check if movie has future screenings
-movieSchema.methods.hasFutureScreenings = async function () {
+// Instance method to get count of future screenings
+movieSchema.methods.getFutureScreeningsCount = async function () {
     const Screening = mongoose.model('Screening');
-    const count = await Screening.countDocuments({
+    return await Screening.countDocuments({
         movie: this._id,
         startTime: { $gt: new Date() }
     });
-    return count > 0;
+};
+
+// Instance method to check if movie has future screenings
+movieSchema.methods.hasFutureScreenings = async function () {
+    return (await this.getFutureScreeningsCount()) > 0;
 };
 
 // Static method to find movies by genre
 movieSchema.statics.findByGenre = function (genre) {
     return this.find({ genre });
+};
+
+// Static method to search movies with filters
+movieSchema.statics.search = function ({ search, genre, status, releaseYear } = {}) {
+    const query = {};
+
+    if (search) {
+        query.title = { $regex: search, $options: 'i' };
+    }
+    if (genre) {
+        query.genre = genre;
+    }
+    if (status) {
+        query.status = status;
+    }
+    if (releaseYear) {
+        const year = parseInt(releaseYear);
+        query.releaseDate = {
+            $gte: new Date(`${year}-01-01`),
+            $lte: new Date(`${year}-12-31`)
+        };
+    }
+
+    return this.find(query).sort({ createdAt: -1 });
 };
 
 // Pre-remove hook to prevent deletion if future screenings exist

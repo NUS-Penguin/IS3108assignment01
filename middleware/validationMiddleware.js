@@ -59,13 +59,13 @@ exports.validateHall = (req, res, next) => {
  * Validate movie creation/update data
  */
 exports.validateMovie = (req, res, next) => {
-    const { title, description, durationMinutes, genre, releaseDate } = req.body;
+    const { title, description, durationMinutes, genre, releaseDate, status } = req.body;
 
     if (!title || !description || !durationMinutes || !genre || !releaseDate) {
         return next(new AppError('All required fields must be filled', 400));
     }
 
-    const duration = parseInt(durationMinutes);
+    const duration = parseInt(durationMinutes, 10);
     if (isNaN(duration) || duration < 1 || duration > 500) {
         return next(new AppError('Duration must be between 1 and 500 minutes', 400));
     }
@@ -73,6 +73,11 @@ exports.validateMovie = (req, res, next) => {
     const release = new Date(releaseDate);
     if (isNaN(release.getTime())) {
         return next(new AppError('Invalid release date format', 400));
+    }
+
+    const VALID_STATUSES = ['Now Showing', 'Coming Soon', 'Archived'];
+    if (status && !VALID_STATUSES.includes(status)) {
+        return next(new AppError('Status must be Now Showing, Coming Soon, or Archived', 400));
     }
 
     next();

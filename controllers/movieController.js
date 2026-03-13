@@ -1,23 +1,31 @@
-/**
+﻿/**
  * controllers/movieController.js - Movie Controller
- * 
- * Handles HTTP requests for movie management.
+ *
+ * Thin layer: validates requests, delegates to MovieService,
+ * and renders the appropriate EJS view.
  */
 
-const Movie = require('../models/Movie');
+const MovieService = require('../services/movieService');
 const { AppError } = require('../middleware/errorMiddleware');
 
 /**
- * GET /admin/movies - List all movies
+ * GET /admin/movies
+ * List all movies, with optional search/filter query params:
+ *   ?search=&genre=&status=&releaseYear=
  */
 exports.index = async (req, res, next) => {
     try {
-        const movies = await Movie.find().sort({ createdAt: -1 });
+        const { search = '', genre = '', status = '', releaseYear = '' } = req.query;
+
+        const movies = await MovieService.getAllMovies({ search, genre, status, releaseYear });
 
         res.render('movies/index', {
             title: 'Movies',
             username: req.session.username,
-            movies
+            movies,
+            genres: MovieService.getValidGenres(),
+            statuses: MovieService.getValidStatuses(),
+            filters: { search, genre, status, releaseYear }
         });
     } catch (error) {
         next(error);
@@ -25,39 +33,35 @@ exports.index = async (req, res, next) => {
 };
 
 /**
- * GET /admin/movies/new - Render create movie form
- * GET /admin/movies/:id/edit - Render edit movie form
- * Unified form handler for both create and edit operations
+ * GET /admin/movies/new     - Render create form
+ * GET /admin/movies/:id/edit - Render edit form
  */
 exports.renderForm = async (req, res, next) => {
     try {
         const isEditMode = !!req.params.id;
-        const genres = ['Action', 'Drama', 'Comedy', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Documentary', 'Animation', 'Fantasy'];
+        const genres = MovieService.getValidGenres();
+        const statuses = MovieService.getValidStatuses();
 
         if (isEditMode) {
-            // Edit mode - fetch movie data
-            const movie = await Movie.findById(req.params.id);
-
-            if (!movie) {
-                throw new AppError('Movie not found', 404);
-            }
-
-            res.render('movies/form', {
+            const movie = await MovieService.getMovieById(req.params.id);
+            return res.render('movies/form', {
                 title: 'Edit Movie',
                 username: req.session.username,
                 movie,
                 genres,
-                error: null
-            });
-        } else {
-            // Create mode - no movie data
-            res.render('movies/form', {
-                title: 'Add New Movie',
-                username: req.session.username,
-                genres,
+                statuses,
                 error: null
             });
         }
+
+        res.render('movies/form', {
+            title: 'Add New Movie',
+            username: req.session.username,
+            movie: null,
+            genres,
+            statuses,
+            error: null
+        });
     } catch (error) {
         next(error);
     }
@@ -68,32 +72,18 @@ exports.renderForm = async (req, res, next) => {
  */
 exports.create = async (req, res, next) => {
     try {
-        const { title, description, durationMinutes, genre, releaseDate, posterURL } = req.body;
+        await MovieService.createMovie(req.body);
 
-        const movie = new Movie({
-            title,
-            description,
-            durationMinutes: parseInt(durationMinutes),
-            genre,
-            releaseDate: new Date(releaseDate),
-            posterURL: posterURL || null
-        });
-
-        await movie.save();
-
-        req.session.flash = {
-            type: 'success',
-            message: 'Movie added successfully'
-        };
-
+        req.session.flash = { type: 'success', message: 'Movie added successfully' };
         res.redirect('/admin/movies');
-
     } catch (error) {
         if (error.name === 'ValidationError') {
             return res.render('movies/form', {
                 title: 'Add New Movie',
                 username: req.session.username,
-                genres: ['Action', 'Drama', 'Comedy', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Documentary', 'Animation', 'Fantasy'],
+                movie: null,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
                 error: Object.values(error.errors).map(e => e.message).join(', ')
             });
         }
@@ -106,38 +96,19 @@ exports.create = async (req, res, next) => {
  */
 exports.update = async (req, res, next) => {
     try {
-        const { title, description, durationMinutes, genre, releaseDate, posterURL } = req.body;
+        await MovieService.updateMovie(req.params.id, req.body);
 
-        const movie = await Movie.findById(req.params.id);
-
-        if (!movie) {
-            throw new AppError('Movie not found', 404);
-        }
-
-        movie.title = title;
-        movie.description = description;
-        movie.durationMinutes = parseInt(durationMinutes);
-        movie.genre = genre;
-        movie.releaseDate = new Date(releaseDate);
-        movie.posterURL = posterURL || null;
-
-        await movie.save();
-
-        req.session.flash = {
-            type: 'success',
-            message: 'Movie updated successfully'
-        };
-
+        req.session.flash = { type: 'success', message: 'Movie updated successfully' };
         res.redirect('/admin/movies');
-
     } catch (error) {
         if (error.name === 'ValidationError') {
-            const movie = await Movie.findById(req.params.id);
+            const movie = await MovieService.getMovieById(req.params.id).catch(() => null);
             return res.render('movies/form', {
                 title: 'Edit Movie',
                 username: req.session.username,
                 movie,
-                genres: ['Action', 'Drama', 'Comedy', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Documentary', 'Animation', 'Fantasy'],
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
                 error: Object.values(error.errors).map(e => e.message).join(', ')
             });
         }
@@ -147,36 +118,19 @@ exports.update = async (req, res, next) => {
 
 /**
  * DELETE /admin/movies/:id - Delete movie
+ * Rejected with an informative count if future screenings exist.
  */
 exports.delete = async (req, res, next) => {
     try {
-        const movie = await Movie.findById(req.params.id);
+        await MovieService.deleteMovie(req.params.id);
 
-        if (!movie) {
-            throw new AppError('Movie not found', 404);
-        }
-
-        // Check for future screenings
-        const hasFuture = await movie.hasFutureScreenings();
-
-        if (hasFuture) {
-            req.session.flash = {
-                type: 'danger',
-                message: 'Cannot delete movie with future screenings scheduled'
-            };
+        req.session.flash = { type: 'success', message: 'Movie deleted successfully' };
+        res.redirect('/admin/movies');
+    } catch (error) {
+        if (error.statusCode === 400 || error.statusCode === 404) {
+            req.session.flash = { type: 'danger', message: error.message };
             return res.redirect('/admin/movies');
         }
-
-        await movie.deleteOne();
-
-        req.session.flash = {
-            type: 'success',
-            message: 'Movie deleted successfully'
-        };
-
-        res.redirect('/admin/movies');
-
-    } catch (error) {
         next(error);
     }
 };
