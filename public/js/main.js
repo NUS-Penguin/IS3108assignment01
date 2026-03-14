@@ -401,7 +401,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     seat.dataset.row = row;
                     seat.dataset.column = col;
                     seat.dataset.seatType = seatType;
-                    seat.innerHTML = `<i class="seat-icon ${getSeatIconClass(seatType)}"></i>`;
+                    seat.innerHTML = seatType === 'empty'
+                        ? ''
+                        : '<span class="seat-icon" aria-hidden="true"></span>';
 
                     // Add click handler
                     seat.addEventListener('click', function () {
@@ -426,10 +428,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Add new seat type class
                 seat.classList.add(`seat-${newType}`);
                 seat.dataset.seatType = newType;
-                const icon = seat.querySelector('.seat-icon');
-                if (icon) {
-                    icon.className = `seat-icon ${getSeatIconClass(newType)}`;
-                }
+                seat.innerHTML = newType === 'empty'
+                    ? ''
+                    : '<span class="seat-icon" aria-hidden="true"></span>';
             }
 
             // Update statistics
@@ -437,22 +438,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Update form data
             updateFormData();
-        }
-
-        function getSeatIconClass(seatType) {
-            switch (seatType) {
-                case 'vip':
-                    return 'bi bi-star-fill';
-                case 'wheelchair':
-                    return 'bi bi-person-wheelchair';
-                case 'unavailable':
-                    return 'bi bi-x-circle-fill';
-                case 'empty':
-                    return 'bi bi-dash-square';
-                case 'regular':
-                default:
-                    return 'bi bi-circle-fill';
-            }
         }
 
         // Update seat statistics

@@ -136,7 +136,12 @@ body {
 }
 
 .seat-icon {
-    line-height: 1;
+    width: 72%;
+    height: 72%;
+    display: block;
+    background-color: currentColor;
+    -webkit-mask: url('/images/seat-icon.svg') center / contain no-repeat;
+    mask: url('/images/seat-icon.svg') center / contain no-repeat;
 }
 
 /* Seat Type Colors */
@@ -185,8 +190,12 @@ body {
 }
 
 .seat-legend-icon {
-    font-size: 16px;
-    line-height: 1;
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    background-color: currentColor;
+    -webkit-mask: url('/images/seat-icon.svg') center / contain no-repeat;
+    mask: url('/images/seat-icon.svg') center / contain no-repeat;
 }
 
 /* Responsive adjustments for seat grid */
