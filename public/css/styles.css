@@ -45,7 +45,7 @@ body {
 .cinema-layout {
     --rows: 10;
     --cols: 15;
-    --seat-size: 40px;
+    --seat-size: 34px;
     --seat-gap: 8px;
 
     display: flex;
@@ -117,51 +117,48 @@ body {
 .seat {
     width: var(--seat-size);
     height: var(--seat-size);
-    border: 1px solid #ccc;
+    border: 1px solid transparent;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: calc(var(--seat-size) * 0.65);
     transition: all 0.2s ease;
     position: relative;
+    background-color: transparent;
 }
 
 .seat:hover {
     transform: scale(1.1);
-    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.35);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.seat-icon {
+    line-height: 1;
 }
 
 /* Seat Type Colors */
 .seat-regular {
-    background-color: #0d6efd;
-    border-color: #0a58ca;
-    color: white;
+    color: #0d6efd;
 }
 
 .seat-vip {
-    background-color: #ffc107;
-    border-color: #ffca2c;
-    color: #000;
+    color: #ffc107;
 }
 
 .seat-wheelchair {
-    background-color: #6f42c1;
-    border-color: #59359a;
-    color: white;
+    color: #0dcaf0;
 }
 
 .seat-unavailable {
-    background-color: #6c757d;
-    border-color: #565e64;
-    color: white;
+    color: #6c757d;
 }
 
 .seat-empty {
     background-color: transparent;
-    border-color: #dee2e6;
+    border-color: rgba(255, 255, 255, 0.15);
     color: #6c757d;
 }
 
@@ -187,10 +184,15 @@ body {
     display: inline-block;
 }
 
+.seat-legend-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
 /* Responsive adjustments for seat grid */
 @media (max-width: 768px) {
     .cinema-layout {
-        --seat-size: 28px;
+        --seat-size: 24px;
         --seat-gap: 6px;
         gap: 24px;
     }

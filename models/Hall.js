@@ -35,13 +35,13 @@ const hallSchema = new mongoose.Schema({
         type: Number,
         required: [true, 'Number of rows is required'],
         min: [1, 'Must have at least 1 row'],
-        max: [26, 'Cannot exceed 26 rows (A-Z)']
+        max: [25, 'Cannot exceed 25 rows (A-Y)']
     },
     columns: {
         type: Number,
         required: [true, 'Number of columns is required'],
         min: [1, 'Must have at least 1 column'],
-        max: [50, 'Cannot exceed 50 columns']
+        max: [25, 'Cannot exceed 25 columns']
     },
     seatTypes: {
         type: [seatTypeSchema],

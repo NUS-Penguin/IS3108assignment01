@@ -63,16 +63,16 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                                         <label for="rows" class="form-label">Number of Rows <span
                                                 class="text-danger">*</span></label>
                                         <input type="number" class="form-control" id="rows" name="rows" required min="1"
-                                            max="26" value="<%= hallRows %>" placeholder="e.g., 10">
-                                        <div class="form-text">1-26 rows (A-Z)</div>
+                                            max="25" value="<%= hallRows %>" placeholder="e.g., 10">
+                                        <div class="form-text">1-25 rows (A-Y)</div>
                                     </div>
 
                                     <div class="col-md-6 mb-3">
                                         <label for="columns" class="form-label">Number of Columns <span
                                                 class="text-danger">*</span></label>
                                         <input type="number" class="form-control" id="columns" name="columns" required
-                                            min="1" max="50" value="<%= hallColumns %>" placeholder="e.g., 20">
-                                        <div class="form-text">1-50 columns</div>
+                                            min="1" max="25" value="<%= hallColumns %>" placeholder="e.g., 20">
+                                        <div class="form-text">1-25 columns</div>
                                     </div>
                                 </div>
 
@@ -125,23 +125,23 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                                                 <h6 class="mb-2">Seat Legend:</h6>
                                                 <div class="d-flex flex-wrap gap-3">
                                                     <div class="d-flex align-items-center">
-                                                        <div class="seat-legend-box seat-regular"></div>
+                                                        <i class="bi bi-circle-fill seat-legend-icon seat-regular"></i>
                                                         <span class="ms-2 small">Regular</span>
                                                     </div>
                                                     <div class="d-flex align-items-center">
-                                                        <div class="seat-legend-box seat-vip"></div>
+                                                        <i class="bi bi-star-fill seat-legend-icon seat-vip"></i>
                                                         <span class="ms-2 small">VIP</span>
                                                     </div>
                                                     <div class="d-flex align-items-center">
-                                                        <div class="seat-legend-box seat-wheelchair"></div>
+                                                        <i class="bi bi-person-wheelchair seat-legend-icon seat-wheelchair"></i>
                                                         <span class="ms-2 small">Wheelchair</span>
                                                     </div>
                                                     <div class="d-flex align-items-center">
-                                                        <div class="seat-legend-box seat-unavailable"></div>
+                                                        <i class="bi bi-x-circle-fill seat-legend-icon seat-unavailable"></i>
                                                         <span class="ms-2 small">Unavailable</span>
                                                     </div>
                                                     <div class="d-flex align-items-center">
-                                                        <div class="seat-legend-box seat-empty"></div>
+                                                        <i class="bi bi-dash-square seat-legend-icon seat-empty"></i>
                                                         <span class="ms-2 small">Empty</span>
                                                     </div>
                                                 </div>

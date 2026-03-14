@@ -44,12 +44,12 @@ exports.validateHall = (req, res, next) => {
     const rowsNum = parseInt(rows);
     const colsNum = parseInt(columns);
 
-    if (isNaN(rowsNum) || rowsNum < 1 || rowsNum > 26) {
-        return next(new AppError('Rows must be between 1 and 26', 400));
+    if (isNaN(rowsNum) || rowsNum < 1 || rowsNum > 25) {
+        return next(new AppError('Rows must be between 1 and 25', 400));
     }
 
-    if (isNaN(colsNum) || colsNum < 1 || colsNum > 50) {
-        return next(new AppError('Columns must be between 1 and 50', 400));
+    if (isNaN(colsNum) || colsNum < 1 || colsNum > 25) {
+        return next(new AppError('Columns must be between 1 and 25', 400));
     }
 
     next();
