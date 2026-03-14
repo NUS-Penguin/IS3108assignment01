@@ -12,6 +12,7 @@ const ScreeningService = require('../services/screeningService');
 const { AppError } = require('../middleware/errorMiddleware');
 
 const DEFAULT_CLEANING_BUFFER_MINUTES = Number(process.env.SCREENING_BUFFER_MINUTES || 15);
+const TIMELINE_SLOT_MINUTES = 30;
 
 const _normalizeSelectedDate = (dateValue) => {
     const selectedDate = dateValue ? new Date(dateValue) : new Date();
@@ -44,6 +45,23 @@ const _serializeScreening = (screening) => ({
     } : null
 });
 
+const _snapToTimelineSlot = (dateValue) => {
+    const date = new Date(dateValue);
+
+    if (isNaN(date.getTime())) {
+        throw new AppError('Invalid start time format', 400);
+    }
+
+    const roundedMinutes = Math.round(date.getMinutes() / TIMELINE_SLOT_MINUTES) * TIMELINE_SLOT_MINUTES;
+    if (roundedMinutes >= 60) {
+        date.setHours(date.getHours() + 1, 0, 0, 0);
+    } else {
+        date.setMinutes(roundedMinutes, 0, 0);
+    }
+
+    return date;
+};
+
 /**
  * GET /admin/screenings - List all screenings
  */
@@ -75,6 +93,51 @@ exports.index = async (req, res, next) => {
             timelineHalls,
             movies,
             timelineScreenings: timelineScreenings.map(_serializeScreening)
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * GET /admin/screenings/:id - Show screening occupancy (read-only)
+ */
+exports.show = async (req, res, next) => {
+    try {
+        const screening = await Screening.findById(req.params.id)
+            .populate('movie')
+            .populate('hall');
+
+        if (!screening) {
+            throw new AppError('Screening not found', 404);
+        }
+
+        const fallbackOccupancy = ScreeningService.buildInitialSeatOccupancy(screening.hall);
+        const hasValidOccupancy = Array.isArray(screening.seatOccupancy) && screening.seatOccupancy.length > 0;
+        const seatOccupancy = hasValidOccupancy ? screening.seatOccupancy : fallbackOccupancy;
+
+        if (!hasValidOccupancy) {
+            screening.seatOccupancy = fallbackOccupancy;
+            await screening.save();
+        }
+
+        const flatSeats = seatOccupancy.flat().filter((seat) => seat && seat.type !== 'empty');
+        const occupiedSeats = flatSeats.filter((seat) => seat.status === 'occupied').length;
+        const unavailableSeats = flatSeats.filter((seat) => seat.status === 'unavailable').length;
+        const availableSeats = flatSeats.filter((seat) => seat.status === 'available').length;
+        const totalSeats = flatSeats.length;
+
+        res.render('screenings/show', {
+            title: 'Screening Seat Overview',
+            username: req.session.username,
+            screening,
+            seatOccupancy,
+            stats: {
+                totalSeats,
+                occupiedSeats,
+                availableSeats,
+                unavailableSeats
+            }
         });
     } catch (error) {
         next(error);
@@ -285,10 +348,12 @@ exports.createFromTimeline = async (req, res) => {
             throw new AppError('Movie, hall, and start time are required', 400);
         }
 
+        const snappedStartTime = _snapToTimelineSlot(startDateTime);
+
         const created = await ScreeningService.createScreening({
             movie: movieId,
             hall: hallId,
-            startTime: new Date(startDateTime)
+            startTime: snappedStartTime
         });
 
         const screening = await Screening.findById(created._id)
@@ -319,6 +384,8 @@ exports.moveTimelineScreening = async (req, res) => {
             throw new AppError('Hall and start time are required to move screening', 400);
         }
 
+        const snappedStartTime = _snapToTimelineSlot(startDateTime);
+
         const existing = await Screening.findById(req.params.id);
         if (!existing) {
             throw new AppError('Screening not found', 404);
@@ -327,7 +394,7 @@ exports.moveTimelineScreening = async (req, res) => {
         const updated = await ScreeningService.updateScreening(req.params.id, {
             movie: existing.movie,
             hall: hallId,
-            startTime: new Date(startDateTime)
+            startTime: snappedStartTime
         });
 
         const screening = await Screening.findById(updated._id)

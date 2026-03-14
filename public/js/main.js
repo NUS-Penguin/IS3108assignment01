@@ -532,23 +532,31 @@ document.addEventListener('DOMContentLoaded', function () {
     // SCREENING TIMELINE SCHEDULER
     // ========================================
     if (document.getElementById('screeningScheduler')) {
-        const MINUTES_IN_DAY = 24 * 60;
-        const SLOT_MINUTES = 15;
+        const SLOT_MINUTES = 30;
+        const SLOTS_PER_HOUR = 60 / SLOT_MINUTES;
 
         const schedulerRoot = document.getElementById('screeningScheduler');
-        const timelineRows = document.getElementById('timelineRows');
-        const timelineHourAxis = document.getElementById('timelineHourAxis');
+        const rootStyles = getComputedStyle(document.documentElement);
+        const configuredColumns = Number.parseInt(rootStyles.getPropertyValue('--time-columns').trim(), 10);
+        const TOTAL_COLUMNS = Number.isFinite(configuredColumns) ? configuredColumns : 24;
+        const VIEW_HOURS = TOTAL_COLUMNS / SLOTS_PER_HOUR;
+        const timelineMasterGrid = document.getElementById('timelineMasterGrid');
         const datePicker = document.getElementById('timelineDatePicker');
         const prevDateBtn = document.getElementById('timelinePrevDate');
         const nextDateBtn = document.getElementById('timelineNextDate');
         const todayBtn = document.getElementById('timelineToday');
+        const amViewBtn = document.getElementById('timelineViewAM');
+        const pmViewBtn = document.getElementById('timelineViewPM');
         const timelineAlert = document.getElementById('timelineAlert');
 
         const cleaningBuffer = Number(schedulerRoot.dataset.cleaningBuffer || 15);
         let selectedDate = datePicker ? datePicker.value : schedulerRoot.dataset.selectedDate;
+        let activeView = 'AM';
         let halls = [];
         let screenings = [];
         let dragPayload = null;
+        let activePreviewBlock = null;
+        let activeSnapCell = null;
 
         const parseJsonScript = (elementId, fallbackValue) => {
             const element = document.getElementById(elementId);
@@ -606,41 +614,120 @@ document.addEventListener('DOMContentLoaded', function () {
             return adjusted.toISOString().slice(0, 16);
         };
 
-        const renderHourAxis = () => {
-            if (!timelineHourAxis) return;
-            timelineHourAxis.innerHTML = '';
-            for (let hour = 0; hour < 24; hour++) {
-                const cell = document.createElement('div');
-                cell.className = 'timeline-hour-cell border-end small text-muted';
-                cell.textContent = `${String(hour).padStart(2, '0')}:00`;
-                timelineHourAxis.appendChild(cell);
+        const getPayloadDurationSlots = (payload) => {
+            const durationMinutes = Number(payload?.durationMinutes || 0);
+            const blockedDuration = Math.max(SLOT_MINUTES, durationMinutes + (Math.max(0, cleaningBuffer) * 2));
+            return Math.max(1, Math.ceil(blockedDuration / SLOT_MINUTES));
+        };
+
+        const buildStartDateFromSlot = (selectedDateValue, slotIndex) => {
+            const snappedMinutes = getViewStartMinutes() + (slotIndex * SLOT_MINUTES);
+            const start = getDayStart(selectedDateValue);
+            start.setMinutes(snappedMinutes, 0, 0);
+            return start;
+        };
+
+        const clearPreview = () => {
+            if (activePreviewBlock) {
+                activePreviewBlock.remove();
+                activePreviewBlock = null;
+            }
+
+            if (activeSnapCell) {
+                activeSnapCell.classList.remove('timeline-slot-snap');
+                activeSnapCell = null;
             }
         };
 
-        const getOverlapForDay = (screening, dayStart, dayEnd) => {
+        const parseDragPayload = (event) => {
+            if (dragPayload) return dragPayload;
+            try {
+                return JSON.parse(event.dataTransfer.getData('text/plain') || '{}');
+            } catch (parseError) {
+                return null;
+            }
+        };
+
+        const renderSlotPreview = (payload, rowIndex, slotIndex, slotCell) => {
+            if (!timelineMasterGrid) return;
+
+            clearPreview();
+
+            const durationSlots = getPayloadDurationSlots(payload);
+            const availableSlots = TOTAL_COLUMNS - slotIndex;
+            const spanSlots = Math.max(1, Math.min(durationSlots, availableSlots));
+            const startDateTime = buildStartDateFromSlot(selectedDate, slotIndex);
+            const endDateTime = new Date(startDateTime.getTime() + (spanSlots * SLOT_MINUTES * 60000));
+
+            const previewBlock = document.createElement('div');
+            previewBlock.className = 'timeline-screening-block timeline-preview-block text-white';
+            previewBlock.style.gridRow = String(rowIndex);
+            previewBlock.style.gridColumn = `${slotIndex + 2} / span ${spanSlots}`;
+            previewBlock.innerHTML = `
+                <div class="fw-semibold text-truncate">${payload.title || 'Movie'}</div>
+                <div class="small">${formatTime(startDateTime)} - ${formatTime(endDateTime)}</div>
+                <div class="small">${Math.max(0, Number(payload.durationMinutes || 0))} min + ${Math.max(0, cleaningBuffer)} min before + ${Math.max(0, cleaningBuffer)} min after</div>
+            `;
+
+            timelineMasterGrid.appendChild(previewBlock);
+            activePreviewBlock = previewBlock;
+            slotCell.classList.add('timeline-slot-snap');
+            activeSnapCell = slotCell;
+        };
+
+        const getViewStartMinutes = () => (activeView === 'AM' ? 0 : 12 * 60);
+
+        const getViewBounds = (selectedDateValue) => {
+            const dayStart = getDayStart(selectedDateValue);
+            const viewStart = new Date(dayStart);
+            viewStart.setMinutes(getViewStartMinutes(), 0, 0);
+
+            const viewEnd = new Date(viewStart);
+            viewEnd.setHours(viewEnd.getHours() + VIEW_HOURS);
+
+            return {
+                viewStart,
+                viewEnd
+            };
+        };
+
+        const updateViewToggleButtons = () => {
+            if (!amViewBtn || !pmViewBtn) return;
+
+            if (activeView === 'AM') {
+                amViewBtn.className = 'btn btn-primary';
+                pmViewBtn.className = 'btn btn-outline-primary';
+            } else {
+                amViewBtn.className = 'btn btn-outline-primary';
+                pmViewBtn.className = 'btn btn-primary';
+            }
+        };
+
+        const getOverlapForView = (screening, viewStart, viewEnd) => {
             const start = new Date(screening.startTime);
             const end = new Date(screening.endTime);
+            const blockedEnd = new Date(end.getTime() + Math.max(0, cleaningBuffer) * 60000);
 
-            if (start >= dayEnd || end <= dayStart) {
+            if (start >= viewEnd || blockedEnd <= viewStart) {
                 return null;
             }
 
-            const visibleStart = start < dayStart ? dayStart : start;
-            const visibleEnd = end > dayEnd ? dayEnd : end;
+            const visibleStart = start < viewStart ? viewStart : start;
+            const visibleEnd = blockedEnd > viewEnd ? viewEnd : blockedEnd;
 
             return {
                 visibleStart,
                 visibleEnd,
-                clippedAtStart: start < dayStart,
-                clippedAtEnd: end > dayEnd
+                clippedAtStart: start < viewStart,
+                clippedAtEnd: blockedEnd > viewEnd
             };
         };
 
-        const minutesSinceDayStart = (date, dayStart) => {
-            return Math.floor((date.getTime() - dayStart.getTime()) / 60000);
+        const minutesSinceViewStart = (date, viewStart) => {
+            return Math.floor((date.getTime() - viewStart.getTime()) / 60000);
         };
 
-        const buildScreeningBlock = (screening, overlapInfo, dayStart) => {
+        const buildScreeningBlock = (screening, overlapInfo, viewStart, rowIndex) => {
             const block = document.createElement('div');
             const status = screening.status || 'Scheduled';
             const badgeClass = status === 'Completed' ? 'bg-secondary' : 'bg-primary';
@@ -650,48 +737,29 @@ document.addEventListener('DOMContentLoaded', function () {
             block.dataset.screeningId = screening.id;
             block.dataset.hallId = screening.hall?.id || '';
 
-            const startMinutes = minutesSinceDayStart(overlapInfo.visibleStart, dayStart);
-            const durationMinutes = Math.max(15, minutesSinceDayStart(overlapInfo.visibleEnd, dayStart) - startMinutes);
-            const leftPercent = (startMinutes / MINUTES_IN_DAY) * 100;
-            const widthPercent = (durationMinutes / MINUTES_IN_DAY) * 100;
+            const viewMinutes = VIEW_HOURS * 60;
+            const startMinutes = Math.max(0, minutesSinceViewStart(overlapInfo.visibleStart, viewStart));
+            const endMinutes = Math.min(viewMinutes, minutesSinceViewStart(overlapInfo.visibleEnd, viewStart));
+            const startSlotIndex = Math.min(TOTAL_COLUMNS - 1, Math.floor(startMinutes / SLOT_MINUTES));
+            const durationSlots = Math.max(1, Math.ceil((endMinutes - startMinutes) / SLOT_MINUTES));
+            const clampedDurationSlots = Math.min(durationSlots, TOTAL_COLUMNS - startSlotIndex);
 
-            block.style.left = `${leftPercent}%`;
-            block.style.width = `${widthPercent}%`;
+            block.style.gridRow = String(rowIndex);
+            block.style.gridColumn = `${startSlotIndex + 2} / span ${clampedDurationSlots}`;
 
             block.innerHTML = `
-                <div class="fw-semibold text-truncate">${screening.movie?.title || 'Movie'}</div>
-                <div class="small">${formatTime(overlapInfo.visibleStart)} - ${formatTime(overlapInfo.visibleEnd)}</div>
-                <div class="small">${screening.movie?.durationMinutes || 0} min</div>
-                <div class="d-flex gap-1 mt-1">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="fw-semibold text-truncate">${screening.movie?.title || 'Movie'}</div>
                     <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="edit">Edit</button>
-                    <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="cancel">Cancel</button>
-                    <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="delete">Delete</button>
                 </div>
+                <div class="small">${formatTime(overlapInfo.visibleStart)} - ${formatTime(overlapInfo.visibleEnd)}</div>
             `;
 
             block.addEventListener('click', (event) => {
                 const action = event.target.dataset.action;
                 if (action === 'edit') {
                     event.stopPropagation();
-                    window.location.href = `/admin/screenings/${screening.id}/edit`;
-                    return;
-                }
-
-                if (action === 'delete') {
-                    event.stopPropagation();
-                    const confirmed = confirm('Delete this screening?');
-                    if (confirmed) {
-                        deleteTimelineScreening(screening.id);
-                    }
-                    return;
-                }
-
-                if (action === 'cancel') {
-                    event.stopPropagation();
-                    const confirmed = confirm('Cancel this screening?');
-                    if (confirmed) {
-                        cancelTimelineScreening(screening.id);
-                    }
+                    window.location.href = `/admin/screenings/${screening.id}`;
                 }
             });
 
@@ -703,124 +771,143 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 dragPayload = {
                     type: 'screening',
-                    screeningId: screening.id
+                    screeningId: screening.id,
+                    durationMinutes: screening.movie?.durationMinutes || 0,
+                    title: screening.movie?.title || 'Movie'
                 };
                 event.dataTransfer.setData('text/plain', JSON.stringify(dragPayload));
                 event.dataTransfer.effectAllowed = 'move';
             });
 
+            block.addEventListener('dragend', () => {
+                clearPreview();
+                dragPayload = null;
+            });
+
             return block;
         };
 
-        const renderRows = () => {
-            if (!timelineRows) return;
+        const renderMasterGrid = () => {
+            if (!timelineMasterGrid) return;
 
-            timelineRows.innerHTML = '';
-            const dayStart = getDayStart(selectedDate);
-            const dayEnd = new Date(dayStart);
-            dayEnd.setDate(dayEnd.getDate() + 1);
+            timelineMasterGrid.innerHTML = '';
+            clearPreview();
+            const { viewStart, viewEnd } = getViewBounds(selectedDate);
 
-            halls.forEach((hall) => {
-                const row = document.createElement('div');
-                row.className = 'timeline-row border-bottom';
+            const hallHeader = document.createElement('div');
+            hallHeader.className = 'timeline-hall-header fw-semibold border-bottom';
+            hallHeader.style.gridColumn = '1';
+            hallHeader.style.gridRow = '1';
+            hallHeader.textContent = 'Halls';
+            timelineMasterGrid.appendChild(hallHeader);
 
-                const hallColumn = document.createElement('div');
-                hallColumn.className = 'timeline-hall-column';
-                hallColumn.innerHTML = `
+            const startHour = activeView === 'AM' ? 0 : 12;
+            for (let hourOffset = 0; hourOffset < VIEW_HOURS; hourOffset++) {
+                const hourLabel = document.createElement('div');
+                const startColumn = 2 + (hourOffset * SLOTS_PER_HOUR);
+                hourLabel.className = 'timeline-hour-label border-bottom border-end small text-muted';
+                hourLabel.style.gridColumn = `${startColumn} / span ${SLOTS_PER_HOUR}`;
+                hourLabel.style.gridRow = '1';
+                hourLabel.textContent = `${String(startHour + hourOffset).padStart(2, '0')}:00`;
+                timelineMasterGrid.appendChild(hourLabel);
+            }
+
+            halls.forEach((hall, hallIndex) => {
+                const rowIndex = hallIndex + 2;
+
+                const hallNameCell = document.createElement('div');
+                hallNameCell.className = 'timeline-hall-name border-bottom';
+                hallNameCell.style.gridColumn = '1';
+                hallNameCell.style.gridRow = String(rowIndex);
+                hallNameCell.innerHTML = `
                     <div class="fw-semibold">${hall.name}</div>
                     <small class="text-muted text-capitalize">${hall.status}</small>
                 `;
+                timelineMasterGrid.appendChild(hallNameCell);
 
-                const track = document.createElement('div');
-                track.className = 'timeline-track';
-                track.dataset.hallId = hall.id;
+                for (let slotIndex = 0; slotIndex < TOTAL_COLUMNS; slotIndex++) {
+                    const timelineCell = document.createElement('div');
+                    const gridColumn = slotIndex + 2;
+                    const hasHourBoundary = (slotIndex + 1) % SLOTS_PER_HOUR === 0;
 
-                const grid = document.createElement('div');
-                grid.className = 'timeline-track-grid';
-                for (let hour = 0; hour < 24; hour++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'timeline-track-cell border-end';
-                    grid.appendChild(cell);
+                    timelineCell.className = `timeline-slot-cell border-bottom${hasHourBoundary ? ' border-end' : ''}`;
+                    timelineCell.style.gridColumn = String(gridColumn);
+                    timelineCell.style.gridRow = String(rowIndex);
+                    timelineCell.dataset.hallId = hall.id;
+                    timelineCell.dataset.hallStatus = hall.status;
+                    timelineCell.dataset.hallName = hall.name;
+                    timelineCell.dataset.slotIndex = String(slotIndex);
+                    timelineCell.dataset.rowIndex = String(rowIndex);
+
+                    timelineCell.addEventListener('dragover', (event) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+
+                        const payload = parseDragPayload(event);
+                        if (!payload || !payload.type) {
+                            clearPreview();
+                            return;
+                        }
+
+                        renderSlotPreview(payload, rowIndex, slotIndex, timelineCell);
+                    });
+
+                    timelineCell.addEventListener('dragleave', (event) => {
+                        if (event.relatedTarget && timelineCell.contains(event.relatedTarget)) {
+                            return;
+                        }
+
+                        if (activeSnapCell === timelineCell) {
+                            clearPreview();
+                        }
+                    });
+
+                    timelineCell.addEventListener('drop', async (event) => {
+                        event.preventDefault();
+                        const payload = parseDragPayload(event);
+                        clearPreview();
+
+                        if (!payload || !payload.type) {
+                            dragPayload = null;
+                            return;
+                        }
+
+                        if (hall.status !== 'active') {
+                            showAlert(`Cannot schedule in ${hall.name} because it is ${hall.status}.`, 'warning');
+                            dragPayload = null;
+                            return;
+                        }
+
+                        const startDateTime = buildStartDateFromSlot(selectedDate, slotIndex);
+                        const now = new Date();
+                        if (startDateTime < now) {
+                            showAlert('Cannot schedule screenings in the past.', 'warning');
+                            dragPayload = null;
+                            return;
+                        }
+
+                        if (payload.type === 'movie') {
+                            await createTimelineScreening(payload.movieId, hall.id, startDateTime);
+                        }
+
+                        if (payload.type === 'screening') {
+                            await moveTimelineScreening(payload.screeningId, hall.id, startDateTime);
+                        }
+
+                        dragPayload = null;
+                    });
+
+                    timelineMasterGrid.appendChild(timelineCell);
                 }
-
-                const blockLayer = document.createElement('div');
-                blockLayer.className = 'timeline-block-layer';
 
                 screenings
                     .filter((screening) => screening.hall && screening.hall.id === hall.id && screening.status !== 'Cancelled')
                     .forEach((screening) => {
-                        const overlapInfo = getOverlapForDay(screening, dayStart, dayEnd);
+                        const overlapInfo = getOverlapForView(screening, viewStart, viewEnd);
                         if (!overlapInfo) return;
-                        blockLayer.appendChild(buildScreeningBlock(screening, overlapInfo, dayStart));
+                        timelineMasterGrid.appendChild(buildScreeningBlock(screening, overlapInfo, viewStart, rowIndex));
                     });
-
-                track.appendChild(grid);
-                track.appendChild(blockLayer);
-
-                track.addEventListener('dragover', (event) => {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'move';
-                    track.classList.add('timeline-track-drop');
-                });
-
-                track.addEventListener('dragleave', () => {
-                    track.classList.remove('timeline-track-drop');
-                });
-
-                track.addEventListener('drop', async (event) => {
-                    event.preventDefault();
-                    track.classList.remove('timeline-track-drop');
-
-                    let payload = dragPayload;
-                    if (!payload) {
-                        try {
-                            payload = JSON.parse(event.dataTransfer.getData('text/plain') || '{}');
-                        } catch (parseError) {
-                            payload = null;
-                        }
-                    }
-                    if (!payload || !payload.type) return;
-
-                    if (hall.status !== 'active') {
-                        showAlert(`Cannot schedule in ${hall.name} because it is ${hall.status}.`, 'warning');
-                        return;
-                    }
-
-                    const startDateTime = getDropDateTime(event, track, selectedDate);
-                    if (!startDateTime) return;
-
-                    const now = new Date();
-                    if (startDateTime < now) {
-                        showAlert('Cannot schedule screenings in the past.', 'warning');
-                        return;
-                    }
-
-                    if (payload.type === 'movie') {
-                        await createTimelineScreening(payload.movieId, hall.id, startDateTime);
-                    }
-
-                    if (payload.type === 'screening') {
-                        await moveTimelineScreening(payload.screeningId, hall.id, startDateTime);
-                    }
-
-                    dragPayload = null;
-                });
-
-                row.appendChild(hallColumn);
-                row.appendChild(track);
-                timelineRows.appendChild(row);
             });
-        };
-
-        const getDropDateTime = (event, trackElement, selectedDateValue) => {
-            const trackRect = trackElement.getBoundingClientRect();
-            const x = Math.min(Math.max(event.clientX - trackRect.left, 0), trackRect.width);
-            const minuteRaw = (x / trackRect.width) * MINUTES_IN_DAY;
-            const snappedMinutes = Math.floor(minuteRaw / SLOT_MINUTES) * SLOT_MINUTES;
-
-            const start = getDayStart(selectedDateValue);
-            start.setMinutes(snappedMinutes);
-            return start;
         };
 
         const requestJson = async (url, options = {}) => {
@@ -842,7 +929,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 const result = await requestJson(`/admin/screenings/timeline/data?date=${selectedDate}`);
                 screenings = result.screenings || [];
-                renderRows();
+                renderMasterGrid();
             } catch (error) {
                 showAlert(error.message, 'danger');
             }
@@ -934,33 +1021,49 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        if (amViewBtn) {
+            amViewBtn.addEventListener('click', () => {
+                activeView = 'AM';
+                updateViewToggleButtons();
+                renderMasterGrid();
+            });
+        }
+
+        if (pmViewBtn) {
+            pmViewBtn.addEventListener('click', () => {
+                activeView = 'PM';
+                updateViewToggleButtons();
+                renderMasterGrid();
+            });
+        }
+
         const movieItems = document.querySelectorAll('.timeline-movie-item');
         movieItems.forEach((item) => {
+            const durationMinutes = Number(item.dataset.duration || 0);
+            const durationColumns = Math.max(1, Math.ceil(durationMinutes / SLOT_MINUTES));
+            item.style.setProperty('--duration-columns', String(durationColumns));
+
             item.addEventListener('dragstart', (event) => {
                 dragPayload = {
                     type: 'movie',
                     movieId: item.dataset.movieId,
-                    durationMinutes: Number(item.dataset.duration || 0)
+                    durationMinutes,
+                    title: item.dataset.title || 'Movie'
                 };
                 event.dataTransfer.setData('text/plain', JSON.stringify(dragPayload));
                 event.dataTransfer.effectAllowed = 'move';
             });
+
+            item.addEventListener('dragend', () => {
+                clearPreview();
+                dragPayload = null;
+            });
         });
 
-        renderHourAxis();
-        renderRows();
+        updateViewToggleButtons();
+        renderMasterGrid();
 
-        if (timelineHourAxis && timelineRows) {
-            timelineHourAxis.addEventListener('scroll', () => {
-                timelineRows.scrollLeft = timelineHourAxis.scrollLeft;
-            });
-
-            timelineRows.addEventListener('scroll', () => {
-                timelineHourAxis.scrollLeft = timelineRows.scrollLeft;
-            });
-        }
-
-        showAlert(`Drag and drop enabled. Cleaning buffer: ${cleaningBuffer} minutes.`, 'info');
+        showAlert(`Drag and drop enabled (${activeView} view). Buffer rule: ${cleaningBuffer} min before + ${cleaningBuffer} min after each movie.`, 'info');
     }
 
     console.log('🎬 CineVillage Admin Portal initialized');

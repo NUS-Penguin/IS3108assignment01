@@ -7,6 +7,19 @@
 
 const mongoose = require('mongoose');
 
+const seatOccupancyCellSchema = new mongoose.Schema({
+    type: {
+        type: String,
+        enum: ['regular', 'vip', 'wheelchair', 'unavailable', 'empty'],
+        default: 'regular'
+    },
+    status: {
+        type: String,
+        enum: ['available', 'occupied', 'unavailable'],
+        default: 'available'
+    }
+}, { _id: false });
+
 const screeningSchema = new mongoose.Schema({
     movie: {
         type: mongoose.Schema.Types.ObjectId,
@@ -37,6 +50,10 @@ const screeningSchema = new mongoose.Schema({
             message: 'Status must be Scheduled, Cancelled, or Completed'
         },
         default: 'Scheduled'
+    },
+    seatOccupancy: {
+        type: [[seatOccupancyCellSchema]],
+        default: []
     }
 }, {
     timestamps: true

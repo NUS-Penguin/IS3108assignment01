@@ -9,6 +9,567 @@ This document tracks all significant changes to the codebase.
 
 ---
 
+## [2026-03-14] Module 6: Reuse Hall Seat Grid for Screening Occupancy (Read-Only)
+
+**Type:** Feature Enhancement
+**Scope:** Major - Screening seat visibility and occupancy reporting with shared UI component pattern
+**Files Modified:** 8 files
+**Files Created:** 1 file
+**Lines Added:** ~220+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Implemented a dedicated screening seat management view by reusing the same seat-grid visual system used in hall pages, instead of introducing a second grid implementation. The new view displays seat occupancy in read-only mode and introduces support for a new seat state: `occupied`.
+
+This update adds screening-level seat occupancy data, initializes it from hall seating layouts, and renders summary booking statistics (total/occupied/available/unavailable). Admin interactions on this page are intentionally limited to viewing occupancy and deleting/editing the screening.
+
+### Key Changes
+- Added screening occupancy data model support:
+  - `models/Screening.js` now includes `seatOccupancy` matrix with `{ type, status }` objects
+  - Supported statuses: `available`, `occupied`, `unavailable`
+- Added reusable occupancy initialization logic:
+  - `services/screeningService.js` now creates initial screening occupancy from hall seat matrix
+  - Occupancy auto-initializes on screening creation
+  - Occupancy regenerates on hall change (or missing occupancy) during updates
+- Added screening detail route/controller for read-only occupancy view:
+  - `GET /admin/screenings/:id`
+  - Computes `totalSeats`, `occupiedSeats`, `availableSeats`, `unavailableSeats`
+  - Persists fallback occupancy if missing
+- Added `views/screenings/show.ejs`:
+  - Reuses hall seat grid structure/classes (`cinema-layout`, `seat-layout`, `seat-grid`)
+  - Adds occupied legend item and read-only occupancy display
+  - Includes screening summary and booking stats cards
+- Added occupied seat styling:
+  - `public/css/styles.css`: `.seat-occupied { color: #dc3545; }`
+- Added timeline quick access:
+  - `public/js/main.js` block action now includes `View` button to open screening occupancy page
+
+### Complete File Manifest
+
+#### Files Modified (8):
+- `models/Screening.js`
+- `services/screeningService.js`
+- `controllers/screeningController.js`
+- `routes/screeningRoutes.js`
+- `public/css/styles.css`
+- `public/js/main.js`
+- `views/screenings/index.ejs`
+- `prompts/History`
+
+#### Files Created (1):
+- `views/screenings/show.ejs` - read-only screening seat occupancy page with stats and reused seat-grid layout
+
+### Database Schema Summary
+- `Screening` model updated with:
+  - `seatOccupancy: [[{ type, status }]]`
+  - `type` supports: `regular`, `vip`, `wheelchair`, `unavailable`, `empty`
+  - `status` supports: `available`, `occupied`, `unavailable`
+
+### Routes Added/Modified
+| Method | Route | Change |
+|--------|-------|--------|
+| GET | /admin/screenings/:id | Added read-only screening occupancy page |
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on all touched files (no reported errors)
+
+### Rollback Plan
+1. Remove `seatOccupancy` field from `models/Screening.js`
+2. Revert occupancy initialization logic in `services/screeningService.js`
+3. Remove `show` controller action and `/admin/screenings/:id` route
+4. Delete `views/screenings/show.ejs`
+5. Revert occupied seat CSS and timeline “View” action
+
+### Impact Assessment
+- **User Impact:** Consistent hall/screening seat visuals with immediate occupancy visibility
+- **System Impact:** Low-to-medium; adds screening data field and new read-only view
+- **Business Impact:** Improves operational insight into seat usage per screening without adding editing complexity
+
+---
+
+## [2026-03-14] Buffer Rule Update: 15 Minutes Before + 15 Minutes After
+
+**Type:** Bug Fix
+**Scope:** Medium - Screening collision policy enforcement and scheduler messaging
+**Files Modified:** 4 files
+**Files Created:** 0 files
+**Lines Added:** ~35+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Updated screening scheduling rules to explicitly enforce a symmetric cleaning buffer around every movie: **15 minutes before** and **15 minutes after**. The overlap algorithm now evaluates buffered ranges on both sides for both existing and candidate screenings.
+
+Scheduler UI messaging was aligned to the same rule so users see consistent policy text in timeline controls and drag preview details.
+
+### Key Changes
+- `services/screeningService.js`
+  - Added explicit before/after buffer constants
+  - Updated overlap detection to compare buffered intervals on both sides:
+    - `(existingStartWithBuffer < newEndWithBuffer) && (existingEndWithBuffer > newStartWithBuffer)`
+  - Updated conflict message text to state before/after buffer policy
+- `views/screenings/index.ejs`
+  - Updated timeline control text to “X min before + X min after”
+- `public/js/main.js`
+  - Updated preview duration messaging and startup notice to match before/after rule
+  - Updated blocked duration slot sizing for preview calculations to include both sides (`+ 2 * buffer`)
+
+### Complete File Manifest
+
+#### Files Modified (4):
+- `services/screeningService.js`
+- `public/js/main.js`
+- `views/screenings/index.ejs`
+- `prompts/History`
+
+### Database Schema Summary
+No schema changes.
+
+### Routes Added/Modified
+No route changes.
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on modified files (no reported errors)
+
+### Impact Assessment
+- **User Impact:** Buffer policy is clearer and consistently communicated
+- **System Impact:** Low risk; overlap validation refinement in service layer
+- **Business Impact:** Better schedule safety margin before and after each screening
+
+---
+
+## [2026-03-14] Scheduler Layout Containment Fix: Single Parent Grid
+
+**Type:** Bug Fix
+**Scope:** Major - Prevent timeline overflow and enforce unified container-aligned layout
+**Files Modified:** 4 files
+**Files Created:** 0 files
+**Lines Added:** ~140+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Rebuilt the screenings timeline layout to use one shared parent grid container that includes the hall label column, time columns, timeline cells, and movie blocks in the same grid context. This removes the previous split-grid structure (separate header/rows/tracks) that caused alignment drift and visual overflow beyond the scheduler card.
+
+The new structure keeps the full scheduler inside its container (`overflow: hidden`) and positions blocks strictly with `grid-column`/`grid-row`, with no absolute-positioned movie block placement and no width-based block math.
+
+### Key Changes
+- Replaced split timeline markup with single master grid mount point:
+  - `#timelineMasterGrid` inside `.scheduler-container`
+- Added scheduler containment rules:
+  - `.scheduler-container { width: 100%; max-width: 100%; overflow: hidden; }`
+- Implemented single parent grid model:
+  - `.timeline-master-grid { grid-template-columns: var(--hall-column-width) repeat(var(--time-columns), minmax(0, 1fr)); }`
+- Reworked JS renderer to generate header cells, hall label cells, timeline slot cells, and movie blocks in one grid
+- Updated drag/drop to cell-based slot targeting (no pixel-offset placement)
+- Preserved 30-minute snapping and duration scaling via grid spans
+
+### Complete File Manifest
+
+#### Files Modified (4):
+- `views/screenings/index.ejs` - single master grid container markup
+- `public/js/main.js` - single-grid renderer and slot-cell drag/drop logic
+- `public/css/styles.css` - unified container/grid styling and row/cell/block classes
+- `prompts/History` - this documentation entry
+
+### Database Schema Summary
+No schema changes.
+
+### Routes Added/Modified
+No route changes.
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on modified files (no reported errors)
+
+### Rollback Plan
+1. Revert scheduler markup in `views/screenings/index.ejs`
+2. Revert single-grid renderer changes in `public/js/main.js`
+3. Restore previous timeline CSS block in `public/css/styles.css`
+4. Re-run timeline alignment and drag/drop checks
+
+### Impact Assessment
+- **User Impact:** Timeline remains inside card container; labels, cells, and blocks align consistently
+- **System Impact:** Low risk; front-end scheduler rendering only
+- **Business Impact:** More reliable scheduling UI with clearer time placement boundaries
+
+---
+
+## [2026-03-14] Scheduler Grid Alignment Fix: Single Shared Grid Constants
+
+**Type:** Bug Fix
+**Scope:** Major - Timeline alignment consistency across header, hall rows, and blocks
+**Files Modified:** 3 files
+**Files Created:** 0 files
+**Lines Added:** ~40+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Fixed timeline misalignment by consolidating scheduler grid geometry into one shared system using CSS variables and consuming those variables in scheduler JavaScript. This ensures the time header, hall track grid, and screening block layer all use identical column definitions.
+
+This pass specifically resolves header-vs-row drift and stretched block rendering caused by independent grid assumptions. Blocks continue to be placed exclusively with `grid-column` and snapped to 30-minute intervals.
+
+### Key Changes
+- Added global timeline constants in `:root`:
+  - `--time-columns: 24`
+  - `--column-width: 80px`
+- Replaced hardcoded timeline templates with shared variables:
+  - `repeat(var(--time-columns), var(--column-width))`
+- Updated scheduler JS to read `--time-columns` from CSS and derive `VIEW_HOURS` dynamically from the shared column count
+- Standardized movie library preview width formula to duration columns:
+  - `.movie-duration-bar { width: calc(var(--duration-columns) * 10px); }`
+
+### Complete File Manifest
+
+#### Files Modified (3):
+- `public/css/styles.css` - shared grid constants + unified timeline template usage
+- `public/js/main.js` - read CSS grid constants for timeline math
+- `prompts/History` - this documentation entry
+
+### Database Schema Summary
+No schema changes.
+
+### Routes Added/Modified
+No route changes.
+
+### Testing Performed
+- ✅ `get_errors` on modified CSS/JS files (no reported errors)
+
+### Rollback Plan
+1. Revert grid variable additions in `public/css/styles.css`
+2. Restore previous hardcoded scheduler constants in `public/js/main.js`
+3. Re-run scheduler drag/drop alignment checks
+
+### Impact Assessment
+- **User Impact:** Header labels, hall rows, and block boundaries align precisely
+- **System Impact:** Low risk, front-end scheduler styling/math only
+- **Business Impact:** Improves scheduling accuracy and confidence in timeline placement
+
+---
+
+## [2026-03-14] Scheduler Interaction Upgrade: CapCut-Style Drag Preview + Snap Indicator
+
+**Type:** Feature Enhancement
+**Scope:** Major - Timeline drag/drop clarity and duration-accurate visual scheduling
+**Files Modified:** 4 files
+**Files Created:** 0 files
+**Lines Added:** ~120+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Enhanced the AM/PM screening scheduler interaction to behave like an editing timeline: while dragging, users now see an in-row ghost preview block and a vertical snap indicator line aligned to the nearest 30-minute grid column.
+
+The timeline grid was also shifted to fixed-width columns (`24 × 80px`) for deterministic alignment between header labels, hall tracks, and block placement. Movie library entries now include duration bars so runtime differences are visible before dragging.
+
+### Features Implemented
+
+#### 1. Fixed Timeline Column Geometry
+**Impact:** High (layout precision)
+
+**Changes:**
+- Set timeline header/tracks/block layer to fixed `24 × 80px` columns
+- Re-enabled internal horizontal timeline scrolling with header-row scroll sync
+- Preserved AM/PM half-day view behavior (24 columns per view)
+
+**Files Modified:**
+- `public/css/styles.css`
+- `public/js/main.js`
+
+#### 2. Snap Indicator + Drag Preview Block
+**Impact:** High (UX clarity)
+
+**Changes:**
+- Added dynamic `.timeline-snap-indicator` line while dragging over a hall row
+- Added `.timeline-drag-preview` block that snaps to nearest column
+- Preview shows title and calculated start/end time at snapped position
+- Preview span uses blocked duration (`runtime + cleaning buffer`) with 30-minute rounding
+
+**Files Modified:**
+- `public/js/main.js`
+- `public/css/styles.css`
+
+#### 3. Duration-Scaled Movie Library Clips
+**Impact:** Medium (planning usability)
+
+**Changes:**
+- Added runtime bar element in each movie library item
+- Calculated display width from `ceil(durationMinutes / 30)` columns
+
+**Files Modified:**
+- `views/screenings/index.ejs`
+- `public/js/main.js`
+- `public/css/styles.css`
+
+### Complete File Manifest
+
+#### Files Modified (4):
+- `public/js/main.js` - drag preview engine, snap line logic, drop math utilities, scroll sync
+- `public/css/styles.css` - fixed grid geometry, preview/snap indicator styling, duration bar styles
+- `views/screenings/index.ejs` - movie library duration bar markup
+- `prompts/History` - this change entry
+
+### Database Schema Summary
+No schema changes.
+
+### Routes Added/Modified
+No route changes.
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on modified scheduler files (no reported errors)
+- ⛳ Runtime server execution was not completed in this pass due existing startup failures in session
+
+### Rollback Plan
+1. Revert scheduler interaction changes in `public/js/main.js`
+2. Revert timeline/preview CSS changes in `public/css/styles.css`
+3. Remove duration bar element in `views/screenings/index.ejs`
+4. Re-run diagnostics and manual drag/drop checks
+
+### Impact Assessment
+- **User Impact:** Clearer and more predictable drag placement with visible snap target
+- **System Impact:** Low risk; front-end timeline behavior only
+- **Business Impact:** Reduced scheduling errors from ambiguous drop positioning
+
+### Next Steps
+- Optionally add an always-visible “current hovered time” readout near cursor
+- Optionally add keyboard nudging (`±30 min`) for selected blocks
+
+---
+
+## [2026-03-14] Scheduler UX Update: AM/PM Half-Day Timeline (30-Minute Slots)
+
+**Type:** Feature Enhancement
+**Scope:** Major - Timeline usability and predictable drag/drop scheduling
+**Files Modified:** 4 files
+**Files Created:** 0 files
+**Lines Added:** ~90+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Updated the screening scheduler to split the day into two fixed views: **AM (00:00–11:30)** and **PM (12:00–23:30)**. This removes the full-day horizontal timeline interaction and keeps each active view constrained to 24 columns (30-minute slots), improving readability and placement predictability.
+
+The drag/drop engine was updated to compute placement inside the active half-day window. Blocks now snap to the nearest 30-minute slot relative to AM/PM view start, while overlap and cleaning-buffer business rules remain enforced through the existing service-layer validations.
+
+### Features Implemented
+
+#### 1. AM/PM View Toggle
+**Impact:** High (UX)
+
+**Changes:**
+- Added toggle controls in scheduler toolbar:
+  - `AM Schedule`
+  - `PM Schedule`
+- Switching view re-renders hour header and hall rows for the selected half-day range
+
+**Files Modified:**
+- `views/screenings/index.ejs`
+- `public/js/main.js`
+
+#### 2. Half-Day Timeline Rendering
+**Impact:** High (layout correctness)
+
+**Changes:**
+- Timeline changed from full-day rendering to 12-hour rendering per view
+- Header labels now show:
+  - AM: `00:00` to `11:00`
+  - PM: `12:00` to `23:00`
+- Each hour spans 2 columns (30-minute resolution)
+
+**Files Modified:**
+- `public/js/main.js`
+
+#### 3. No-Horizontal-Scroll Grid Layout
+**Impact:** High (usability)
+
+**Changes:**
+- Updated scheduler CSS grid to 24 columns per visible view
+- Removed timeline horizontal scrolling behavior from scheduler containers
+- Kept hall label and timeline track aligned via shared grid definition
+
+**Files Modified:**
+- `public/css/styles.css`
+
+#### 4. Drag/Drop Placement with AM/PM Offset
+**Impact:** High (interaction precision)
+
+**Changes:**
+- Drop position is converted to nearest column using track width
+- Start time now computed as:
+  - `viewStart + (columnIndex × 30 minutes)`
+- PM view correctly applies `12:00` offset during conversion
+
+**Files Modified:**
+- `public/js/main.js`
+
+### Complete File Manifest
+
+#### Files Modified (4):
+- `views/screenings/index.ejs` - Added AM/PM toggle buttons
+- `public/js/main.js` - Half-day rendering, AM/PM offset logic, drop snapping updates
+- `public/css/styles.css` - 24-column no-scroll timeline layout updates
+- `prompts/History` - Change log entry for this implementation
+
+### Database Schema Summary
+No schema changes.
+
+### Routes Added/Modified
+No route changes.
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on modified scheduler files (no reported errors)
+- ⛳ Runtime server smoke test was not executed in this pass (terminal run previously skipped/failed in session)
+
+### Rollback Plan
+1. Revert scheduler section in `public/js/main.js`
+2. Revert timeline CSS block in `public/css/styles.css`
+3. Revert AM/PM toggle controls in `views/screenings/index.ejs`
+4. Re-run diagnostics and verify timeline behavior
+
+### Impact Assessment
+- **User Impact:** Faster scheduling flow with clearer AM/PM focus and consistent snapping behavior
+- **System Impact:** Low risk; frontend scheduler rendering and interaction logic only
+- **Business Impact:** Reduced scheduling placement errors and easier timetable adjustments
+
+### Next Steps
+- Optional: persist AM/PM selection in query param or localStorage for session continuity
+- Optional: add subtle half-hour tick styling to improve visual slot targeting
+
+---
+
+## [2026-03-14] Screening Scheduler Stabilization: 30-Minute Grid + Precise Drag Snap
+
+**Type:** Refactor
+**Scope:** Major - Timeline scheduler predictability, alignment, and placement stability
+**Files Modified:** 4 files
+**Files Created:** 0 files
+**Lines Added:** ~110+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Refactored the timeline scheduler to use a strict 30-minute grid model (48 columns/day) so block rendering, visual alignment, and drag/drop placement all use the same time resolution. This removes the previous 15-minute/percentage-based positioning behavior that could produce visual drift and less predictable drops.
+
+The implementation also enforces 30-minute snapping server-side for timeline API create/move actions, so the system remains stable even if the client sends a non-aligned timestamp. Existing overlap prevention and cleaning buffer business rules remain intact and continue to be enforced by `screeningService`.
+
+### Features Implemented
+
+#### 1. 30-Minute Timeline Grid Model
+**Impact:** High (UX + correctness)
+
+**Changes:**
+- Updated scheduler constants from 15-minute slots to 30-minute slots
+- Standardized timeline math to 48 columns (`24 * 2`) and fixed 60px column width
+- Updated hour header rendering to label every hour while spanning two 30-minute columns
+
+**Files Modified:**
+- `public/js/main.js`
+- `public/css/styles.css`
+
+#### 2. Grid-Column Block Placement (No Percentage Drift)
+**Impact:** High (layout stability)
+
+**Changes:**
+- Replaced percentage left/width block positioning with `grid-column: start / span`
+- Calculated block spans using rounded 30-minute slots
+- Included cleaning buffer in displayed blocked timeline width (`runtime + buffer`)
+
+**Files Modified:**
+- `public/js/main.js`
+- `public/css/styles.css`
+
+#### 3. Scroll-Aware Drag/Drop Snapping
+**Impact:** High (interaction accuracy)
+
+**Changes:**
+- Drop algorithm now accounts for scheduler horizontal scroll context and hall column offset
+- Snaps to nearest 30-minute slot using rounded column index
+- Converts snapped column to start time deterministically
+
+**Files Modified:**
+- `public/js/main.js`
+
+#### 4. Timeline API Server-Side Slot Normalization
+**Impact:** Medium (data consistency)
+
+**Changes:**
+- Added `_snapToTimelineSlot()` helper in controller (`30` minute intervals)
+- Applied normalization to:
+  - `POST /admin/screenings/timeline`
+  - `PATCH /admin/screenings/timeline/:id/move`
+
+**Files Modified:**
+- `controllers/screeningController.js`
+
+### Complete File Manifest
+
+#### Files Modified (4):
+- `public/js/main.js`
+  - Lines Added: ~55
+  - Changes: scheduler constants, grid placement math, slot rendering, drop snapping updates
+- `public/css/styles.css`
+  - Lines Added: ~35
+  - Changes: 48-column fixed grid, 2880px timeline width, sticky hall column, block-layer grid alignment
+- `controllers/screeningController.js`
+  - Lines Added: ~20
+  - Changes: timeline start-time normalization to nearest 30-minute slot
+- `views/screenings/index.ejs`
+  - Lines Added: 0
+  - Changes: no structural change required; existing scheduler markup reused with updated behavior
+
+### Database Schema Summary
+No schema changes.
+
+### Routes Added/Modified
+No route definitions changed. Existing timeline routes were behavior-updated via controller logic.
+
+### Testing Performed
+- ✅ `get_errors` on modified files (`public/js/main.js`, `public/css/styles.css`, `controllers/screeningController.js`, `views/screenings/index.ejs`) — no errors
+- ⛳ Runtime app start smoke test (`node app.js`) was requested but skipped by user in-tool
+
+### Security Improvements
+- No direct auth/session/security model changes in this refactor
+- Preserved existing server-side validation and overlap enforcement path
+
+### Performance Considerations
+- Fixed-column grid reduces runtime style recalculation complexity vs percentage positioning for each block
+- No additional DB queries introduced
+
+### Migration Notes
+- No DB migration required
+- Browser hard-refresh recommended to ensure new scheduler CSS/JS assets are loaded
+
+### Production Deployment Checklist
+- [ ] Verify horizontal scrolling inside scheduler on desktop and tablet widths
+- [ ] Verify drag new movie from library snaps to nearest 30-minute slot
+- [ ] Verify dragging existing screening repositions accurately while scrolled horizontally
+- [ ] Verify overlap conflicts are rejected with clear error message
+
+### Known Issues & Limitations
+- Runtime verification was not executed in this pass due skipped app start command
+- Manual screening form still allows arbitrary minute values by design (timeline endpoints are now snapped)
+
+### Dependencies
+No dependency changes.
+
+### Rollback Plan
+1. Revert `public/js/main.js` scheduler section to previous percentage/15-minute implementation
+2. Revert timeline CSS section in `public/css/styles.css`
+3. Remove `_snapToTimelineSlot` usage in `controllers/screeningController.js`
+4. Re-run diagnostics and timeline interaction test cases
+
+### Impact Assessment
+- **User Impact:** Drag/drop scheduling now feels predictable and aligns exactly with visible grid
+- **System Impact:** Low-to-medium risk, isolated to scheduler rendering and timeline API input normalization
+- **Business Impact:** Better operational scheduling accuracy and reduced timetable placement errors
+
+### Next Steps
+- Add optional visual indicator for half-hour tick marks (subtle) if users need stronger slot guidance
+- Consider applying 30-minute snap in manual create/edit form validation for full parity
+
+---
+
 ## [2026-03-14] Inline CSS Remediation + Template Diagnostics Cleanup
 
 **Type:** Bug Fix / Code Quality

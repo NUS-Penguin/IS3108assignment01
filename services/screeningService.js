@@ -10,9 +10,36 @@ const Hall = require('../models/Hall');
 const { AppError } = require('../middleware/errorMiddleware');
 
 const DEFAULT_CLEANING_BUFFER_MINUTES = Number(process.env.SCREENING_BUFFER_MINUTES || 15);
+const BUFFER_BEFORE_MINUTES = Math.max(0, DEFAULT_CLEANING_BUFFER_MINUTES);
+const BUFFER_AFTER_MINUTES = Math.max(0, DEFAULT_CLEANING_BUFFER_MINUTES);
 const MINUTE_IN_MILLISECONDS = 60000;
 
 class ScreeningService {
+
+    static buildInitialSeatOccupancy(hallDoc) {
+        const seatsMatrix = (hallDoc?.seats && hallDoc.seats.length > 0)
+            ? hallDoc.seats
+            : Array.from(
+                { length: Number(hallDoc?.rows || 0) },
+                () => Array.from({ length: Number(hallDoc?.columns || 0) }, () => 'regular')
+            );
+
+        return seatsMatrix.map((rowSeats = []) => rowSeats.map((seatType) => {
+            if (seatType === 'empty') {
+                return { type: 'empty', status: 'unavailable' };
+            }
+
+            if (seatType === 'unavailable') {
+                return { type: 'unavailable', status: 'unavailable' };
+            }
+
+            const normalizedType = ['regular', 'vip', 'wheelchair'].includes(seatType) ? seatType : 'regular';
+            return {
+                type: normalizedType,
+                status: 'available'
+            };
+        }));
+    }
 
     static _getDayBounds(date) {
         const dayStart = new Date(date);
@@ -106,7 +133,8 @@ class ScreeningService {
             hall,
             startTime: parsedStartTime,
             endTime,
-            status: 'Scheduled'
+            status: 'Scheduled',
+            seatOccupancy: this.buildInitialSeatOccupancy(hallDoc)
         });
 
         await screening.save();
@@ -128,9 +156,10 @@ class ScreeningService {
      * @throws {AppError} If overlap detected
      */
     static async _checkForOverlap(hallId, startTime, endTime, excludeScreeningId = null) {
-        const cleaningBufferMs = Math.max(0, DEFAULT_CLEANING_BUFFER_MINUTES) * MINUTE_IN_MILLISECONDS;
-        const newEndWithBuffer = new Date(endTime.getTime() + cleaningBufferMs);
-        const newStartWithBuffer = new Date(startTime.getTime() - cleaningBufferMs);
+        const beforeBufferMs = BUFFER_BEFORE_MINUTES * MINUTE_IN_MILLISECONDS;
+        const afterBufferMs = BUFFER_AFTER_MINUTES * MINUTE_IN_MILLISECONDS;
+        const newStartWithBuffer = new Date(startTime.getTime() - beforeBufferMs);
+        const newEndWithBuffer = new Date(endTime.getTime() + afterBufferMs);
 
         // Find candidate screenings in same hall that could overlap this new interval.
         const query = {
@@ -152,11 +181,12 @@ class ScreeningService {
         // Check for overlap with each existing screening
         for (const existing of existingScreenings) {
             const existingStart = existing.startTime;
-            const existingEndWithBuffer = new Date(existing.endTime.getTime() + cleaningBufferMs);
+            const existingStartWithBuffer = new Date(existing.startTime.getTime() - beforeBufferMs);
+            const existingEndWithBuffer = new Date(existing.endTime.getTime() + afterBufferMs);
 
             // CRITICAL OVERLAP FORMULA
             // Overlap occurs if: (existingStart < newEnd) AND (existingEnd > newStart)
-            const hasOverlap = (existingStart < newEndWithBuffer) && (existingEndWithBuffer > startTime);
+            const hasOverlap = (existingStartWithBuffer < newEndWithBuffer) && (existingEndWithBuffer > newStartWithBuffer);
 
             if (hasOverlap) {
                 const hallName = existing.hall?.name || 'Unknown hall';
@@ -165,7 +195,7 @@ class ScreeningService {
                     `Scheduling conflict: ${hallName} already has a screening for "${movieTitle}" ` +
                     `from ${existingStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} ` +
                     `to ${existing.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}. ` +
-                    `A cleaning buffer of ${Math.max(0, DEFAULT_CLEANING_BUFFER_MINUTES)} minutes is enforced. Please select another time slot.`,
+                    `A cleaning buffer of ${BUFFER_BEFORE_MINUTES} minutes before and ${BUFFER_AFTER_MINUTES} minutes after each movie is enforced. Please select another time slot.`,
                     400
                 );
             }
@@ -238,11 +268,17 @@ class ScreeningService {
         await this._checkForOverlap(hall, parsedStartTime, endTime, screeningId);
 
         // 6. Update screening
+        const hallChanged = String(screening.hall) !== String(hall);
+
         screening.movie = movie;
         screening.hall = hall;
         screening.startTime = parsedStartTime;
         screening.endTime = endTime;
         screening.status = 'Scheduled';
+
+        if (hallChanged || !Array.isArray(screening.seatOccupancy) || screening.seatOccupancy.length === 0) {
+            screening.seatOccupancy = this.buildInitialSeatOccupancy(hallDoc);
+        }
 
         await screening.save();
         return screening;

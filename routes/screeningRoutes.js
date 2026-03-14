@@ -32,6 +32,9 @@ router.post('/', validateScreening, screeningController.create);
 // Show edit form
 router.get('/:id/edit', screeningController.renderForm);
 
+// Show single screening details
+router.get('/:id', screeningController.show);
+
 // Update screening
 router.put('/:id', validateScreening, screeningController.update);
 

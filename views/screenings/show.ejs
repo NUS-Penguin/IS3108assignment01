@@ -1,0 +1,151 @@
+<div class="page-header">
+    <h1><i class="bi bi-grid-3x3-gap me-2"></i>Screening Seat Overview</h1>
+    <p>Read-only occupancy map using the same seat layout structure as hall configuration.</p>
+</div>
+
+<div class="action-buttons mb-4">
+    <a href="/admin/screenings" class="action-btn">
+        <i class="bi bi-arrow-left me-2"></i>Back to Screenings
+    </a>
+    <a href="/admin/screenings/<%= screening._id %>/edit" class="action-btn primary">
+        <i class="bi bi-pencil me-2"></i>Edit Screening
+    </a>
+    <form action="/admin/screenings/<%= screening._id %>?_method=DELETE" method="POST" class="d-inline"
+        onsubmit="return confirm('Delete this screening?')">
+        <button type="submit" class="action-btn danger">
+            <i class="bi bi-trash me-2"></i>Delete Screening
+        </button>
+    </form>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body">
+                <h6 class="text-white-50 mb-1">Total Seats</h6>
+                <h2 class="mb-0"><%= stats.totalSeats %></h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white h-100">
+            <div class="card-body">
+                <h6 class="text-white-50 mb-1">Occupied Seats</h6>
+                <h2 class="mb-0"><%= stats.occupiedSeats %></h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body">
+                <h6 class="text-white-50 mb-1">Available Seats</h6>
+                <h2 class="mb-0"><%= stats.availableSeats %></h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white h-100">
+            <div class="card-body">
+                <h6 class="text-white-50 mb-1">Unavailable Seats</h6>
+                <h2 class="mb-0"><%= stats.unavailableSeats %></h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-film me-2"></i>Screening Summary</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4"><strong>Movie:</strong> <%= screening.movie?.title || 'N/A' %></div>
+            <div class="col-md-3"><strong>Hall:</strong> <%= screening.hall?.name || 'N/A' %></div>
+            <div class="col-md-3"><strong>Status:</strong> <%= screening.status %></div>
+            <div class="col-md-2"><strong>Duration:</strong> <%= screening.movie?.durationMinutes || 0 %> min</div>
+            <div class="col-md-6"><strong>Start:</strong> <%= new Date(screening.startTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></div>
+            <div class="col-md-6"><strong>End:</strong> <%= new Date(screening.endTime).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-grid-3x3-gap me-2"></i>Seat Occupancy (Read-Only)</h5>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <div class="card bg-light mb-0">
+                <div class="card-body py-2">
+                    <h6 class="mb-2">Seat Legend:</h6>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="d-flex align-items-center">
+                            <span class="seat-legend-icon seat-regular" aria-hidden="true"></span>
+                            <span class="ms-2 small">Regular (Available)</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="seat-legend-icon seat-vip" aria-hidden="true"></span>
+                            <span class="ms-2 small">VIP (Available)</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="seat-legend-icon seat-wheelchair" aria-hidden="true"></span>
+                            <span class="ms-2 small">Wheelchair (Available)</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="seat-legend-icon seat-unavailable" aria-hidden="true"></span>
+                            <span class="ms-2 small">Unavailable</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="seat-legend-icon seat-occupied" aria-hidden="true"></span>
+                            <span class="ms-2 small">Occupied</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cinema-layout">
+            <div class="screen-container">
+                <div class="screen">
+                    <small><i class="bi bi-film me-1"></i>SCREEN</small>
+                </div>
+            </div>
+
+            <div class="seat-layout-wrapper">
+                <div class="seat-layout" data-rows="<%= screening.hall.rows %>" data-cols="<%= screening.hall.columns %>">
+                    <div class="seat-layout-corner" aria-hidden="true"></div>
+
+                    <div class="seat-column-labels">
+                        <% for (let col = 0; col < screening.hall.columns; col++) { %>
+                            <div class="column-label"><%= col + 1 %></div>
+                        <% } %>
+                    </div>
+
+                    <div class="seat-row-labels">
+                        <% for (let row = 0; row < screening.hall.rows; row++) { %>
+                            <div class="row-label"><%= String.fromCharCode(65 + row) %></div>
+                        <% } %>
+                    </div>
+
+                    <div class="seat-grid">
+                        <% for (let row = 0; row < screening.hall.rows; row++) { %>
+                            <% for (let col = 0; col < screening.hall.columns; col++) { %>
+                                <% const seat = (seatOccupancy[row] && seatOccupancy[row][col]) ? seatOccupancy[row][col] : { type: 'regular', status: 'available' }; %>
+                                <% const seatType = seat.type || 'regular'; %>
+                                <% const seatStatus = seat.status || 'available'; %>
+                                <% const seatClass = seatType === 'empty'
+                                    ? 'seat-empty'
+                                    : (seatStatus === 'occupied' ? 'seat-occupied' : (seatStatus === 'unavailable' ? 'seat-unavailable' : `seat-${seatType}`)); %>
+                                <span class="seat <%= seatClass %>" title="<%= String.fromCharCode(65 + row) %><%= col + 1 %> - <%= seatType %> - <%= seatStatus %>">
+                                    <% if (seatType !== 'empty') { %>
+                                        <span class="seat-icon" aria-hidden="true"></span>
+                                    <% } %>
+                                </span>
+                            <% } %>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
