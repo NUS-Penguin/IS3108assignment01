@@ -251,3 +251,190 @@
     gap: 12px;
     margin-bottom: 20px;
 }
+
+/* ================================================================
+   Bootstrap Dark-Theme Overrides
+   Remaps Bootstrap's hardcoded light-mode CSS variables to the
+   template's dark theme so all Bootstrap components inherit the
+   correct dark colours automatically.
+================================================================ */
+:root {
+    /* Core body */
+    --bs-body-bg: #1c1c1e;
+    --bs-body-color: #f5f0e8;
+    --bs-secondary-color: #c8c8c8;
+    --bs-tertiary-color: #999999;
+    --bs-emphasis-color: #f5f0e8;
+    --bs-border-color: #3a3a3c;
+    --bs-border-color-translucent: rgba(255, 255, 255, 0.1);
+
+    /* Secondary / tertiary backgrounds (used by inputs, badges, etc.) */
+    --bs-secondary-bg: #232325;
+    --bs-tertiary-bg: #2c2c2e;
+
+    /* Cards */
+    --bs-card-bg: #2c2c2e;
+    --bs-card-cap-bg: #232325;
+    --bs-card-cap-color: #f5f0e8;
+    --bs-card-color: #f5f0e8;
+    --bs-card-border-color: #3a3a3c;
+
+    /* Modals */
+    --bs-modal-bg: #2c2c2e;
+    --bs-modal-color: #f5f0e8;
+    --bs-modal-header-border-color: #3a3a3c;
+    --bs-modal-footer-border-color: #3a3a3c;
+
+    /* Tables */
+    --bs-table-bg: transparent;
+    --bs-table-color: #f5f0e8;
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
+    --bs-table-border-color: #3a3a3c;
+
+    /* Form inputs */
+    --bs-form-control-bg: #1c1c1e;
+    --bs-form-control-color: #f5f0e8;
+    --bs-input-bg: #1c1c1e;
+    --bs-input-color: #f5f0e8;
+    --bs-input-border-color: #3a3a3c;
+    --bs-input-placeholder-color: #999999;
+    --bs-input-focus-border-color: #b87333;
+
+    /* Dropdowns */
+    --bs-dropdown-bg: #2c2c2e;
+    --bs-dropdown-color: #f5f0e8;
+    --bs-dropdown-border-color: #3a3a3c;
+    --bs-dropdown-link-color: #f5f0e8;
+    --bs-dropdown-link-hover-bg: #343436;
+    --bs-dropdown-link-hover-color: #f5f0e8;
+
+    /* List groups */
+    --bs-list-group-bg: #2c2c2e;
+    --bs-list-group-color: #f5f0e8;
+    --bs-list-group-border-color: #3a3a3c;
+}
+
+/* Override Bootstrap's hardcoded white/light background utilities */
+.bg-white {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+}
+
+.bg-light {
+    background-color: var(--bg-card-hover) !important;
+    color: var(--text-primary) !important;
+}
+
+/* text-muted and text-secondary → use brighter dark-theme value */
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+/* Bootstrap form controls */
+.form-control,
+.form-select {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--accent-copper);
+    box-shadow: 0 0 0 0.2rem rgba(184, 115, 51, 0.25);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-label {
+    color: var(--text-primary);
+}
+
+/* Bootstrap card overrides */
+.card-body {
+    color: var(--text-primary);
+}
+
+.card-header {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-bottom-color: var(--border) !important;
+}
+
+/* card-header with bg-primary (Bootstrap blue) → copper gradient */
+.card-header.bg-primary {
+    background: var(--accent-gradient) !important;
+    color: #1c1c1e !important;
+}
+
+.card-header.bg-primary * {
+    color: #1c1c1e !important;
+}
+
+/* Bootstrap outline buttons — readable on dark background */
+.btn-outline-dark {
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}
+
+.btn-outline-dark:hover {
+    background-color: var(--bg-card-hover) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--text-secondary) !important;
+}
+
+.btn-outline-secondary {
+    color: var(--text-secondary) !important;
+    border-color: var(--border) !important;
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--bg-card-hover) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Bootstrap modal dark theme */
+.modal-content {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+.modal-header,
+.modal-footer {
+    border-color: var(--border);
+}
+
+/* Timeline — Bootstrap's --bs-body-bg defaults to white */
+.timeline-hall-column {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Muted alert variants for dark theme */
+.alert-info {
+    background-color: rgba(13, 202, 240, 0.1);
+    border-color: rgba(13, 202, 240, 0.3);
+    color: #7dd6e8;
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.12);
+    border-color: rgba(255, 193, 7, 0.35);
+    color: #ffc107;
+}
+
+/* Badges — ensure readable on dark bg */
+.badge.bg-secondary {
+    background-color: #4a4a4c !important;
+    color: #f5f0e8 !important;
+}

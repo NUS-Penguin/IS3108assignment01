@@ -3,25 +3,8 @@
 document.addEventListener('DOMContentLoaded', function () {
     const html = document.documentElement;
 
-    // Theme initialization and toggles
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    html.setAttribute('data-theme', savedTheme);
-
-    const themeSwitch = document.getElementById('themeSwitch');
-    const themeToggle = document.getElementById('themeToggle');
-    const toggleTheme = () => {
-        const nextTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        html.setAttribute('data-theme', nextTheme);
-        localStorage.setItem('theme', nextTheme);
-    };
-
-    if (themeSwitch) {
-        themeSwitch.addEventListener('click', toggleTheme);
-    }
-
-    if (themeToggle) {
-        themeToggle.addEventListener('click', toggleTheme);
-    }
+    // Always use dark mode
+    html.setAttribute('data-theme', 'dark');
 
     // Mobile menu toggle for template sidebar
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');

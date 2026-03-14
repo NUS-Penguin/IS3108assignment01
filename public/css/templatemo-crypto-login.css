@@ -35,7 +35,7 @@ body.auth-page {
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle at 30% 70%, rgba(255,255,255,0.1) 0%, transparent 50%);
+    background: radial-gradient(circle at 30% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
     animation: float 15s ease-in-out infinite;
 }
 
@@ -46,13 +46,20 @@ body.auth-page {
     right: -30%;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at 70% 30%, rgba(0,0,0,0.1) 0%, transparent 50%);
+    background: radial-gradient(circle at 70% 30%, rgba(0, 0, 0, 0.1) 0%, transparent 50%);
     animation: float 20s ease-in-out infinite reverse;
 }
 
 @keyframes float {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(30px, 30px) rotate(5deg); }
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    50% {
+        transform: translate(30px, 30px) rotate(5deg);
+    }
 }
 
 .branding-content {
@@ -124,31 +131,6 @@ body.auth-page {
     align-items: center;
     padding: 60px;
     position: relative;
-}
-
-.theme-toggle-btn {
-    position: absolute;
-    top: 32px;
-    right: 32px;
-    width: 46px;
-    height: 46px;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.theme-toggle-btn:hover {
-    background-color: var(--bg-card-hover);
-    border-color: var(--accent-copper);
-}
-
-.theme-toggle-btn svg {
-    stroke: var(--text-secondary);
 }
 
 .auth-form-wrapper {
@@ -520,11 +502,6 @@ body.auth-page {
 
     .auth-form-container {
         padding: 40px 24px 80px;
-    }
-
-    .theme-toggle-btn {
-        top: 16px;
-        right: 16px;
     }
 }
 
