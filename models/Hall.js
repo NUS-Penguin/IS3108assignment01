@@ -1,11 +1,3 @@
-/**
- * models/Hall.js - Cinema Hall Model
- * 
- * Mongoose schema for cinema halls where movies are screened.
- * Includes seat configuration, maintenance scheduling, and seating layout.
- * Enhanced for Module 2: Hall Management
- */
-
 const mongoose = require('mongoose');
 
 const seatTypeSchema = new mongoose.Schema({
@@ -52,15 +44,12 @@ const hallSchema = new mongoose.Schema({
         default: [],
         validate: {
             validator: function (seats) {
-                // If seats array is provided, validate structure
                 if (seats && seats.length > 0) {
-                    // Check if seats matrix matches rows and columns
                     if (seats.length !== this.rows) return false;
 
                     for (let row of seats) {
                         if (row.length !== this.columns) return false;
 
-                        // Validate each seat type
                         for (let seat of row) {
                             if (!['regular', 'vip', 'wheelchair', 'unavailable', 'empty'].includes(seat)) {
                                 return false;
@@ -99,31 +88,10 @@ const hallSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Virtual for automatic capacity calculation: rows × columns
 hallSchema.virtual('capacity').get(function () {
     return this.rows * this.columns;
 });
 
-// Virtual for backward compatibility
-hallSchema.virtual('totalSeats').get(function () {
-    return this.capacity;
-});
-
-// Virtual for checking if hall is under maintenance
-hallSchema.virtual('isUnderMaintenance').get(function () {
-    if (this.status !== 'maintenance') return false;
-    if (!this.maintenanceEndDate) return true;
-
-    const now = new Date();
-    return now <= this.maintenanceEndDate;
-});
-
-// Instance method to check if hall is available for screening
-hallSchema.methods.isAvailable = function () {
-    return this.status === 'active';
-};
-
-// Instance method to get seat type distribution
 hallSchema.methods.getSeatDistribution = function () {
     if (!this.seatTypes || this.seatTypes.length === 0) {
         return [{
@@ -140,12 +108,10 @@ hallSchema.methods.getSeatDistribution = function () {
     }));
 };
 
-// Instance method to generate seating layout preview
 hallSchema.methods.generateSeatingLayout = function () {
     const layout = [];
     let seatIndex = 0;
 
-    // Create seat type map based on distribution
     const seatMap = [];
     if (this.seatTypes && this.seatTypes.length > 0) {
         this.seatTypes.forEach(seatType => {
@@ -155,14 +121,12 @@ hallSchema.methods.generateSeatingLayout = function () {
         });
     }
 
-    // Fill remaining seats with regular if seat types don't match capacity
     while (seatMap.length < this.capacity) {
         seatMap.push('regular');
     }
 
-    // Generate rows
     for (let row = 0; row < this.rows; row++) {
-        const rowLabel = String.fromCharCode(65 + row); // A, B, C, etc.
+        const rowLabel = String.fromCharCode(65 + row);
         const seats = [];
 
         for (let col = 0; col < this.columns; col++) {
@@ -185,7 +149,6 @@ hallSchema.methods.generateSeatingLayout = function () {
     return layout;
 };
 
-// Private helper method to get seat label for display
 hallSchema.methods._getSeatLabel = function (seatType) {
     const labels = {
         'regular': 'O',
@@ -195,7 +158,6 @@ hallSchema.methods._getSeatLabel = function (seatType) {
     return labels[seatType] || 'O';
 };
 
-// Instance method to get status badge class
 hallSchema.methods.getStatusBadgeClass = function () {
     const badgeMap = {
         'active': 'bg-success',
@@ -205,25 +167,6 @@ hallSchema.methods.getStatusBadgeClass = function () {
     return badgeMap[this.status] || 'bg-secondary';
 };
 
-// Instance method to get formatted maintenance period
-hallSchema.methods.getMaintenancePeriod = function () {
-    if (!this.maintenanceStartDate || !this.maintenanceEndDate) {
-        return null;
-    }
-
-    const options = { month: 'short', day: 'numeric' };
-    const start = this.maintenanceStartDate.toLocaleDateString('en-US', options);
-    const end = this.maintenanceEndDate.toLocaleDateString('en-US', options);
-
-    return `${start} – ${end}`;
-};
-
-// Static method to find active halls
-hallSchema.statics.findActive = function () {
-    return this.find({ status: 'active' });
-};
-
-// Validation: Maintenance dates must be valid if status is maintenance
 hallSchema.pre('save', function (next) {
     if (this.status === 'maintenance') {
         if (this.maintenanceStartDate && this.maintenanceEndDate) {
@@ -233,7 +176,6 @@ hallSchema.pre('save', function (next) {
         }
     }
 
-    // Clear maintenance fields if status is not maintenance
     if (this.status !== 'maintenance') {
         this.maintenanceStartDate = null;
         this.maintenanceEndDate = null;
@@ -243,7 +185,6 @@ hallSchema.pre('save', function (next) {
     next();
 });
 
-// Validation: Seat types must sum to total capacity
 hallSchema.pre('save', function (next) {
     if (this.seatTypes && this.seatTypes.length > 0) {
         const totalSeats = this.seatTypes.reduce((sum, seat) => sum + seat.count, 0);
@@ -257,21 +198,6 @@ hallSchema.pre('save', function (next) {
     next();
 });
 
-// Pre-remove hook to check for future screenings
-hallSchema.pre('remove', async function (next) {
-    const Screening = mongoose.model('Screening');
-    const futureScreenings = await Screening.countDocuments({
-        hall: this._id,
-        startTime: { $gt: new Date() }
-    });
-
-    if (futureScreenings > 0) {
-        throw new Error('Cannot delete hall with future screenings scheduled');
-    }
-    next();
-});
-
-// Ensure virtuals are included in JSON and Object outputs
 hallSchema.set('toJSON', { virtuals: true });
 hallSchema.set('toObject', { virtuals: true });
 

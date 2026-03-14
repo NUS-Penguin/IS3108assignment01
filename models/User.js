@@ -1,10 +1,3 @@
-/**
- * models/User.js - User Model
- * 
- * Mongoose schema for admin users with authentication support.
- * Handles password hashing and verification.
- */
-
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
@@ -74,17 +67,13 @@ const userSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Pre-save hook to hash password and manage password history
 userSchema.pre('save', async function (next) {
-    // Only hash password if it has been modified (or is new)
     if (!this.isModified('passwordHash')) {
         return next();
     }
 
     try {
-        // Store old password in history (if this is a password change, not initial creation)
         if (!this.isNew && this.passwordHash) {
-            // Keep last 5 passwords in history
             if (!this.passwordHistory) {
                 this.passwordHistory = [];
             }
@@ -102,12 +91,10 @@ userSchema.pre('save', async function (next) {
     }
 });
 
-// Instance method to verify password
 userSchema.methods.verifyPassword = async function (candidatePassword) {
-    return await bcrypt.compare(candidatePassword, this.passwordHash);
+    return bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
-// Instance method to check if password was used recently
 userSchema.methods.isPasswordReused = async function (candidatePassword) {
     if (!this.passwordHistory || this.passwordHistory.length === 0) {
         return false;
@@ -122,33 +109,28 @@ userSchema.methods.isPasswordReused = async function (candidatePassword) {
     return false;
 };
 
-// Instance method to increment failed login attempts
 userSchema.methods.incrementLoginAttempts = async function () {
-    // If account is already locked and lock hasn't expired
     if (this.lockUntil && this.lockUntil > Date.now()) {
         return;
     }
 
-    // Reset if lock has expired
     const updates = {
         $inc: { failedLoginAttempts: 1 }
     };
 
-    // Lock account after 5 failed attempts (lock for 30 minutes)
     const isLocking = this.failedLoginAttempts + 1 >= 5;
     if (isLocking) {
         updates.$set = {
             accountLocked: true,
-            lockUntil: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+            lockUntil: new Date(Date.now() + 30 * 60 * 1000)
         };
     }
 
-    return await this.updateOne(updates);
+    return this.updateOne(updates);
 };
 
-// Instance method to reset login attempts
 userSchema.methods.resetLoginAttempts = async function () {
-    return await this.updateOne({
+    return this.updateOne({
         $set: {
             failedLoginAttempts: 0,
             accountLocked: false,
@@ -157,19 +139,15 @@ userSchema.methods.resetLoginAttempts = async function () {
     });
 };
 
-// Instance method to check if account is locked
 userSchema.methods.isLocked = function () {
-    // Check if lockUntil exists and is in the future
     return !!(this.lockUntil && this.lockUntil > Date.now());
 };
 
-// Instance method to update last login
 userSchema.methods.updateLastLogin = async function () {
     this.lastLogin = new Date();
-    return await this.save();
+    return this.save();
 };
 
-// Instance method to generate password reset token
 userSchema.methods.createPasswordResetToken = function () {
     const crypto = require('crypto');
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -179,14 +157,9 @@ userSchema.methods.createPasswordResetToken = function () {
         .update(resetToken)
         .digest('hex');
 
-    this.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+    this.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
 
     return resetToken;
-};
-
-// Static method to find active users
-userSchema.statics.findByUsername = function (username) {
-    return this.findOne({ username });
 };
 
 module.exports = mongoose.model('User', userSchema);

@@ -1,10 +1,3 @@
-/**
- * controllers/screeningController.js - Screening Controller
- * 
- * Handles HTTP requests for screening management.
- * Business logic for overlap detection is in screeningService.
- */
-
 const Screening = require('../models/Screening');
 const Movie = require('../models/Movie');
 const Hall = require('../models/Hall');
@@ -63,9 +56,6 @@ const _snapToTimelineSlot = (dateValue) => {
     return date;
 };
 
-/**
- * GET /admin/screenings - List all screenings
- */
 exports.index = async (req, res, next) => {
     try {
         await ScreeningService.markCompletedScreenings();
@@ -100,9 +90,6 @@ exports.index = async (req, res, next) => {
     }
 };
 
-/**
- * GET /admin/screenings/:id - Show screening occupancy (read-only)
- */
 exports.show = async (req, res, next) => {
     try {
         const screening = await Screening.findById(req.params.id)
@@ -145,11 +132,6 @@ exports.show = async (req, res, next) => {
     }
 };
 
-/**
- * GET /admin/screenings/new - Render create screening form
- * GET /admin/screenings/:id/edit - Render edit screening form
- * Unified form handler for both create and edit operations
- */
 exports.renderForm = async (req, res, next) => {
     try {
         const isEditMode = !!req.params.id;
@@ -160,7 +142,6 @@ exports.renderForm = async (req, res, next) => {
         ]);
 
         if (isEditMode) {
-            // Edit mode - fetch screening data
             const screening = await Screening.findById(req.params.id)
                 .populate('movie')
                 .populate('hall');
@@ -178,7 +159,6 @@ exports.renderForm = async (req, res, next) => {
                 error: null
             });
         } else {
-            // Create mode - no screening data
             res.render('screenings/form', {
                 title: 'Create New Screening',
                 username: req.session.username,
@@ -192,15 +172,10 @@ exports.renderForm = async (req, res, next) => {
     }
 };
 
-/**
- * POST /admin/screenings - Create new screening
- */
 exports.create = async (req, res, next) => {
     try {
         const { movie, hall, startTime } = req.body;
-
-        // Use service to create screening (includes overlap detection)
-        const screening = await ScreeningService.createScreening({
+        await ScreeningService.createScreening({
             movie,
             hall,
             startTime: new Date(startTime)
@@ -214,7 +189,6 @@ exports.create = async (req, res, next) => {
         res.redirect('/admin/screenings');
 
     } catch (error) {
-        // Re-fetch form data to redisplay form
         const [movies, halls] = await Promise.all([
             Movie.find().sort({ title: 1 }),
             Hall.find({ status: 'active' }).sort({ name: 1 })
@@ -230,15 +204,10 @@ exports.create = async (req, res, next) => {
     }
 };
 
-/**
- * PUT /admin/screenings/:id - Update screening
- */
 exports.update = async (req, res, next) => {
     try {
         const { movie, hall, startTime } = req.body;
-
-        // Use service to update screening (includes overlap detection)
-        const screening = await ScreeningService.updateScreening(req.params.id, {
+        await ScreeningService.updateScreening(req.params.id, {
             movie,
             hall,
             startTime: new Date(startTime)
@@ -252,7 +221,6 @@ exports.update = async (req, res, next) => {
         res.redirect('/admin/screenings');
 
     } catch (error) {
-        // Re-fetch form data to redisplay form
         const [movies, halls] = await Promise.all([
             Movie.find().sort({ title: 1 }),
             Hall.find({ status: 'active' }).sort({ name: 1 })
@@ -273,9 +241,6 @@ exports.update = async (req, res, next) => {
     }
 };
 
-/**
- * DELETE /admin/screenings/:id - Delete screening
- */
 exports.delete = async (req, res, next) => {
     try {
         const screening = await Screening.findById(req.params.id);
@@ -303,9 +268,6 @@ exports.delete = async (req, res, next) => {
     }
 };
 
-/**
- * PATCH /admin/screenings/:id/cancel - Cancel screening
- */
 exports.cancel = async (req, res, next) => {
     try {
         const screening = await ScreeningService.cancelScreening(req.params.id);
@@ -321,9 +283,6 @@ exports.cancel = async (req, res, next) => {
     }
 };
 
-/**
- * GET /admin/screenings/timeline/data?date=YYYY-MM-DD
- */
 exports.getTimelineData = async (req, res) => {
     try {
         await ScreeningService.markCompletedScreenings();
@@ -343,9 +302,6 @@ exports.getTimelineData = async (req, res) => {
     }
 };
 
-/**
- * POST /admin/screenings/timeline
- */
 exports.createFromTimeline = async (req, res) => {
     try {
         const { movieId, hallId, startDateTime } = req.body;
@@ -379,9 +335,6 @@ exports.createFromTimeline = async (req, res) => {
     }
 };
 
-/**
- * PATCH /admin/screenings/timeline/:id/move
- */
 exports.moveTimelineScreening = async (req, res) => {
     try {
         const { hallId, startDateTime } = req.body;
@@ -420,9 +373,6 @@ exports.moveTimelineScreening = async (req, res) => {
     }
 };
 
-/**
- * DELETE /admin/screenings/timeline/:id
- */
 exports.deleteTimelineScreening = async (req, res) => {
     try {
         const screening = await Screening.findById(req.params.id);
@@ -445,9 +395,6 @@ exports.deleteTimelineScreening = async (req, res) => {
     }
 };
 
-/**
- * PATCH /admin/screenings/timeline/:id/cancel
- */
 exports.cancelTimelineScreening = async (req, res) => {
     try {
         const screening = await ScreeningService.cancelScreening(req.params.id);

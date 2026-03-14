@@ -1085,5 +1085,4 @@ document.addEventListener('DOMContentLoaded', function () {
         showAlert(`Drag and drop enabled (${activeView} view). Buffer rule: ${cleaningBuffer} min before + ${cleaningBuffer} min after each movie.`, 'info');
     }
 
-    console.log('🎬 CineVillage Admin Portal initialized');
 });

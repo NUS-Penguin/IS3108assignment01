@@ -1,9 +1,3 @@
-/**
- * services/screeningService.js - Screening Business Logic
- * 
- * Contains the CRITICAL overlap detection algorithm and screening creation logic.
- */
-
 const Screening = require('../models/Screening');
 const Movie = require('../models/Movie');
 const Hall = require('../models/Hall');
@@ -70,27 +64,17 @@ class ScreeningService {
         }
     }
 
-    /**
-     * Create a new screening with overlap detection
-     * 
-     * @param {Object} data - Screening data { movie, hall, startTime }
-     * @returns {Promise<Screening>} Created screening
-     * @throws {AppError} If validation fails or overlap detected
-     */
     static async createScreening(data) {
         const { movie, hall, startTime } = data;
         const parsedStartTime = new Date(startTime);
 
-        // 1. Validate movie exists
         const movieDoc = await Movie.findById(movie);
         if (!movieDoc) {
             throw new AppError('Movie not found', 404);
         }
 
-        // 1b. Validate movie status allows scheduling
         this._validateMovieSchedulingEligibility(movieDoc);
 
-        // 2. Validate hall exists and is available
         const hallDoc = await Hall.findById(hall);
         if (!hallDoc) {
             throw new AppError('Hall not found', 404);
@@ -100,7 +84,6 @@ class ScreeningService {
             throw new AppError('Cannot create screening in a hall under maintenance', 400);
         }
 
-        // 3. Validate start time is in the future
         if (isNaN(parsedStartTime.getTime())) {
             throw new AppError('Invalid screening start time', 400);
         }
@@ -109,10 +92,8 @@ class ScreeningService {
             throw new AppError('Start time must be in the future', 400);
         }
 
-        // 4. Calculate end time
         const endTime = new Date(parsedStartTime.getTime() + movieDoc.durationMinutes * MINUTE_IN_MILLISECONDS);
 
-        // 4b. Prevent accidental duplicates (same movie + hall + exact start time)
         const duplicateScreening = await Screening.findOne({
             movie,
             hall,
@@ -124,10 +105,8 @@ class ScreeningService {
             throw new AppError('Duplicate screening detected: same movie, hall, and start time already exists', 400);
         }
 
-        // 5. CRITICAL: Check for overlaps
         await this._checkForOverlap(hall, parsedStartTime, endTime);
 
-        // 6. Create screening
         const screening = new Screening({
             movie,
             hall,
@@ -141,27 +120,12 @@ class ScreeningService {
         return screening;
     }
 
-    /**
-     * CRITICAL BUSINESS RULE: Overlap Detection
-     * 
-     * Two screenings in the SAME hall MUST NOT overlap in time on the SAME date.
-     * 
-     * Mathematical formula:
-     * Overlap occurs IF: (existingStart < newEnd) AND (existingEnd > newStart)
-     * 
-     * @param {ObjectId} hallId - Hall ID
-     * @param {Date} startTime - New screening start time
-     * @param {Date} endTime - New screening end time
-     * @param {ObjectId} excludeScreeningId - Optional: exclude this screening (for updates)
-     * @throws {AppError} If overlap detected
-     */
     static async _checkForOverlap(hallId, startTime, endTime, excludeScreeningId = null) {
         const beforeBufferMs = BUFFER_BEFORE_MINUTES * MINUTE_IN_MILLISECONDS;
         const afterBufferMs = BUFFER_AFTER_MINUTES * MINUTE_IN_MILLISECONDS;
         const newStartWithBuffer = new Date(startTime.getTime() - beforeBufferMs);
         const newEndWithBuffer = new Date(endTime.getTime() + afterBufferMs);
 
-        // Find candidate screenings in same hall that could overlap this new interval.
         const query = {
             hall: hallId,
             status: { $ne: 'Cancelled' },
@@ -169,7 +133,6 @@ class ScreeningService {
             endTime: { $gt: newStartWithBuffer }
         };
 
-        // Exclude current screening if updating
         if (excludeScreeningId) {
             query._id = { $ne: excludeScreeningId };
         }
@@ -178,14 +141,11 @@ class ScreeningService {
             .populate('movie', 'title')
             .populate('hall', 'name');
 
-        // Check for overlap with each existing screening
         for (const existing of existingScreenings) {
             const existingStart = existing.startTime;
             const existingStartWithBuffer = new Date(existing.startTime.getTime() - beforeBufferMs);
             const existingEndWithBuffer = new Date(existing.endTime.getTime() + afterBufferMs);
 
-            // CRITICAL OVERLAP FORMULA
-            // Overlap occurs if: (existingStart < newEnd) AND (existingEnd > newStart)
             const hasOverlap = (existingStartWithBuffer < newEndWithBuffer) && (existingEndWithBuffer > newStartWithBuffer);
 
             if (hasOverlap) {
@@ -201,28 +161,18 @@ class ScreeningService {
             }
         }
 
-        return true; // No overlap found
+        return true;
     }
 
-    /**
-     * Update an existing screening with overlap detection
-     * 
-     * @param {ObjectId} screeningId - ID of screening to update
-     * @param {Object} data - Screening data { movie, hall, startTime }
-     * @returns {Promise<Screening>} Updated screening
-     * @throws {AppError} If validation fails or overlap detected
-     */
     static async updateScreening(screeningId, data) {
         const { movie, hall, startTime } = data;
         const parsedStartTime = new Date(startTime);
 
-        // 1. Validate screening exists
         const screening = await Screening.findById(screeningId);
         if (!screening) {
             throw new AppError('Screening not found', 404);
         }
 
-        // 2. Validate movie exists
         const movieDoc = await Movie.findById(movie);
         if (!movieDoc) {
             throw new AppError('Movie not found', 404);
@@ -230,7 +180,6 @@ class ScreeningService {
 
         this._validateMovieSchedulingEligibility(movieDoc);
 
-        // 3. Validate hall exists and is available
         const hallDoc = await Hall.findById(hall);
         if (!hallDoc) {
             throw new AppError('Hall not found', 404);
@@ -248,10 +197,8 @@ class ScreeningService {
             throw new AppError('Start time must be in the future', 400);
         }
 
-        // 4. Calculate end time
         const endTime = new Date(parsedStartTime.getTime() + movieDoc.durationMinutes * MINUTE_IN_MILLISECONDS);
 
-        // 4b. Prevent accidental duplicates when updating
         const duplicateScreening = await Screening.findOne({
             _id: { $ne: screeningId },
             movie,
@@ -264,10 +211,8 @@ class ScreeningService {
             throw new AppError('Duplicate screening detected: same movie, hall, and start time already exists', 400);
         }
 
-        // 5. CRITICAL: Check for overlaps (excluding current screening)
         await this._checkForOverlap(hall, parsedStartTime, endTime, screeningId);
 
-        // 6. Update screening
         const hallChanged = String(screening.hall) !== String(hall);
 
         screening.movie = movie;
@@ -312,53 +257,6 @@ class ScreeningService {
                 $set: { status: 'Completed' }
             }
         );
-    }
-
-    /**
-     * Get upcoming screenings for dashboard
-     */
-    static async getUpcomingScreenings(limit = 10) {
-        return await Screening.find({
-            startTime: { $gt: new Date() },
-            status: 'Scheduled'
-        })
-            .sort({ startTime: 1 })
-            .limit(limit)
-            .populate('movie', 'title durationMinutes genre')
-            .populate('hall', 'name');
-    }
-
-    /**
-     * Get screenings for a specific date
-     */
-    static async getScreeningsByDate(date) {
-        return await Screening.findByDate(date);
-    }
-
-    static async getDailyScheduleOverview(date = new Date()) {
-        const { dayStart, dayEnd } = this._getDayBounds(date);
-
-        const screenings = await Screening.find({
-            startTime: { $lt: dayEnd },
-            endTime: { $gt: dayStart },
-            status: { $ne: 'Cancelled' }
-        })
-            .populate('movie', 'title')
-            .populate('hall', 'name')
-            .sort({ startTime: 1 });
-
-        const hallMap = new Map();
-        screenings.forEach((screening) => {
-            const hallName = screening.hall?.name || 'Unknown hall';
-            if (!hallMap.has(hallName)) {
-                hallMap.set(hallName, []);
-            }
-            hallMap.get(hallName).push(screening);
-        });
-
-        return Array.from(hallMap.entries())
-            .map(([hallName, hallScreenings]) => ({ hallName, screenings: hallScreenings }))
-            .sort((a, b) => a.hallName.localeCompare(b.hallName));
     }
 
     static async getTimelineScreeningsByDate(date = new Date()) {

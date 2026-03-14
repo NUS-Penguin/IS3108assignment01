@@ -89,14 +89,12 @@
                     <tbody>
                         <% movies.forEach(movie => { %>
                             <%
-                                // Status badge colour
                                 const statusBadge =
                                     movie.status === 'Now Showing'  ? 'bg-success' :
                                     movie.status === 'Coming Soon'  ? 'bg-warning text-dark' :
                                                                       'bg-secondary';
                             %>
                             <tr>
-                                <%# Poster thumbnail %>
                                 <td>
                                     <% const posterSrc = movie.posterPath || movie.posterURL; %>
                                     <% if (posterSrc) { %>
@@ -112,7 +110,6 @@
                                     <% } %>
                                 </td>
 
-                                <%# Title + description preview %>
                                 <td>
                                     <div class="fw-semibold"><%= movie.title %></div>
                                     <small class="text-muted">
@@ -120,10 +117,8 @@
                                     </small>
                                 </td>
 
-                                <%# Genre %>
                                 <td><span class="badge bg-info text-dark"><%= movie.genre %></span></td>
 
-                                <%# Duration %>
                                 <td>
                                     <span class="text-nowrap">
                                         <i class="bi bi-clock me-1 text-muted"></i>
@@ -131,17 +126,14 @@
                                     </span>
                                 </td>
 
-                                <%# Release date %>
                                 <td class="text-nowrap">
                                     <%= new Date(movie.releaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
                                 </td>
 
-                                <%# Status badge %>
                                 <td>
                                     <span class="badge <%= statusBadge %>"><%= movie.status %></span>
                                 </td>
 
-                                <%# Future screenings count %>
                                 <td>
                                     <% if (movie.futureScreeningsCount > 0) { %>
                                         <span class="badge bg-primary rounded-pill">
@@ -152,7 +144,6 @@
                                     <% } %>
                                 </td>
 
-                                <%# Action buttons %>
                                 <td class="text-end">
                                     <div class="btn-group" role="group">
                                         <a href="/admin/movies/<%= movie._id %>/edit"
@@ -161,7 +152,6 @@
                                         </a>
 
                                         <% if (movie.futureScreeningsCount > 0) { %>
-                                            <%# Disabled delete with tooltip when screenings exist %>
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-danger"
                                                     data-bs-toggle="modal"
@@ -208,7 +198,6 @@
     </div>
 </div>
 
-<%# ── Cannot-Delete Info Modal ────────────────────────────────────── %>
 <div class="modal fade" id="cannotDeleteModal" tabindex="-1" aria-labelledby="cannotDeleteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -219,7 +208,6 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body" id="cannotDeleteModalBody">
-                <%# Content is injected by the script below %>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -232,7 +220,6 @@
 </div>
 
 <script>
-    // Populate modal with movie-specific info before it shows
     const cannotDeleteModal = document.getElementById('cannotDeleteModal');
     cannotDeleteModal.addEventListener('show.bs.modal', event => {
         const btn = event.relatedTarget;

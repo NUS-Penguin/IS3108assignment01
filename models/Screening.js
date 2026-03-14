@@ -1,10 +1,3 @@
-/**
- * models/Screening.js - Screening Model
- * 
- * Mongoose schema for movie screenings.
- * Includes automatic endTime calculation and date extraction.
- */
-
 const mongoose = require('mongoose');
 
 const seatOccupancyCellSchema = new mongoose.Schema({
@@ -59,13 +52,10 @@ const screeningSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Indexes for efficient querying
 screeningSchema.index({ hall: 1, date: 1 });
 screeningSchema.index({ startTime: 1 });
 screeningSchema.index({ movie: 1 });
 
-// Pre-validate hook to calculate endTime and extract date
-// (required fields must be set before validation)
 screeningSchema.pre('validate', async function (next) {
     try {
         if (this.isModified('startTime') || this.isModified('movie') || this.isNew) {
@@ -93,7 +83,6 @@ screeningSchema.pre('validate', async function (next) {
     }
 });
 
-// Virtual for formatted date and time
 screeningSchema.virtual('startTimeFormatted').get(function () {
     return this.startTime.toLocaleString('en-US', {
         year: 'numeric',
@@ -103,30 +92,5 @@ screeningSchema.virtual('startTimeFormatted').get(function () {
         minute: '2-digit'
     });
 });
-
-// Static method to find upcoming screenings
-screeningSchema.statics.findUpcoming = function (limit = 10) {
-    return this.find({ startTime: { $gt: new Date() }, status: 'Scheduled' })
-        .sort({ startTime: 1 })
-        .limit(limit)
-        .populate('movie', 'title durationMinutes genre')
-        .populate('hall', 'name');
-};
-
-// Static method to find screenings by date
-screeningSchema.statics.findByDate = function (date) {
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(date);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    return this.find({
-        status: { $ne: 'Cancelled' },
-        startTime: { $gte: dayStart, $lte: dayEnd }
-    })
-        .populate('movie', 'title durationMinutes')
-        .populate('hall', 'name')
-        .sort({ startTime: 1 });
-};
 
 module.exports = mongoose.model('Screening', screeningSchema);

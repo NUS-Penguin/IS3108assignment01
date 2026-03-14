@@ -1,11 +1,3 @@
-/**
- * controllers/hallController.js - Hall Controller
- * 
- * Handles HTTP requests for cinema hall management.
- * Controllers are thin - business logic belongs in services.
- * Enhanced for Module 2: Hall Management
- */
-
 const Hall = require('../models/Hall');
 const HallService = require('../services/hallService');
 const { AppError } = require('../middleware/errorMiddleware');
@@ -29,9 +21,34 @@ const normalizeSeatMatrixInput = (seatMatrix) => {
     return [];
 };
 
-/**
- * GET /admin/halls - List all halls
- */
+const getSeatTypeCounts = (hall) => {
+    const seatTypeCounts = {
+        regular: 0,
+        vip: 0,
+        wheelchair: 0
+    };
+
+    if (hall?.seatTypes?.length) {
+        hall.seatTypes.forEach((seat) => {
+            seatTypeCounts[seat.type] = seat.count;
+        });
+    }
+
+    return seatTypeCounts;
+};
+
+const renderEditFormWithError = async (res, session, hallId, error) => {
+    const hall = await Hall.findById(hallId);
+    return res.render('halls/form', {
+        title: 'Edit Hall',
+        username: session.username,
+        hall,
+        seatTypeCounts: getSeatTypeCounts(hall),
+        seatMatrix: hall?.seats || [],
+        error
+    });
+};
+
 exports.index = async (req, res, next) => {
     try {
         const halls = await Hall.find().sort({ createdAt: -1 });
@@ -46,9 +63,6 @@ exports.index = async (req, res, next) => {
     }
 };
 
-/**
- * GET /admin/halls/:id - Show hall details with seating layout
- */
 exports.show = async (req, res, next) => {
     try {
         const stats = await HallService.getHallStatistics(req.params.id);
@@ -66,49 +80,27 @@ exports.show = async (req, res, next) => {
     }
 };
 
-/**
- * GET /admin/halls/new - Render create hall form
- * GET /admin/halls/:id/edit - Render edit hall form
- * Unified form handler for both create and edit operations
- */
 exports.renderForm = async (req, res, next) => {
     try {
         const isEditMode = !!req.params.id;
 
         if (isEditMode) {
-            // Edit mode - fetch hall data
             const hall = await Hall.findById(req.params.id);
 
             if (!hall) {
                 throw new AppError('Hall not found', 404);
             }
-
-            // Extract seat type counts for form
-            const seatTypeCounts = {
-                regular: 0,
-                vip: 0,
-                wheelchair: 0
-            };
-
-            if (hall.seatTypes && hall.seatTypes.length > 0) {
-                hall.seatTypes.forEach(seat => {
-                    seatTypeCounts[seat.type] = seat.count;
-                });
-            }
-
-            // Generate seat map for interactive grid
             const seatMatrix = hall.seats || [];
 
             res.render('halls/form', {
                 title: 'Edit Hall',
                 username: req.session.username,
                 hall,
-                seatTypeCounts,
+                seatTypeCounts: getSeatTypeCounts(hall),
                 seatMatrix,
                 error: null
             });
         } else {
-            // Create mode - no hall data
             res.render('halls/form', {
                 title: 'Create New Hall',
                 username: req.session.username,
@@ -120,9 +112,6 @@ exports.renderForm = async (req, res, next) => {
     }
 };
 
-/**
- * POST /admin/halls - Create new hall
- */
 exports.create = async (req, res, next) => {
     try {
         const {
@@ -136,10 +125,9 @@ exports.create = async (req, res, next) => {
             seatMatrix
         } = req.body;
 
-        const rowsInt = parseInt(rows);
-        const colsInt = parseInt(columns);
+        const rowsInt = parseInt(rows, 10);
+        const colsInt = parseInt(columns, 10);
 
-        // Process seat matrix - required for all halls
         let seatsArray = [];
         let seatTypes = [];
 
@@ -147,15 +135,12 @@ exports.create = async (req, res, next) => {
 
         if (normalizedSeatMatrix.length > 0) {
             seatsArray = HallService.processSeatMatrix(normalizedSeatMatrix, rowsInt, colsInt);
-            // Calculate seat types from matrix
             seatTypes = HallService.calculateSeatTypesFromMatrix(seatsArray);
         } else {
-            // Generate default regular seat matrix if none provided
             seatsArray = HallService.generateDefaultSeatMatrix(rowsInt, colsInt);
             seatTypes = [{ type: 'regular', count: rowsInt * colsInt }];
         }
 
-        // Create hall object
         const hallData = {
             name,
             rows: rowsInt,
@@ -165,7 +150,6 @@ exports.create = async (req, res, next) => {
             seats: seatsArray
         };
 
-        // Add maintenance fields if status is maintenance
         if (status === 'maintenance') {
             if (!maintenanceStartDate || !maintenanceEndDate) {
                 throw new AppError('Maintenance dates are required when status is maintenance', 400);
@@ -209,9 +193,6 @@ exports.create = async (req, res, next) => {
     }
 };
 
-/**
- * PUT /admin/halls/:id - Update hall
- */
 exports.update = async (req, res, next) => {
     try {
         const {
@@ -231,10 +212,9 @@ exports.update = async (req, res, next) => {
             throw new AppError('Hall not found', 404);
         }
 
-        const rowsInt = parseInt(rows);
-        const colsInt = parseInt(columns);
+        const rowsInt = parseInt(rows, 10);
+        const colsInt = parseInt(columns, 10);
 
-        // Process seat matrix - required for all halls
         let seatsArray = [];
         let seatTypes = [];
 
@@ -242,25 +222,20 @@ exports.update = async (req, res, next) => {
 
         if (normalizedSeatMatrix.length > 0) {
             seatsArray = HallService.processSeatMatrix(normalizedSeatMatrix, rowsInt, colsInt);
-            // Calculate seat types from matrix
             seatTypes = HallService.calculateSeatTypesFromMatrix(seatsArray);
         } else {
-            // Generate default regular seat matrix if none provided
             seatsArray = HallService.generateDefaultSeatMatrix(rowsInt, colsInt);
             seatTypes = [{ type: 'regular', count: rowsInt * colsInt }];
         }
 
-        // Update seat data
         hall.seats = seatsArray;
         hall.seatTypes = seatTypes;
 
-        // Update basic fields
         hall.name = name;
         hall.rows = rowsInt;
         hall.columns = colsInt;
         hall.status = status;
 
-        // Handle maintenance fields
         if (status === 'maintenance') {
             if (!maintenanceStartDate || !maintenanceEndDate) {
                 throw new AppError('Maintenance dates are required when status is maintenance', 400);
@@ -268,7 +243,6 @@ exports.update = async (req, res, next) => {
 
             HallService.validateMaintenanceDates(maintenanceStartDate, maintenanceEndDate);
 
-            // Check for conflicting screenings during maintenance period
             await HallService.checkMaintenanceConflicts(
                 hall._id,
                 maintenanceStartDate,
@@ -279,7 +253,6 @@ exports.update = async (req, res, next) => {
             hall.maintenanceEndDate = new Date(maintenanceEndDate);
             hall.maintenanceReason = maintenanceReason || null;
         } else {
-            // Clear maintenance fields if not in maintenance
             hall.maintenanceStartDate = null;
             hall.maintenanceEndDate = null;
             hall.maintenanceReason = null;
@@ -296,58 +269,22 @@ exports.update = async (req, res, next) => {
 
     } catch (error) {
         if (error.name === 'ValidationError') {
-            const hall = await Hall.findById(req.params.id);
-            const seatTypeCounts = {
-                regular: 0,
-                vip: 0,
-                wheelchair: 0
-            };
-            if (hall.seatTypes) {
-                hall.seatTypes.forEach(seat => {
-                    seatTypeCounts[seat.type] = seat.count;
-                });
-            }
-            const seatMatrix = hall.seats || [];
-            return res.render('halls/form', {
-                title: 'Edit Hall',
-                username: req.session.username,
-                hall,
-                seatTypeCounts,
-                seatMatrix,
-                error: Object.values(error.errors).map(e => e.message).join(', ')
-            });
+            return renderEditFormWithError(
+                res,
+                req.session,
+                req.params.id,
+                Object.values(error.errors).map(e => e.message).join(', ')
+            );
         }
 
         if (error instanceof AppError) {
-            const hall = await Hall.findById(req.params.id);
-            const seatTypeCounts = {
-                regular: 0,
-                vip: 0,
-                wheelchair: 0
-            };
-            if (hall.seatTypes) {
-                hall.seatTypes.forEach(seat => {
-                    seatTypeCounts[seat.type] = seat.count;
-                });
-            }
-            const seatMatrix = hall.seats || [];
-            return res.render('halls/form', {
-                title: 'Edit Hall',
-                username: req.session.username,
-                hall,
-                seatTypeCounts,
-                seatMatrix,
-                error: error.message
-            });
+            return renderEditFormWithError(res, req.session, req.params.id, error.message);
         }
 
         next(error);
     }
 };
 
-/**
- * DELETE /admin/halls/:id - Delete hall
- */
 exports.delete = async (req, res, next) => {
     try {
         const hall = await Hall.findById(req.params.id);
@@ -356,7 +293,6 @@ exports.delete = async (req, res, next) => {
             throw new AppError('Hall not found', 404);
         }
 
-        // Check for future screenings
         const Screening = require('../models/Screening');
         const futureScreenings = await Screening.countDocuments({
             hall: hall._id,

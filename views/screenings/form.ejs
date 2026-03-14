@@ -110,7 +110,6 @@ const screeningStartTime = isEditMode ? new Date(screening.startTime).toISOStrin
     </div>
 
     <script>
-        // Calculate and display end time based on movie selection and start time
         document.addEventListener('DOMContentLoaded', function () {
             const movieSelect = document.getElementById('movie');
             const startTimeInput = document.getElementById('startTime');
@@ -143,16 +142,14 @@ const screeningStartTime = isEditMode ? new Date(screening.startTime).toISOStrin
             movieSelect.addEventListener('change', updateEndTime);
             startTimeInput.addEventListener('change', updateEndTime);
 
-        // Set minimum datetime to current time (only for create mode)
-        <% if (!isEditMode) { %>
-            const now = new Date();
+            <% if (!isEditMode) { %>
+                const now = new Date();
                 now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
                 startTimeInput.min = now.toISOString().slice(0, 16);
-        <% } %>
+            <% } %>
 
-        // Update end time on page load if in edit mode
-        <% if (isEditMode) { %>
+            <% if (isEditMode) { %>
                 updateEndTime();
-        <% } %>
-    });
+            <% } %>
+        });
     </script>

@@ -1,29 +1,17 @@
-/**
- * middleware/validationMiddleware.js - Input Validation Middleware
- * 
- * Validates request data before processing.
- */
-
 const { AppError } = require('./errorMiddleware');
 
-/**
- * Validate screening creation data
- */
 exports.validateScreening = (req, res, next) => {
     const { movie, hall, startTime } = req.body;
 
-    // Check required fields
     if (!movie || !hall || !startTime) {
         return next(new AppError('Movie, hall, and start time are required', 400));
     }
 
-    // Validate startTime is a valid date
     const startDate = new Date(startTime);
     if (isNaN(startDate.getTime())) {
         return next(new AppError('Invalid start time format', 400));
     }
 
-    // Validate startTime is in the future
     if (startDate <= new Date()) {
         return next(new AppError('Start time must be in the future', 400));
     }
@@ -31,9 +19,6 @@ exports.validateScreening = (req, res, next) => {
     next();
 };
 
-/**
- * Validate hall creation/update data
- */
 exports.validateHall = (req, res, next) => {
     const { name, rows, columns } = req.body;
 
@@ -41,8 +26,8 @@ exports.validateHall = (req, res, next) => {
         return next(new AppError('Name, rows, and columns are required', 400));
     }
 
-    const rowsNum = parseInt(rows);
-    const colsNum = parseInt(columns);
+    const rowsNum = parseInt(rows, 10);
+    const colsNum = parseInt(columns, 10);
 
     if (isNaN(rowsNum) || rowsNum < 1 || rowsNum > 25) {
         return next(new AppError('Rows must be between 1 and 25', 400));
@@ -55,9 +40,6 @@ exports.validateHall = (req, res, next) => {
     next();
 };
 
-/**
- * Validate movie creation/update data
- */
 exports.validateMovie = (req, res, next) => {
     const { title, description, durationMinutes, genre, releaseDate, status } = req.body;
 

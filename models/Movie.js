@@ -1,10 +1,3 @@
-/**
- * models/Movie.js - Movie Model
- * 
- * Mongoose schema for movies available for screening.
- * Includes movie details and validation rules.
- */
-
 const mongoose = require('mongoose');
 
 const movieSchema = new mongoose.Schema({
@@ -64,33 +57,20 @@ const movieSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Virtual for duration in hours and minutes
 movieSchema.virtual('durationFormatted').get(function () {
     const hours = Math.floor(this.durationMinutes / 60);
     const minutes = this.durationMinutes % 60;
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 });
 
-// Instance method to get count of future screenings
 movieSchema.methods.getFutureScreeningsCount = async function () {
     const Screening = mongoose.model('Screening');
-    return await Screening.countDocuments({
+    return Screening.countDocuments({
         movie: this._id,
         startTime: { $gt: new Date() }
     });
 };
 
-// Instance method to check if movie has future screenings
-movieSchema.methods.hasFutureScreenings = async function () {
-    return (await this.getFutureScreeningsCount()) > 0;
-};
-
-// Static method to find movies by genre
-movieSchema.statics.findByGenre = function (genre) {
-    return this.find({ genre });
-};
-
-// Static method to search movies with filters
 movieSchema.statics.search = function ({ search, genre, status, releaseYear } = {}) {
     const query = {};
 
@@ -113,14 +93,5 @@ movieSchema.statics.search = function ({ search, genre, status, releaseYear } = 
 
     return this.find(query).sort({ createdAt: -1 });
 };
-
-// Pre-remove hook to prevent deletion if future screenings exist
-movieSchema.pre('remove', async function (next) {
-    const hasFuture = await this.hasFutureScreenings();
-    if (hasFuture) {
-        throw new Error('Cannot delete movie with future screenings scheduled');
-    }
-    next();
-});
 
 module.exports = mongoose.model('Movie', movieSchema);

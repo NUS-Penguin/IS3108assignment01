@@ -1,12 +1,10 @@
 <%
-  // Determine mode
   const isEditMode = typeof movie !== 'undefined' && movie;
   const formAction     = isEditMode ? `/admin/movies/${movie._id}?_method=PUT` : '/admin/movies';
   const formTitle      = isEditMode ? 'Edit Movie' : 'Add New Movie';
   const formIcon       = isEditMode ? 'bi-pencil' : 'bi-plus-circle';
   const submitButtonText = isEditMode ? 'Update Movie' : 'Add Movie';
 
-  // Pre-fill values
   const movieTitle       = isEditMode ? movie.title       : '';
   const movieDescription = isEditMode ? movie.description : '';
   const movieDuration    = isEditMode ? movie.durationMinutes : '';
@@ -87,7 +85,6 @@
                                         value="<%= movieReleaseDate %>">
                                 </div>
 
-                                <%# Status field %>
                                 <div class="mb-3">
                                     <label for="status" class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
                                     <select class="form-select" id="status" name="status" required>
@@ -102,7 +99,6 @@
                                     </div>
                                 </div>
 
-                                <%# Poster Upload with live preview %>
                                 <div class="mb-3">
                                     <label for="poster" class="form-label fw-semibold">Poster Image <span class="text-muted">(optional)</span></label>
                                     <div class="d-flex gap-3 align-items-start">
