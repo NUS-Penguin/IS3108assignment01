@@ -47,7 +47,26 @@
                 <tbody>
                     <% upcomingScreenings.forEach(screening => { %>
                         <tr>
-                            <td><strong><%= screening.movie.title %></strong></td>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <img
+                                        src="<%= screening.movie.posterURL || 'https://via.placeholder.com/48x68?text=N/A' %>"
+                                        alt="<%= screening.movie.title %> poster"
+                                        width="48"
+                                        height="68"
+                                        onerror="this.src='https://via.placeholder.com/48x68?text=N/A'">
+                                    <div>
+                                        <div class="fw-semibold"><%= screening.movie.title %></div>
+                                        <small class="text-muted">
+                                            <%= screening.movie.description
+                                                ? (screening.movie.description.length > 60
+                                                    ? screening.movie.description.substring(0, 60) + '…'
+                                                    : screening.movie.description)
+                                                : (screening.movie.genre || 'No description') %>
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
                             <td><%= screening.hall.name %></td>
                             <td><%= screening.startTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></td>
                             <td><%= screening.movie.durationMinutes %> min</td>

@@ -36,7 +36,7 @@ exports.index = async (req, res, next) => {
                 startTime: { $gt: now },
                 status: 'Scheduled'
             })
-                .populate('movie', 'title durationMinutes genre')
+                .populate('movie', 'title durationMinutes genre posterURL description')
                 .populate('hall', 'name')
                 .sort({ startTime: 1 })
                 .limit(10)
