@@ -9,6 +9,73 @@ This document tracks all significant changes to the codebase.
 
 ---
 
+## [2026-03-14] Inline CSS Remediation + Template Diagnostics Cleanup
+
+**Type:** Bug Fix / Code Quality
+**Scope:** Major - View-layer compliance, accessibility, and compatibility cleanup
+**Files Modified:** 16 files
+**Files Created:** 0 files
+**Lines Added:** ~170+
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Completed a project-wide pass to eliminate inline CSS issues (priority request), preserve dynamic styling behavior via JS where needed, and clear related diagnostics across both active EJS views and template reference pages.
+
+This pass focused on front-end markup/CSS/JS quality only. No controllers, models, routes, or database schema were changed.
+
+### Key Changes
+- Removed inline presentational styles from active app views:
+  - `views/movies/index.ejs`
+  - `views/halls/form.ejs`
+  - `views/halls/show.ejs`
+- Replaced dynamic inline style usage with `data-*` attributes + JS initialization in `public/js/main.js`:
+  - Seat layout CSS vars now derived from `data-rows` / `data-cols`
+  - Progress bar width now derived from `data-seat-percentage`
+- Centralized moved style rules into `public/css/styles.css` (`.hall-progress-bar`)
+- Removed/converted inline styles across template pages (`css-template/*.html`) and added CSS class replacements in `css-template/css/templatemo-crypto-pages.css`
+- Added accessibility attributes (`title`, `aria-label`, placeholders where appropriate) for icon-only controls and underspecified form fields in template pages
+- Hardened external links by adding `rel="noopener"` to `target="_blank"` anchors in template pages
+- Addressed CSS compatibility diagnostics in template/public CSS copies:
+  - Added `-webkit-backdrop-filter`
+  - Replaced `min-height: auto` with `min-height: 0` in responsive context
+  - Removed `scrollbar-width` / `scrollbar-color` declarations producing compatibility warnings
+
+### Files Modified
+- `views/movies/index.ejs`
+- `views/halls/form.ejs`
+- `views/halls/show.ejs`
+- `public/js/main.js`
+- `public/css/styles.css`
+- `css-template/markets.html`
+- `css-template/wallet.html`
+- `css-template/login.html`
+- `css-template/settings.html`
+- `css-template/index.html`
+- `css-template/templatemo.html`
+- `css-template/css/templatemo-crypto-pages.css`
+- `css-template/css/templatemo-crypto-login.css`
+- `css-template/css/templatemo-crypto-style.css`
+- `public/css/templatemo-crypto-login.css`
+- `public/css/templatemo-crypto-style.css`
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on updated project files
+- ✅ Follow-up diagnostics scan showed remaining warnings only in third-party `node_modules/connect-mongo` TypeScript config files
+- ⛳ Runtime app start check was not re-run in this pass (previous run attempt was skipped)
+
+### Impact Assessment
+- **User Impact:** Cleaner, more maintainable markup with inline CSS issues resolved
+- **System Impact:** Low risk; no backend logic changes
+- **Compliance Impact:** Improved alignment with assignment constraints around styling maintainability
+
+### Rollback Plan
+1. Revert the above 16 files to the previous commit state
+2. Restore previous inline style behavior if strictly needed (not recommended)
+3. Re-run diagnostics to confirm rollback parity
+
+---
+
 ## [2026-03-14] UI Refactor Follow-up: Form/Detail Consistency Pass
 
 **Type:** Feature Enhancement

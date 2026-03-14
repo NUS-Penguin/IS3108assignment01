@@ -344,10 +344,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Show seat configuration UI elements
         function showSeatConfiguration() {
-            document.getElementById('seatModeControls').style.display = 'block';
-            document.getElementById('seatLegend').style.display = 'block';
-            document.getElementById('seatStats').style.display = 'block';
-            document.getElementById('seatGridContainer').style.display = 'block';
+            document.getElementById('seatModeControls').classList.remove('d-none');
+            document.getElementById('seatLegend').classList.remove('d-none');
+            document.getElementById('seatStats').classList.remove('d-none');
+            document.getElementById('seatGridContainer').classList.remove('d-none');
 
             renderSeatGrid();
             updateSeatStatistics();
@@ -504,6 +504,29 @@ document.addEventListener('DOMContentLoaded', function () {
             loadExistingSeatMatrix();
         }
     }
+
+    // Hall details page: apply dynamic values without inline CSS
+    const hallLayoutElements = document.querySelectorAll('.seat-layout[data-rows][data-cols]');
+    hallLayoutElements.forEach(layout => {
+        const rowsValue = layout.dataset.rows;
+        const colsValue = layout.dataset.cols;
+
+        if (rowsValue) {
+            layout.style.setProperty('--rows', rowsValue);
+        }
+
+        if (colsValue) {
+            layout.style.setProperty('--cols', colsValue);
+        }
+    });
+
+    const hallProgressBars = document.querySelectorAll('.progress-bar[data-seat-percentage]');
+    hallProgressBars.forEach(progressBar => {
+        const percentage = Number(progressBar.dataset.seatPercentage);
+        if (Number.isFinite(percentage)) {
+            progressBar.style.width = `${Math.max(0, Math.min(percentage, 100))}%`;
+        }
+    });
 
     // ========================================
     // SCREENING TIMELINE SCHEDULER

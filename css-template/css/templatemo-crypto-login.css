@@ -35,7 +35,7 @@ body.auth-page {
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle at 30% 70%, rgba(255,255,255,0.1) 0%, transparent 50%);
+    background: radial-gradient(circle at 30% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
     animation: float 15s ease-in-out infinite;
 }
 
@@ -46,13 +46,20 @@ body.auth-page {
     right: -30%;
     width: 100%;
     height: 100%;
-    background: radial-gradient(circle at 70% 30%, rgba(0,0,0,0.1) 0%, transparent 50%);
+    background: radial-gradient(circle at 70% 30%, rgba(0, 0, 0, 0.1) 0%, transparent 50%);
     animation: float 20s ease-in-out infinite reverse;
 }
 
 @keyframes float {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    50% { transform: translate(30px, 30px) rotate(5deg); }
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    50% {
+        transform: translate(30px, 30px) rotate(5deg);
+    }
 }
 
 .branding-content {
@@ -73,7 +80,12 @@ body.auth-page {
     font-size: 32px;
     font-weight: 700;
     margin: 0 auto 24px;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
+}
+
+.legal-link {
+    color: var(--accent-copper);
 }
 
 .branding-title {
@@ -507,7 +519,7 @@ body.auth-page {
 
     .auth-branding {
         padding: 40px 24px;
-        min-height: auto;
+        min-height: 0;
     }
 
     .branding-title {

@@ -26,7 +26,8 @@ https://templatemo.com/tm-609-crypto-vault
 /* ========================================
    CSS Variables - Dark Theme (Default)
 ======================================== */
-:root, [data-theme="dark"] {
+:root,
+[data-theme="dark"] {
     --bg-primary: #1c1c1e;
     --bg-secondary: #232325;
     --bg-card: #2c2c2e;
@@ -199,11 +200,6 @@ body {
 
 .sidebar::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg, var(--accent-copper-light), var(--accent-copper));
-}
-
-.sidebar {
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent-copper) transparent;
 }
 
 /* ========================================
@@ -393,11 +389,6 @@ body {
 .main-content::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, var(--accent-copper), var(--accent-copper-light));
     border-radius: 10px;
-}
-
-.main-content {
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent-copper) var(--bg-primary);
 }
 
 /* ========================================
@@ -637,16 +628,45 @@ body {
     color: #fff;
 }
 
-.coin-icon.btc { background: linear-gradient(135deg, #f7931a, #c77b15); }
-.coin-icon.eth { background: linear-gradient(135deg, #627eea, #4a5fc1); }
-.coin-icon.usdt { background: linear-gradient(135deg, #26a17b, #1a7a5c); }
-.coin-icon.bnb { background: linear-gradient(135deg, #f3ba2f, #c99a27); }
-.coin-icon.sol { background: linear-gradient(135deg, #9945ff, #14f195); }
-.coin-icon.xrp { background: linear-gradient(135deg, #23292f, #000000); }
-.coin-icon.ada { background: linear-gradient(135deg, #0033ad, #002276); }
-.coin-icon.doge { background: linear-gradient(135deg, #c3a634, #ba9f33); }
-.coin-icon.dot { background: linear-gradient(135deg, #e6007a, #c40068); }
-.coin-icon.matic { background: linear-gradient(135deg, #8247e5, #6b3bc4); }
+.coin-icon.btc {
+    background: linear-gradient(135deg, #f7931a, #c77b15);
+}
+
+.coin-icon.eth {
+    background: linear-gradient(135deg, #627eea, #4a5fc1);
+}
+
+.coin-icon.usdt {
+    background: linear-gradient(135deg, #26a17b, #1a7a5c);
+}
+
+.coin-icon.bnb {
+    background: linear-gradient(135deg, #f3ba2f, #c99a27);
+}
+
+.coin-icon.sol {
+    background: linear-gradient(135deg, #9945ff, #14f195);
+}
+
+.coin-icon.xrp {
+    background: linear-gradient(135deg, #23292f, #000000);
+}
+
+.coin-icon.ada {
+    background: linear-gradient(135deg, #0033ad, #002276);
+}
+
+.coin-icon.doge {
+    background: linear-gradient(135deg, #c3a634, #ba9f33);
+}
+
+.coin-icon.dot {
+    background: linear-gradient(135deg, #e6007a, #c40068);
+}
+
+.coin-icon.matic {
+    background: linear-gradient(135deg, #8247e5, #6b3bc4);
+}
 
 /* ========================================
    Copyright Footer

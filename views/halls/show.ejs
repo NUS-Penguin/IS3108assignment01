@@ -141,7 +141,7 @@
                                     </div>
                                     <div class="progress hall-progress-bar">
                                         <div class="progress-bar <%= seat.type === 'vip' ? 'bg-warning' : (seat.type === 'wheelchair' ? 'bg-info' : 'bg-primary') %>"
-                                            role="progressbar" style="width: <%= seat.percentage %>%;"
+                                            role="progressbar" data-seat-percentage="<%= seat.percentage %>"
                                             aria-valuenow="<%= seat.percentage %>" aria-valuemin="0"
                                             aria-valuemax="100">
                                             <%= seat.percentage %>%
@@ -210,7 +210,7 @@
                             </div>
 
                             <div class="seat-layout-wrapper">
-                                <div class="seat-layout" style="--rows: <%= hall.rows %>; --cols: <%= hall.columns %>;">
+                                <div class="seat-layout" data-rows="<%= hall.rows %>" data-cols="<%= hall.columns %>">
                                     <div class="seat-layout-corner" aria-hidden="true"></div>
 
                                     <div class="seat-column-labels">
@@ -319,9 +319,3 @@
                 </div>
             </div>
         </div>
-
-        <style>
-            .hall-progress-bar {
-                height: 25px;
-            }
-        </style>

@@ -312,6 +312,10 @@ body {
     margin-bottom: 20px;
 }
 
+.hall-progress-bar {
+    height: 25px;
+}
+
 /* ================================================================
    Bootstrap Dark-Theme Overrides
    Remaps Bootstrap's hardcoded light-mode CSS variables to the

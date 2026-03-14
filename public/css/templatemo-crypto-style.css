@@ -181,11 +181,6 @@ body {
     background: linear-gradient(180deg, var(--accent-copper-light), var(--accent-copper));
 }
 
-.sidebar {
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent-copper) transparent;
-}
-
 /* ========================================
    Logo
 ======================================== */
@@ -327,11 +322,6 @@ body {
 .main-content::-webkit-scrollbar-thumb {
     background: linear-gradient(180deg, var(--accent-copper), var(--accent-copper-light));
     border-radius: 10px;
-}
-
-.main-content {
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent-copper) var(--bg-primary);
 }
 
 /* ========================================

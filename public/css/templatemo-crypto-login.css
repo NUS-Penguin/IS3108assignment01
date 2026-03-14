@@ -80,6 +80,7 @@ body.auth-page {
     font-size: 32px;
     font-weight: 700;
     margin: 0 auto 24px;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
 }
 
@@ -489,7 +490,7 @@ body.auth-page {
 
     .auth-branding {
         padding: 40px 24px;
-        min-height: auto;
+        min-height: 0;
     }
 
     .branding-title {

@@ -122,6 +122,14 @@ https://templatemo.com/tm-609-crypto-vault
     transform: translateY(-2px);
 }
 
+.card-mb-24 {
+    margin-bottom: 24px;
+}
+
+.card-mb-32 {
+    margin-bottom: 32px;
+}
+
 /* ========================================
    Content Grid
 ======================================== */
@@ -167,10 +175,21 @@ https://templatemo.com/tm-609-crypto-vault
     color: #fff;
 }
 
-.wallet-icon.btc { background: linear-gradient(135deg, #f7931a, #c77b15); }
-.wallet-icon.eth { background: linear-gradient(135deg, #627eea, #4a5fc1); }
-.wallet-icon.usdt { background: linear-gradient(135deg, #26a17b, #1a7a5c); }
-.wallet-icon.sol { background: linear-gradient(135deg, #9945ff, #14f195); }
+.wallet-icon.btc {
+    background: linear-gradient(135deg, #f7931a, #c77b15);
+}
+
+.wallet-icon.eth {
+    background: linear-gradient(135deg, #627eea, #4a5fc1);
+}
+
+.wallet-icon.usdt {
+    background: linear-gradient(135deg, #26a17b, #1a7a5c);
+}
+
+.wallet-icon.sol {
+    background: linear-gradient(135deg, #9945ff, #14f195);
+}
 
 .wallet-info {
     flex: 1;
@@ -324,6 +343,22 @@ https://templatemo.com/tm-609-crypto-vault
     font-weight: 700;
     font-size: 14px;
     color: #fff;
+}
+
+.stake-eth {
+    background: linear-gradient(135deg, #627eea, #4a5fc1);
+}
+
+.stake-sol {
+    background: linear-gradient(135deg, #9945ff, #14f195);
+}
+
+.stake-ada {
+    background: linear-gradient(135deg, #0033ad, #002276);
+}
+
+.stake-dot {
+    background: linear-gradient(135deg, #e6007a, #c40068);
 }
 
 .staking-name {
@@ -721,6 +756,26 @@ https://templatemo.com/tm-609-crypto-vault
     color: #fff;
 }
 
+.trend-doge {
+    background: linear-gradient(135deg, #c3a634, #ba9f33);
+}
+
+.trend-sol {
+    background: linear-gradient(135deg, #9945ff, #14f195);
+}
+
+.trend-dot {
+    background: linear-gradient(135deg, #e6007a, #c40068);
+}
+
+.trend-ada {
+    background: linear-gradient(135deg, #0033ad, #002276);
+}
+
+.trend-btc {
+    background: linear-gradient(135deg, #f7931a, #c77b15);
+}
+
 .trending-name {
     font-size: 14px;
     font-weight: 600;
@@ -769,6 +824,10 @@ https://templatemo.com/tm-609-crypto-vault
     border-radius: 50%;
     transform: translateX(-50%);
     box-shadow: 0 2px 8px var(--shadow);
+}
+
+.fear-greed-indicator-68 {
+    left: 68%;
 }
 
 .fear-greed-labels {

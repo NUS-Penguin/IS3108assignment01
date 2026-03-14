@@ -86,7 +86,7 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                                 </div>
 
                                 <!-- Seat Mode Control Buttons -->
-                                <div class="mb-3" id="seatModeControls" style="display: none;">
+                                <div class="mb-3 d-none" id="seatModeControls">
                                     <h6 class="mb-2">Seat Editing Mode:</h6>
                                     <div class="btn-group" role="group" aria-label="Seat editing modes">
                                         <button type="button" class="btn btn-primary seat-mode-btn active" data-mode="regular">
@@ -120,7 +120,7 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                                         </div>
 
                                         <!-- Seat Type Legend -->
-                                        <div class="card bg-light mb-3" id="seatLegend" style="display: none;">
+                                        <div class="card bg-light mb-3 d-none" id="seatLegend">
                                             <div class="card-body py-2">
                                                 <h6 class="mb-2">Seat Legend:</h6>
                                                 <div class="d-flex flex-wrap gap-3">
@@ -149,7 +149,7 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                                         </div>
 
                                         <!-- Seat Statistics -->
-                                        <div class="alert alert-grey border mb-3" id="seatStats" style="display: none;">
+                                        <div class="alert alert-grey border mb-3 d-none" id="seatStats">
                                             <div class="row text-center">
                                                 <div class="col-3">
                                                     <div class="fw-bold text-primary" id="regularCount">0</div>
@@ -171,7 +171,7 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                                         </div>
 
                                         <!-- Seating Grid -->
-                                        <div class="mb-3" id="seatGridContainer" style="display: none;">
+                                        <div class="mb-3 d-none" id="seatGridContainer">
                                             <div class="card">
                                                 <div class="card-body p-3">
                                                     <div class="cinema-layout">
