@@ -355,6 +355,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Render the seat grid
         function renderSeatGrid() {
+            const seatLayout = document.getElementById('seatLayout');
             const seatGrid = document.getElementById('seatGrid');
             const rowLabels = document.getElementById('rowLabels');
             const columnLabels = document.getElementById('columnLabels');
@@ -364,9 +365,13 @@ document.addEventListener('DOMContentLoaded', function () {
             rowLabels.innerHTML = '';
             columnLabels.innerHTML = '';
 
-            // Set grid template columns
-            seatGrid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-            columnLabels.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+            if (seatLayout) {
+                seatLayout.style.setProperty('--rows', String(rows));
+                seatLayout.style.setProperty('--cols', String(columns));
+            }
+
+            document.documentElement.style.setProperty('--rows', String(rows));
+            document.documentElement.style.setProperty('--cols', String(columns));
 
             // Create row labels (A, B, C, etc.)
             for (let row = 0; row < rows; row++) {

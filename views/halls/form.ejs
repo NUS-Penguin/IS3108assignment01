@@ -173,18 +173,21 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                                         <!-- Seating Grid -->
                                         <div class="mb-3" id="seatGridContainer" style="display: none;">
                                             <div class="card">
-                                                <div class="card-header bg-dark text-white text-center py-2">
-                                                    <small><i class="bi bi-film me-1"></i>SCREEN</small>
-                                                </div>
                                                 <div class="card-body p-3">
-                                                    <!-- Row Labels and Grid Container -->
-                                                    <div class="d-flex">
-                                                        <div class="seat-row-labels" id="rowLabels"></div>
-                                                        <div class="flex-grow-1">
-                                                            <!-- Column Labels -->
-                                                            <div class="seat-column-labels" id="columnLabels"></div>
-                                                            <!-- Seat Grid -->
-                                                            <div id="seatGrid" class="seat-grid"></div>
+                                                    <div class="cinema-layout">
+                                                        <div class="screen-container">
+                                                            <div class="screen">
+                                                                <small><i class="bi bi-film me-1"></i>SCREEN</small>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="seat-layout-wrapper">
+                                                            <div class="seat-layout" id="seatLayout">
+                                                                <div class="seat-layout-corner" aria-hidden="true"></div>
+                                                                <div class="seat-column-labels" id="columnLabels"></div>
+                                                                <div class="seat-row-labels" id="rowLabels"></div>
+                                                                <div id="seatGrid" class="seat-grid"></div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
