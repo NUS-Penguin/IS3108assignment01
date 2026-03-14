@@ -14,5 +14,6 @@ router.use(requireAuth);
 
 // Dashboard
 router.get('/dashboard', dashboardController.index);
+router.get('/settings', dashboardController.renderSettings);
 
 module.exports = router;

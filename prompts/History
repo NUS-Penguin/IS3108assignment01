@@ -9,6 +9,230 @@ This document tracks all significant changes to the codebase.
 
 ---
 
+## [2026-03-14] UI Refactor Follow-up: Form/Detail Consistency Pass
+
+**Type:** Feature Enhancement
+**Scope:** Medium - Shared form reuse and auth recovery page consistency
+**Files Modified:** 11 files
+**Files Created:** 0 files
+**Lines Added:** ~120+
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Completed a second UI pass to align remaining form/detail pages with the integrated template system while preserving existing MVC logic and routes. This pass also removed duplicate legacy form markup by reusing shared EJS form partials.
+
+### Key Changes
+- Replaced legacy duplicate view files with shared partial includes:
+  - `views/movies/create.ejs` -> includes `views/movies/form.ejs`
+  - `views/movies/edit.ejs` -> includes `views/movies/form.ejs`
+  - `views/halls/create.ejs` -> includes `views/halls/form.ejs`
+  - `views/halls/edit.ejs` -> includes `views/halls/form.ejs`
+  - `views/screenings/create.ejs` -> includes `views/screenings/form.ejs`
+- Updated shared form views with template-style page headers:
+  - `views/movies/form.ejs`
+  - `views/screenings/form.ejs`
+  - `views/halls/form.ejs`
+- Improved hall form script maintainability:
+  - Removed duplicated `updateMaintenanceFields()` in `views/halls/form.ejs`
+  - Switched maintenance section visibility from inline style toggling to `d-none` class toggling
+- Updated hall details view styling alignment:
+  - `views/halls/show.ejs` now uses template `page-header` and `action-btn` pattern
+  - Removed key inline presentational styles in favor of CSS class hooks
+- Converted auth recovery pages to template auth layout:
+  - `views/auth/forgot-password.ejs`
+  - `views/auth/reset-password.ejs`
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on all touched EJS files (no reported errors)
+
+### Notes
+- No controller/service/model changes were introduced in this pass.
+- No route behavior changes were introduced in this pass.
+
+---
+
+## [2026-03-14] UI Refactor: CSS Template Integration to EJS Layout
+
+**Type:** Feature Enhancement
+**Scope:** Major - Global layout, partials, and cross-module UI consistency
+**Files Modified:** 14 files
+**Files Created:** 2 files
+**Lines Added:** ~420+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Integrated the static `css-template` design system into the Express + EJS app by moving template assets into `public/`, refactoring the global layout, and creating reusable partials for sidebar/navbar/footer. The app now renders authenticated pages inside a shared dashboard shell with consistent navigation and theme behavior.
+
+Mapped the static template concepts into existing modules without changing business logic routes/controllers for halls, movies, screenings, and dashboard operations. Authentication views were also converted to use template auth classes so login/register flow visually aligns with the new UI.
+
+### Features Implemented
+
+#### 1. Global Template Shell + Reusable Partials
+**Impact:** High (UX / Maintainability)
+
+**Changes:**
+- Updated `views/layouts/main.ejs` to use template structure (mobile toggle, overlay, dashboard shell)
+- Added template CSS imports and retained Bootstrap compatibility for existing components
+- Added `views/partials/navbar.ejs`; standardized sidebar/footer partial usage
+
+**Files Modified:**
+- `views/layouts/main.ejs`
+- `views/partials/sidebar.ejs`
+- `views/partials/header.ejs`
+- `views/partials/footer.ejs`
+
+#### 2. Module Page Mapping and Consistency
+**Impact:** High (UI Consistency)
+
+**Changes:**
+- Mapped template pages to app modules:
+  - `index.html` -> `views/dashboard/index.ejs`
+  - `markets.html` -> `views/movies/index.ejs`
+  - `wallet.html` -> `views/screenings/index.ejs`
+  - `settings.html` -> `views/admin/settings.ejs`
+- Updated halls/movies/screenings/dashboard pages to use template `page-header`, `action-btn`, and `market-table` class patterns
+
+**Files Modified:**
+- `views/dashboard/index.ejs`
+- `views/halls/index.ejs`
+- `views/movies/index.ejs`
+- `views/screenings/index.ejs`
+- `views/admin/settings.ejs` (created)
+
+#### 3. Authentication Template Integration
+**Impact:** Medium (UX)
+
+**Changes:**
+- Reworked login/register views to use template auth layout/classes (`auth-branding`, `auth-form-container`, `submit-btn`)
+- Kept existing POST routes and validation behavior unchanged
+
+**Files Modified:**
+- `views/auth/login.ejs`
+- `views/auth/register.ejs`
+
+#### 4. Route + Controller Support for Settings Page
+**Impact:** Medium (Navigation completeness)
+
+**Changes:**
+- Added protected `/admin/settings` route
+- Added controller render method for settings page
+
+**Files Modified:**
+- `routes/adminRoutes.js`
+- `controllers/dashboardController.js`
+
+#### 5. Template JS/CSS Activation and Cleanup
+**Impact:** Medium (Behavior + Maintainability)
+
+**Changes:**
+- Copied `css-template/css/*` and `css-template/js/*` into `public/css` and `public/js`
+- Integrated theme toggle + mobile sidebar behavior into `public/js/main.js`
+- Kept unused crypto widgets out of EJS page markup (no wallet/market demo widgets embedded)
+
+**Files Modified:**
+- `public/js/main.js`
+- `public/css/styles.css`
+
+**Files Created:**
+- `views/partials/navbar.ejs`
+- `views/admin/settings.ejs`
+
+### Technical Details
+```javascript
+// Added in public/js/main.js
+const savedTheme = localStorage.getItem('theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
+const toggleTheme = () => {
+  const nextTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', nextTheme);
+  localStorage.setItem('theme', nextTheme);
+};
+```
+
+### Database Schema Changes
+```javascript
+// No schema changes in this refactor.
+```
+
+### Complete File Manifest
+
+#### Files Modified (14):
+- `views/layouts/main.ejs` - template shell + shared imports
+- `views/partials/sidebar.ejs` - template sidebar nav and controls
+- `views/partials/header.ejs` - compatibility include to navbar partial
+- `views/partials/footer.ejs` - unified footer style
+- `views/dashboard/index.ejs` - template page blocks and table
+- `views/halls/index.ejs` - template page header/actions/table class integration
+- `views/movies/index.ejs` - template header/actions/table class integration
+- `views/screenings/index.ejs` - template page header/action integration
+- `views/auth/login.ejs` - template auth structure
+- `views/auth/register.ejs` - template auth structure
+- `routes/adminRoutes.js` - settings route
+- `controllers/dashboardController.js` - settings render action
+- `public/js/main.js` - theme toggle/mobile menu integration
+- `public/css/styles.css` - small integration utility classes
+
+#### Files Created (2):
+- `views/partials/navbar.ejs` - reusable top bar for dashboard shell
+- `views/admin/settings.ejs` - mapped settings page content
+
+### Database Schema Summary
+No model/schema updates.
+
+### Routes Added/Modified
+
+| Method | Route | Change |
+|--------|-------|--------|
+| GET | /admin/settings | Added template-mapped settings page |
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on all changed files (no reported errors)
+- ⛳ Runtime app start check (`node app.js`) was not executed because tool run was skipped by user
+
+### Security Improvements
+- Maintained existing session-based auth and protected `/admin` route behavior
+- No authentication model or middleware regressions introduced in this refactor
+
+### Performance Considerations
+- Shared layout/partials reduce duplicated markup and improve maintainability
+- Static assets served from `public/` remain cache-friendly under Express static middleware
+
+### Migration Notes
+- No DB migration required
+- Clear browser cache if old CSS is still rendered after deploy
+
+### Production Deployment Checklist
+- [ ] Verify `/login`, `/register`, `/admin/dashboard`, `/admin/settings`
+- [ ] Verify sidebar links and theme toggle behavior
+- [ ] Verify responsive sidebar behavior on tablet/mobile
+
+### Known Issues & Limitations
+- Some legacy Bootstrap-heavy pages still mix Bootstrap and template classes; visual polish can be continued incrementally
+- Template demo assets remain in `css-template/` for reference only (not used directly in rendering)
+
+### Dependencies
+- No dependency changes
+
+### Rollback Plan
+1. Revert layout/partials changes in `views/layouts` and `views/partials`
+2. Revert page template integrations in affected `views/*/*.ejs`
+3. Remove `/admin/settings` route/controller if needed
+4. Revert `public/js/main.js` theme/mobile-menu additions
+
+### Impact Assessment
+- **User Impact:** Consistent dashboard visual language across modules
+- **System Impact:** Low risk; view-layer focused with no data model changes
+- **Business Impact:** Improved presentation and maintainability for assignment deliverable
+
+### Next Steps
+- Align remaining form/detail pages (`create/edit/show`) with template blocks for full visual parity
+- Add an optional active-route helper in `res.locals` for cleaner nav active-state logic
+
+---
+
 ## [2026-03-13] Module 4 Bug Fix: Hall Bootstrap in Timeline Scheduler
 
 **Type:** Bug Fix

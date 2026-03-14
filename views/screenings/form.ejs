@@ -9,6 +9,11 @@ const selectedHall = isEditMode ? screening.hall._id.toString() : '';
 const screeningStartTime = isEditMode ? new Date(screening.startTime).toISOString().slice(0, 16) : '';
 %>
 
+<div class="page-header">
+    <h1><%= formTitle %></h1>
+    <p>Schedule screenings by selecting a movie, hall, and start time.</p>
+</div>
+
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">

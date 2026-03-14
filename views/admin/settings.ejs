@@ -1,0 +1,21 @@
+<div class="page-header">
+    <h1>Settings</h1>
+    <p>Admin preferences and account controls.</p>
+</div>
+
+<div class="card">
+    <div class="card-content">
+        <h2 class="card-title">Theme</h2>
+        <p class="header-subtitle">Use the sidebar theme toggle to switch between dark and light mode.</p>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-content">
+        <h2 class="card-title">Account</h2>
+        <p class="header-subtitle">Signed in as <strong><%= user && user.username ? user.username : 'admin' %></strong>.</p>
+        <form action="/logout" method="POST">
+            <button type="submit" class="action-btn">Logout</button>
+        </form>
+    </div>
+</div>

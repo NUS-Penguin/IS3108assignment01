@@ -63,3 +63,12 @@ exports.index = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * Render admin settings page
+ */
+exports.renderSettings = (req, res) => {
+    res.render('admin/settings', {
+        title: 'Settings'
+    });
+};

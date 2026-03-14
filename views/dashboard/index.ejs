@@ -1,192 +1,67 @@
-<!-- Welcome Section -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card bg-light">
-            <div class="card-body py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-1">Welcome back, <%= user.username %>!</h5>
-                        <% if (user.lastLogin) { %>
-                            <small class="text-muted">
-                                <i class="bi bi-clock-history me-1"></i>
-                                Last Login: <%= new Date(user.lastLogin).toLocaleString('en-US', { weekday: 'short' ,
-                                    year: 'numeric' , month: 'short' , day: 'numeric' , hour: '2-digit' ,
-                                    minute: '2-digit' }) %>
-                            </small>
-                            <% } else { %>
-                                <small class="text-muted">
-                                    <i class="bi bi-star me-1"></i> First time login - Welcome!
-                                </small>
-                                <% } %>
-                    </div>
-                    <div>
-                        <span class="badge bg-<%= user.role === 'admin' ? 'danger' : 'info' %> px-3 py-2">
-                            <i class="bi bi-<%= user.role === 'admin' ? 'shield-check' : 'person' %> me-1"></i>
-                            <%= user.role.toUpperCase() %>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <p>Welcome back, <%= user.username %>. Monitor key activity and upcoming screenings.</p>
+</div>
+
+<div class="market-stats">
+    <div class="market-stat">
+        <div class="market-stat-label">Total Movies</div>
+        <div class="market-stat-value"><%= stats.activeMovies %></div>
+        <div class="market-stat-change positive">Catalogue size</div>
+    </div>
+    <div class="market-stat">
+        <div class="market-stat-label">Active Halls</div>
+        <div class="market-stat-value"><%= stats.activeHalls %></div>
+        <div class="market-stat-change positive">Available now</div>
+    </div>
+    <div class="market-stat">
+        <div class="market-stat-label">Screenings Today</div>
+        <div class="market-stat-value"><%= stats.screeningsToday %></div>
+        <div class="market-stat-change positive">Scheduled sessions</div>
     </div>
 </div>
 
-<!-- Statistics Cards -->
-<div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-subtitle mb-2 text-white-50">Total Movies</h6>
-                        <h2 class="card-title mb-0">
-                            <%= stats.activeMovies %>
-                        </h2>
-                    </div>
-                    <div>
-                        <i class="bi bi-camera-reels fs-1 opacity-25"></i>
-                    </div>
-                </div>
-                <a href="/admin/movies" class="stretched-link text-white-50 text-decoration-none">
-                    <small>View all movies <i class="bi bi-arrow-right"></i></small>
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-subtitle mb-2 text-white-50">Active Halls</h6>
-                        <h2 class="card-title mb-0">
-                            <%= stats.activeHalls %>
-                        </h2>
-                    </div>
-                    <div>
-                        <i class="bi bi-building fs-1 opacity-25"></i>
-                    </div>
-                </div>
-                <a href="/admin/halls" class="stretched-link text-white-50 text-decoration-none">
-                    <small>Manage halls <i class="bi bi-arrow-right"></i></small>
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-subtitle mb-2 text-white-50">Screenings Today</h6>
-                        <h2 class="card-title mb-0">
-                            <%= stats.screeningsToday %>
-                        </h2>
-                    </div>
-                    <div>
-                        <i class="bi bi-calendar-check fs-1 opacity-25"></i>
-                    </div>
-                </div>
-                <a href="/admin/screenings" class="stretched-link text-white-50 text-decoration-none">
-                    <small>View schedule <i class="bi bi-arrow-right"></i></small>
-                </a>
-            </div>
-        </div>
-    </div>
+<div class="action-buttons">
+    <a href="/admin/screenings/new" class="action-btn primary">New Screening</a>
+    <a href="/admin/movies/new" class="action-btn">Add Movie</a>
+    <a href="/admin/halls/new" class="action-btn">Add Hall</a>
 </div>
 
-<!-- Quick Actions -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title mb-3"><i class="bi bi-lightning-charge me-2"></i>Quick Actions</h5>
-                <div class="btn-group" role="group">
-                    <a href="/admin/screenings/new" class="btn btn-primary">
-                        <i class="bi bi-plus-circle me-2"></i> New Screening
-                    </a>
-                    <a href="/admin/movies/new" class="btn btn-outline-primary">
-                        <i class="bi bi-plus-circle me-2"></i> Add Movie
-                    </a>
-                    <a href="/admin/halls/new" class="btn btn-outline-primary">
-                        <i class="bi bi-plus-circle me-2"></i> Add Hall
-                    </a>
-                </div>
-            </div>
-        </div>
+<div class="card">
+    <div class="section-header">
+        <h2 class="card-title">Upcoming Screenings</h2>
     </div>
-</div>
 
-<!-- Upcoming Screenings -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-white">
-                <h5 class="card-title mb-0"><i class="bi bi-calendar-event me-2"></i>Upcoming Screenings</h5>
-            </div>
-            <div class="card-body p-0">
-                <% if (upcomingScreenings && upcomingScreenings.length> 0) { %>
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Movie</th>
-                                    <th>Hall</th>
-                                    <th>Start Time</th>
-                                    <th>Duration</th>
-                                    <th>Genre</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% upcomingScreenings.forEach(screening=> { %>
-                                    <tr>
-                                        <td>
-                                            <strong>
-                                                <%= screening.movie.title %>
-                                            </strong>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary">
-                                                <%= screening.hall.name %>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <%= screening.startTime.toLocaleString('en-US', { month: 'short' ,
-                                                day: 'numeric' , hour: '2-digit' , minute: '2-digit' }) %>
-                                        </td>
-                                        <td>
-                                            <%= screening.movie.durationMinutes %> min
-                                        </td>
-                                        <td>
-                                            <%= screening.movie.genre %>
-                                        </td>
-                                        <td>
-                                            <form action="/admin/screenings/<%= screening._id %>?_method=DELETE"
-                                                method="POST" class="d-inline"
-                                                onsubmit="return confirm('Delete this screening?');">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    <% }); %>
-                            </tbody>
-                        </table>
-                    </div>
-                    <% } else { %>
-                        <div class="text-center p-5 text-muted">
-                            <i class="bi bi-calendar-x fs-1"></i>
-                            <p class="mt-3">No upcoming screenings scheduled</p>
-                            <a href="/admin/screenings/new" class="btn btn-primary">
-                                <i class="bi bi-plus-circle me-2"></i> Create First Screening
-                            </a>
-                        </div>
-                        <% } %>
-            </div>
+    <% if (upcomingScreenings && upcomingScreenings.length > 0) { %>
+        <div class="table-responsive">
+            <table class="market-table">
+                <thead>
+                    <tr>
+                        <th>Movie</th>
+                        <th>Hall</th>
+                        <th>Start Time</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% upcomingScreenings.forEach(screening => { %>
+                        <tr>
+                            <td><strong><%= screening.movie.title %></strong></td>
+                            <td><%= screening.hall.name %></td>
+                            <td><%= screening.startTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></td>
+                            <td><%= screening.movie.durationMinutes %> min</td>
+                            <td>
+                                <form action="/admin/screenings/<%= screening._id %>?_method=DELETE" method="POST" onsubmit="return confirm('Delete this screening?');">
+                                    <button type="submit" class="action-btn">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
         </div>
-    </div>
+    <% } else { %>
+        <p class="header-subtitle">No upcoming screenings scheduled.</p>
+    <% } %>
 </div>

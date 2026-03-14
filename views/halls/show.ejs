@@ -1,20 +1,15 @@
-<div class="mb-4">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h2><i class="bi bi-building me-2"></i>
-                <%= hall.name %>
-            </h2>
-            <p class="text-muted mb-0">Hall Details and Seating Configuration</p>
-        </div>
-        <div>
-            <a href="/admin/halls/<%= hall._id %>/edit" class="btn btn-primary me-2">
-                <i class="bi bi-pencil me-2"></i> Edit Hall
-            </a>
-            <a href="/admin/halls" class="btn btn-secondary">
-                <i class="bi bi-arrow-left me-2"></i> Back to List
-            </a>
-        </div>
-    </div>
+<div class="page-header">
+    <h1><i class="bi bi-building me-2"></i><%= hall.name %></h1>
+    <p>Hall details, seat distribution, and operational status.</p>
+</div>
+
+<div class="action-buttons mb-4">
+    <a href="/admin/halls/<%= hall._id %>/edit" class="action-btn primary">
+        <i class="bi bi-pencil me-2"></i>Edit Hall
+    </a>
+    <a href="/admin/halls" class="action-btn">
+        <i class="bi bi-arrow-left me-2"></i>Back to List
+    </a>
 </div>
 
 <!-- Hall Statistics Cards -->
@@ -144,7 +139,7 @@
                                             <%= seat.count %> seats
                                         </span>
                                     </div>
-                                    <div class="progress" style="height: 25px;">
+                                    <div class="progress hall-progress-bar">
                                         <div class="progress-bar <%= seat.type === 'vip' ? 'bg-warning' : (seat.type === 'wheelchair' ? 'bg-info' : 'bg-primary') %>"
                                             role="progressbar" style="width: <%= seat.percentage %>%;"
                                             aria-valuenow="<%= seat.percentage %>" aria-valuemin="0"
@@ -198,8 +193,7 @@
                             <% if (seatingLayout && seatingLayout.length> 0) { %>
                                 <% seatingLayout.forEach(row=> { %>
                                     <div class="seat-row mb-2">
-                                        <span class="row-label fw-bold me-2"
-                                            style="display: inline-block; width: 30px;">
+                                        <span class="row-label fw-bold me-2">
                                             <%= row.rowLabel %>
                                         </span>
                                         <% row.seats.forEach(seat=> { %>
@@ -341,5 +335,11 @@
             .row-label {
                 color: #6c757d;
                 text-align: right;
+                display: inline-block;
+                width: 30px;
+            }
+
+            .hall-progress-bar {
+                height: 25px;
             }
         </style>

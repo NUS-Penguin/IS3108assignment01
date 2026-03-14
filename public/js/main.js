@@ -1,14 +1,58 @@
 // Main JavaScript for CineVillage Admin Portal
 
 document.addEventListener('DOMContentLoaded', function () {
+    const html = document.documentElement;
+
+    // Theme initialization and toggles
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    html.setAttribute('data-theme', savedTheme);
+
+    const themeSwitch = document.getElementById('themeSwitch');
+    const themeToggle = document.getElementById('themeToggle');
+    const toggleTheme = () => {
+        const nextTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', nextTheme);
+        localStorage.setItem('theme', nextTheme);
+    };
+
+    if (themeSwitch) {
+        themeSwitch.addEventListener('click', toggleTheme);
+    }
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+
+    // Mobile menu toggle for template sidebar
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    const toggleMobileMenu = () => {
+        if (!mobileMenuToggle || !sidebar || !sidebarOverlay) {
+            return;
+        }
+
+        mobileMenuToggle.classList.toggle('active');
+        sidebar.classList.toggle('active');
+        sidebarOverlay.classList.toggle('active');
+    };
+
+    if (mobileMenuToggle) {
+        mobileMenuToggle.addEventListener('click', toggleMobileMenu);
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', toggleMobileMenu);
+    }
 
     // Sidebar Toggle
     const sidebarToggle = document.getElementById('sidebar-toggle');
-    const sidebar = document.getElementById('sidebar-wrapper');
+    const sidebarWrapper = document.getElementById('sidebar-wrapper');
 
-    if (sidebarToggle && sidebar) {
+    if (sidebarToggle && sidebarWrapper) {
         sidebarToggle.addEventListener('click', function () {
-            sidebar.classList.toggle('show');
+            sidebarWrapper.classList.toggle('show');
         });
     }
 
@@ -48,7 +92,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Active nav link highlighting
     const currentPath = window.location.pathname;
-    const navLinks = document.querySelectorAll('#sidebar-wrapper .list-group-item');
+    const navLinks = document.querySelectorAll('#sidebar-wrapper .list-group-item, #sidebar .nav-item');
 
     navLinks.forEach(link => {
         const href = link.getAttribute('href');

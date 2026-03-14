@@ -3,11 +3,13 @@
     data-cleaning-buffer="<%= cleaningBufferMinutes %>"
     data-halls="<%- encodeURIComponent(JSON.stringify(timelineHalls || [])) %>"
     data-screenings="<%- encodeURIComponent(JSON.stringify(timelineScreenings || [])) %>">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Cinema Timeline Scheduler</h2>
-        <a href="/admin/screenings/new" class="btn btn-outline-primary">
-            <i class="bi bi-plus-circle me-2"></i>Manual Form
-        </a>
+    <div class="page-header">
+        <h1>Screening Scheduler</h1>
+        <p>Schedule screenings by timeline and hall capacity constraints.</p>
+    </div>
+
+    <div class="action-buttons">
+        <a href="/admin/screenings/new" class="action-btn primary">Manual Form</a>
     </div>
 
     <div class="card mb-3">

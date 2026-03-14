@@ -238,3 +238,16 @@
         grid-template-columns: 140px 1fr;
     }
 }
+
+.footer-bar {
+    margin-top: 24px;
+    margin-bottom: 0;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}

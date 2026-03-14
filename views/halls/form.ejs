@@ -22,6 +22,11 @@ const hallCapacity = isEditMode ? hall.capacity : defaultCapacity;
 const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ? seatTypeCounts : { regular: 130, vip: 15, wheelchair: 5 };
 %>
 
+<div class="page-header">
+    <h1><%= formTitle %></h1>
+    <p>Configure hall dimensions, seating layout, and operational status.</p>
+</div>
+
     <div class="row justify-content-center">
         <div class="col-lg-10">
             <div class="card">
@@ -216,8 +221,7 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                                                     </div>
 
                                                     <!-- Maintenance Scheduling -->
-                                                    <div id="maintenanceFields"
-                                                        style="display: <%= hallStatus === 'maintenance' ? 'block' : 'none' %>;">
+                                                    <div id="maintenanceFields" class="<%= hallStatus === 'maintenance' ? '' : 'd-none' %>">
                                                         <div class="card bg-light mb-3">
                                                             <div class="card-body">
                                                                 <h6 class="card-title"><i
@@ -371,11 +375,11 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
 
                         if (maintenanceFields) {
                             if (status === 'maintenance') {
-                                maintenanceFields.style.display = 'block';
+                                maintenanceFields.classList.remove('d-none');
                                 document.getElementById('maintenanceStartDate').required = true;
                                 document.getElementById('maintenanceEndDate').required = true;
                             } else {
-                                maintenanceFields.style.display = 'none';
+                                maintenanceFields.classList.add('d-none');
                                 document.getElementById('maintenanceStartDate').required = false;
                                 document.getElementById('maintenanceEndDate').required = false;
                             }
@@ -391,31 +395,6 @@ const seatTypeCountsData = isEditMode && typeof seatTypeCounts !== 'undefined' ?
                     updateCapacity();
                     updateMaintenanceFields();
                 });
-
-
-
-
-
-
-
-
-
-
-
-                    function updateMaintenanceFields() {
-                        const status = document.getElementById('status').value;
-                        const maintenanceFields = document.getElementById('maintenanceFields');
-
-                        if (status === 'maintenance') {
-                            maintenanceFields.style.display = 'block';
-                            document.getElementById('maintenanceStartDate').required = true;
-                            document.getElementById('maintenanceEndDate').required = true;
-                        } else {
-                            maintenanceFields.style.display = 'none';
-                            document.getElementById('maintenanceStartDate').required = false;
-                            document.getElementById('maintenanceEndDate').required = false;
-                        }
-                    }
 
                 // Seat Matrix Configuration Data
                 <% if (isEditMode && typeof seatMatrix !== 'undefined' && seatMatrix) { %>

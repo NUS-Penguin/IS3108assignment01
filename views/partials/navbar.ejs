@@ -1,0 +1,15 @@
+<div class="header">
+    <div class="header-left">
+        <h1><%= title || 'Dashboard' %></h1>
+        <p class="header-subtitle">Cinema administration and scheduling workspace</p>
+    </div>
+    <div class="header-right">
+        <div class="user-menu">
+            <div class="user-avatar"><%= (user && user.username ? user.username.substring(0, 2) : 'AD').toUpperCase() %></div>
+            <div class="user-info">
+                <span class="user-name"><%= user && user.username ? user.username : 'Administrator' %></span>
+                <span class="user-role"><%= user && user.role ? user.role : 'manager' %></span>
+            </div>
+        </div>
+    </div>
+</div>
