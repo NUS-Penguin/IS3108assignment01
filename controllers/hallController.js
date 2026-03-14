@@ -10,6 +10,25 @@ const Hall = require('../models/Hall');
 const HallService = require('../services/hallService');
 const { AppError } = require('../middleware/errorMiddleware');
 
+const normalizeSeatMatrixInput = (seatMatrix) => {
+    if (Array.isArray(seatMatrix)) {
+        return seatMatrix;
+    }
+
+    if (typeof seatMatrix === 'string' && seatMatrix.trim() !== '') {
+        try {
+            const parsed = JSON.parse(seatMatrix);
+            if (Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch (error) {
+            throw new AppError('Invalid seat layout data submitted', 400);
+        }
+    }
+
+    return [];
+};
+
 /**
  * GET /admin/halls - List all halls
  */
@@ -124,8 +143,10 @@ exports.create = async (req, res, next) => {
         let seatsArray = [];
         let seatTypes = [];
 
-        if (seatMatrix && Array.isArray(seatMatrix)) {
-            seatsArray = HallService.processSeatMatrix(seatMatrix, rowsInt, colsInt);
+        const normalizedSeatMatrix = normalizeSeatMatrixInput(seatMatrix);
+
+        if (normalizedSeatMatrix.length > 0) {
+            seatsArray = HallService.processSeatMatrix(normalizedSeatMatrix, rowsInt, colsInt);
             // Calculate seat types from matrix
             seatTypes = HallService.calculateSeatTypesFromMatrix(seatsArray);
         } else {
@@ -217,8 +238,10 @@ exports.update = async (req, res, next) => {
         let seatsArray = [];
         let seatTypes = [];
 
-        if (seatMatrix && Array.isArray(seatMatrix)) {
-            seatsArray = HallService.processSeatMatrix(seatMatrix, rowsInt, colsInt);
+        const normalizedSeatMatrix = normalizeSeatMatrixInput(seatMatrix);
+
+        if (normalizedSeatMatrix.length > 0) {
+            seatsArray = HallService.processSeatMatrix(normalizedSeatMatrix, rowsInt, colsInt);
             // Calculate seat types from matrix
             seatTypes = HallService.calculateSeatTypesFromMatrix(seatsArray);
         } else {

@@ -4,6 +4,10 @@
  * Only essential custom styles that Bootstrap doesn't provide
  */
 
+* {
+    border-radius: 0 !important;
+}
+
 /* Basic Layout - Sidebar and Page Wrapper */
 #sidebar-wrapper {
     min-width: 250px;
