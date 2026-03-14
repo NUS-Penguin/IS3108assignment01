@@ -225,9 +225,11 @@ exports.forgotPassword = async (req, res, next) => {
         await user.save({ validateBeforeSave: false });
 
         // In production, send email with reset link
-        // For now, just log the token (REMOVE IN PRODUCTION)
-        console.log('Password Reset Token:', resetToken);
-        console.log('Reset URL:', `http://localhost:${process.env.PORT || 3000}/reset-password/${resetToken}`);
+        // Dev-only: log reset token to console (never exposed in production)
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Password Reset Token:', resetToken);
+            console.log('Reset URL:', `http://localhost:${process.env.PORT || 3000}/reset-password/${resetToken}`);
+        }
 
         res.render('auth/forgot-password', {
             title: 'Forgot Password',
