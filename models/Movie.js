@@ -46,6 +46,11 @@ const movieSchema = new mongoose.Schema({
         match: [/^https?:\/\/.+/, 'Please provide a valid URL'],
         default: null
     },
+    posterPath: {
+        type: String,
+        trim: true,
+        default: ''
+    },
     status: {
         type: String,
         required: [true, 'Movie status is required'],

@@ -49,8 +49,9 @@
                         <tr>
                             <td>
                                 <div class="d-flex align-items-center gap-3">
+                                    <% const posterSrc = screening.movie.posterPath || screening.movie.posterURL || 'https://via.placeholder.com/48x68?text=N/A'; %>
                                     <img
-                                        src="<%= screening.movie.posterURL || 'https://via.placeholder.com/48x68?text=N/A' %>"
+                                        src="<%= posterSrc %>"
                                         alt="<%= screening.movie.title %> poster"
                                         width="48"
                                         height="68"

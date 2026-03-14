@@ -98,8 +98,9 @@
                             <tr>
                                 <%# Poster thumbnail %>
                                 <td>
-                                    <% if (movie.posterURL) { %>
-                                        <img src="<%= movie.posterURL %>"
+                                    <% const posterSrc = movie.posterPath || movie.posterURL; %>
+                                    <% if (posterSrc) { %>
+                                        <img src="<%= posterSrc %>"
                                              alt="<%= movie.title %> poster"
                                              class="rounded"
                                              width="48" height="68"

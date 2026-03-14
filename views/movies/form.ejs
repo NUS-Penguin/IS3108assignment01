@@ -12,7 +12,7 @@
   const movieDuration    = isEditMode ? movie.durationMinutes : '';
   const movieGenre       = isEditMode ? movie.genre       : '';
   const movieReleaseDate = isEditMode ? new Date(movie.releaseDate).toISOString().split('T')[0] : '';
-  const moviePosterURL   = isEditMode ? (movie.posterURL || '') : '';
+    const moviePosterPath  = isEditMode ? (movie.posterPath || movie.posterURL || '') : '';
   const movieStatus      = isEditMode ? movie.status      : 'Now Showing';
 %>
 
@@ -37,7 +37,7 @@
                         </div>
                         <% } %>
 
-                            <form action="<%= formAction %>" method="POST">
+                            <form action="<%= formAction %>" method="POST" enctype="multipart/form-data">
                                 <div class="mb-3">
                                     <label for="title" class="form-label">Movie Title <span
                                             class="text-danger">*</span></label>
@@ -102,25 +102,27 @@
                                     </div>
                                 </div>
 
-                                <%# Poster URL with live preview %>
+                                <%# Poster Upload with live preview %>
                                 <div class="mb-3">
-                                    <label for="posterURL" class="form-label fw-semibold">Poster URL <span class="text-muted">(optional)</span></label>
+                                    <label for="poster" class="form-label fw-semibold">Poster Image <span class="text-muted">(optional)</span></label>
                                     <div class="d-flex gap-3 align-items-start">
                                         <div class="flex-fill">
-                                            <input type="url" class="form-control" id="posterURL" name="posterURL"
-                                                value="<%= moviePosterURL %>" placeholder="https://example.com/poster.jpg"
-                                                oninput="updatePosterPreview(this.value)">
-                                            <div class="form-text">Link to the movie poster image (https://...)</div>
+                                            <input type="file" class="form-control" id="poster" name="poster" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                                            <div class="form-text">Upload jpg, jpeg, png, or webp (max 5MB)</div>
                                         </div>
-                                        <div id="posterPreviewWrapper" class="<%= moviePosterURL ? '' : 'd-none' %>">
+                                        <div id="posterPreviewWrapper" class="<%= moviePosterPath ? '' : 'd-none' %>">
                                             <img id="posterPreview"
-                                                 src="<%= moviePosterURL %>"
+                                                 src="<%= moviePosterPath || 'https://via.placeholder.com/80x112?text=No+Poster' %>"
                                                  alt="Poster preview"
                                                  class="rounded border"
-                                                 width="80" height="112"
-                                                 onerror="this.parentElement.classList.add('d-none')">
+                                                 width="80" height="112">
                                         </div>
                                     </div>
+                                    <% if (!moviePosterPath) { %>
+                                        <small id="posterEmptyText" class="text-muted">No poster uploaded</small>
+                                    <% } else { %>
+                                        <small id="posterEmptyText" class="text-muted d-none">No poster uploaded</small>
+                                    <% } %>
                                 </div>
 
                                 <div class="d-flex gap-2">
@@ -139,14 +141,29 @@
     </div>
 
 <script>
-function updatePosterPreview(url) {
+document.addEventListener('DOMContentLoaded', function () {
+    const posterInput = document.getElementById('poster');
     const wrapper = document.getElementById('posterPreviewWrapper');
     const img = document.getElementById('posterPreview');
-    if (url && url.startsWith('http')) {
-        img.src = url;
-        wrapper.classList.remove('d-none');
-    } else {
-        wrapper.classList.add('d-none');
-    }
-}
+    const emptyText = document.getElementById('posterEmptyText');
+
+    if (!posterInput || !wrapper || !img) return;
+
+    posterInput.addEventListener('change', function () {
+        const file = this.files && this.files[0];
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            img.src = event.target.result;
+            wrapper.classList.remove('d-none');
+            if (emptyText) {
+                emptyText.classList.add('d-none');
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+});
 </script>

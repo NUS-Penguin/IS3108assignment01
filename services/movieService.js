@@ -51,8 +51,9 @@ class MovieService {
      * @param {Object} data - Movie field values from request body
      * @returns {Promise<Movie>} Saved movie document
      */
-    static async createMovie(data) {
-        const { title, description, durationMinutes, genre, releaseDate, posterURL, status } = data;
+    static async createMovie(data, posterFile = null) {
+        const { title, description, durationMinutes, genre, releaseDate, status } = data;
+        const posterPath = posterFile ? `/uploads/posters/${posterFile.filename}` : '';
 
         const movie = new Movie({
             title,
@@ -60,7 +61,7 @@ class MovieService {
             durationMinutes: parseInt(durationMinutes, 10),
             genre,
             releaseDate: new Date(releaseDate),
-            posterURL: posterURL || null,
+            posterPath,
             status: status || 'Now Showing'
         });
 
@@ -76,20 +77,23 @@ class MovieService {
      * @returns {Promise<Movie>} Updated movie document
      * @throws {AppError} 404 if not found
      */
-    static async updateMovie(id, data) {
+    static async updateMovie(id, data, posterFile = null) {
         const movie = await Movie.findById(id);
         if (!movie) {
             throw new AppError('Movie not found', 404);
         }
 
-        const { title, description, durationMinutes, genre, releaseDate, posterURL, status } = data;
+        const { title, description, durationMinutes, genre, releaseDate, status } = data;
 
         movie.title = title;
         movie.description = description;
         movie.durationMinutes = parseInt(durationMinutes, 10);
         movie.genre = genre;
         movie.releaseDate = new Date(releaseDate);
-        movie.posterURL = posterURL || null;
+        if (posterFile) {
+            movie.posterPath = `/uploads/posters/${posterFile.filename}`;
+            movie.posterURL = null;
+        }
         if (status) {
             movie.status = status;
         }

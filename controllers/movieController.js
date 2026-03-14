@@ -72,11 +72,44 @@ exports.renderForm = async (req, res, next) => {
  */
 exports.create = async (req, res, next) => {
     try {
-        await MovieService.createMovie(req.body);
+        if (req.uploadError) {
+            return res.render('movies/form', {
+                title: 'Add New Movie',
+                username: req.session.username,
+                movie: null,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
+                error: req.uploadError
+            });
+        }
+
+        await MovieService.createMovie(req.body, req.file || null);
 
         req.session.flash = { type: 'success', message: 'Movie added successfully' };
         res.redirect('/admin/movies');
     } catch (error) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.render('movies/form', {
+                title: 'Add New Movie',
+                username: req.session.username,
+                movie: null,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
+                error: 'Poster file is too large. Maximum size is 5MB.'
+            });
+        }
+
+        if (error instanceof AppError) {
+            return res.render('movies/form', {
+                title: 'Add New Movie',
+                username: req.session.username,
+                movie: null,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
+                error: error.message
+            });
+        }
+
         if (error.name === 'ValidationError') {
             return res.render('movies/form', {
                 title: 'Add New Movie',
@@ -96,11 +129,47 @@ exports.create = async (req, res, next) => {
  */
 exports.update = async (req, res, next) => {
     try {
-        await MovieService.updateMovie(req.params.id, req.body);
+        if (req.uploadError) {
+            const movie = await MovieService.getMovieById(req.params.id).catch(() => null);
+            return res.render('movies/form', {
+                title: 'Edit Movie',
+                username: req.session.username,
+                movie,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
+                error: req.uploadError
+            });
+        }
+
+        await MovieService.updateMovie(req.params.id, req.body, req.file || null);
 
         req.session.flash = { type: 'success', message: 'Movie updated successfully' };
         res.redirect('/admin/movies');
     } catch (error) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            const movie = await MovieService.getMovieById(req.params.id).catch(() => null);
+            return res.render('movies/form', {
+                title: 'Edit Movie',
+                username: req.session.username,
+                movie,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
+                error: 'Poster file is too large. Maximum size is 5MB.'
+            });
+        }
+
+        if (error instanceof AppError) {
+            const movie = await MovieService.getMovieById(req.params.id).catch(() => null);
+            return res.render('movies/form', {
+                title: 'Edit Movie',
+                username: req.session.username,
+                movie,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
+                error: error.message
+            });
+        }
+
         if (error.name === 'ValidationError') {
             const movie = await MovieService.getMovieById(req.params.id).catch(() => null);
             return res.render('movies/form', {
