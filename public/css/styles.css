@@ -285,6 +285,24 @@ body {
     z-index: 2;
 }
 
+.timeline-screening-block.has-poster {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.timeline-screening-block.has-poster::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+
+.timeline-screening-block.no-poster {
+    background-color: rgba(var(--bs-primary-rgb), 1);
+}
+
 .timeline-screening-block:active {
     cursor: grabbing;
 }
@@ -298,10 +316,13 @@ body {
 }
 
 .timeline-block-content {
+    position: relative;
+    z-index: 2;
     height: 100%;
     display: flex;
     justify-content: space-between;
     gap: 0.5rem;
+    color: #fff;
 }
 
 .timeline-block-main {

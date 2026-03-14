@@ -36,7 +36,8 @@ const _serializeScreening = (screening) => ({
         id: String(screening.movie._id),
         title: screening.movie.title,
         durationMinutes: screening.movie.durationMinutes,
-        genre: screening.movie.genre
+        genre: screening.movie.genre,
+        poster: screening.movie.posterPath || screening.movie.posterURL || ''
     } : null,
     hall: screening.hall ? {
         id: String(screening.hall._id),

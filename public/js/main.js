@@ -729,8 +729,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const block = document.createElement('div');
             const status = screening.status || 'Scheduled';
             const badgeClass = status === 'Completed' ? 'bg-secondary' : 'bg-primary';
+            const posterUrl = (screening.movie?.poster || '').trim();
+            const hasPoster = Boolean(posterUrl);
 
-            block.className = `timeline-screening-block ${badgeClass} text-white`;
+            block.className = `timeline-screening-block ${badgeClass} ${hasPoster ? 'has-poster' : 'no-poster'} text-white`;
+
+            if (hasPoster) {
+                block.style.backgroundImage = `url("${encodeURI(posterUrl)}")`;
+            }
+
             block.draggable = status === 'Scheduled';
             block.dataset.screeningId = screening.id;
             block.dataset.hallId = screening.hall?.id || '';
