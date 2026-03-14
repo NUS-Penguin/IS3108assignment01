@@ -275,13 +275,13 @@ body {
 
 .timeline-screening-block {
     position: relative;
-    height: 72px;
+    min-height: 88px;
     border-radius: 0.375rem;
     cursor: grab;
-    padding: 0.35rem 0.5rem;
+    padding: 0.5rem;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.35);
-    align-self: center;
+    align-self: stretch;
     z-index: 2;
 }
 
@@ -297,6 +297,41 @@ body {
     z-index: 3;
 }
 
+.timeline-block-content {
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.timeline-block-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.3rem;
+}
+
+.timeline-block-title {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.timeline-block-time {
+    font-size: 0.85rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.timeline-block-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    justify-content: flex-start;
+}
+
 .timeline-movie-item {
     display: flex;
     flex-direction: column;
@@ -309,6 +344,92 @@ body {
     border-radius: 999px;
     width: calc(var(--duration-columns) * 10px);
     background: rgba(var(--bs-primary-rgb), 0.6);
+}
+
+.timeline-toolbar .btn,
+.timeline-toolbar .form-control,
+.timeline-toolbar .btn-group .btn,
+.movie-filter-form .form-control,
+.movie-filter-form .form-select,
+.movie-filter-form .action-btn {
+    min-height: 44px;
+}
+
+.movie-filter-form .movie-filter-box {
+    width: 100%;
+    min-height: 44px;
+    height: 44px;
+}
+
+.movie-filter-form .form-control.movie-filter-box,
+.movie-filter-form .form-select.movie-filter-box,
+.movie-filter-form .action-btn.movie-filter-box {
+    font-size: 0.95rem;
+    line-height: 1.2;
+}
+
+.movie-filter-form .form-select.movie-filter-box,
+.movie-filter-form .form-control.movie-filter-box {
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+}
+
+.movie-filter-form .movie-filter-actions {
+    grid-template-columns: 1fr 1fr;
+}
+
+.movie-filter-form .movie-filter-box.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-toolbar .timeline-toolbar-box {
+    width: 150px;
+    min-width: 150px;
+    height: 44px;
+    min-height: 44px;
+}
+
+.timeline-toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.timeline-toolbar-row .timeline-toolbar-box {
+    flex: 0 0 150px;
+    max-width: 150px;
+}
+
+.timeline-toolbar .btn.timeline-toolbar-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-toolbar .form-control.timeline-toolbar-box {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+}
+
+.timeline-toolbar .btn,
+.timeline-toolbar .btn-group .btn,
+.movie-filter-form .action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-toolbar .text-muted.small {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.timeline-toolbar-note {
+    margin-left: 0.5rem;
 }
 
 @media (max-width: 991px) {

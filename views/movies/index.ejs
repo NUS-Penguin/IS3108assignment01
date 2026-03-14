@@ -12,18 +12,18 @@
 <%# ── Search & Filter Form ─────────────────────────────────────────── %>
 <div class="card shadow-sm mb-4">
     <div class="card-body">
-        <form action="/admin/movies" method="GET" class="row g-3 align-items-end">
+        <form action="/admin/movies" method="GET" class="row g-3 align-items-end movie-filter-form">
             <div class="col-md-4">
                 <label for="search" class="form-label fw-semibold">
                     <i class="bi bi-search me-1"></i>Search
                 </label>
-                <input type="text" class="form-control" id="search" name="search"
+                <input type="text" class="form-control movie-filter-box" id="search" name="search"
                     placeholder="Search by title..." value="<%= filters.search %>">
             </div>
 
             <div class="col-md-2">
                 <label for="genre" class="form-label fw-semibold">Genre</label>
-                <select class="form-select" id="genre" name="genre">
+                <select class="form-select movie-filter-box" id="genre" name="genre">
                     <option value="">All Genres</option>
                     <% genres.forEach(g => { %>
                         <option value="<%= g %>" <%= filters.genre === g ? 'selected' : '' %>><%= g %></option>
@@ -33,7 +33,7 @@
 
             <div class="col-md-2">
                 <label for="status" class="form-label fw-semibold">Status</label>
-                <select class="form-select" id="status" name="status">
+                <select class="form-select movie-filter-box" id="status" name="status">
                     <option value="">All Statuses</option>
                     <% statuses.forEach(s => { %>
                         <option value="<%= s %>" <%= filters.status === s ? 'selected' : '' %>><%= s %></option>
@@ -43,16 +43,16 @@
 
             <div class="col-md-2">
                 <label for="releaseYear" class="form-label fw-semibold">Release Year</label>
-                <input type="number" class="form-control" id="releaseYear" name="releaseYear"
+                <input type="number" class="form-control movie-filter-box" id="releaseYear" name="releaseYear"
                     placeholder="e.g. 2024" min="1900" max="2100"
                     value="<%= filters.releaseYear %>">
             </div>
 
-            <div class="col-md-2 d-flex gap-2">
-                <button type="submit" class="action-btn primary flex-fill">
+            <div class="col-md-2 d-grid gap-2 movie-filter-actions">
+                <button type="submit" class="action-btn primary movie-filter-box">
                     <i class="bi bi-funnel me-1"></i>Filter
                 </button>
-                <a href="/admin/movies" class="action-btn">
+                <a href="/admin/movies" class="action-btn movie-filter-box">
                     <i class="bi bi-x-lg"></i>
                 </a>
             </div>

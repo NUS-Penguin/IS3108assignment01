@@ -7,15 +7,17 @@
     <a href="/admin/screenings" class="action-btn">
         <i class="bi bi-arrow-left me-2"></i>Back to Screenings
     </a>
-    <a href="/admin/screenings/<%= screening._id %>/edit" class="action-btn primary">
-        <i class="bi bi-pencil me-2"></i>Edit Screening
-    </a>
-    <form action="/admin/screenings/<%= screening._id %>?_method=DELETE" method="POST" class="d-inline"
-        onsubmit="return confirm('Delete this screening?')">
-        <button type="submit" class="action-btn danger">
-            <i class="bi bi-trash me-2"></i>Delete Screening
-        </button>
-    </form>
+    <div class="d-flex flex-column gap-2">
+        <a href="/admin/screenings/<%= screening._id %>/edit" class="action-btn primary">
+            <i class="bi bi-pencil me-2"></i>Edit Screening
+        </a>
+        <form action="/admin/screenings/<%= screening._id %>?_method=DELETE" method="POST"
+            onsubmit="return confirm('Delete this screening?')">
+            <button type="submit" class="action-btn danger">
+                <i class="bi bi-trash me-2"></i>Delete Screening
+            </button>
+        </form>
+    </div>
 </div>
 
 <div class="row mb-4">

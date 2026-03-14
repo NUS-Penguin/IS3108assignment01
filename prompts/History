@@ -9,6 +9,38 @@ This document tracks all significant changes to the codebase.
 
 ---
 
+## [2026-03-14] UX Fix: Screening Action Layout + Dashboard Delete Redirect
+
+**Type:** Bug Fix
+**Scope:** Medium - Action button placement and post-delete navigation behavior
+**Files Modified:** 4 files
+**Files Created:** 0 files
+**Lines Added:** ~20+ lines
+**Developer:** GitHub Copilot
+**Status:** ✅ Completed
+
+### Overview
+Adjusted screening action layout to place `Delete Screening` below `Edit Screening` on the screening detail page, and corrected delete redirect behavior when deletion is initiated from dashboard widgets.
+
+### Key Changes
+- `views/screenings/show.ejs`
+  - Grouped Edit/Delete controls in a vertical stack so delete appears below edit
+- `views/dashboard/index.ejs`
+  - Added hidden `redirectTo=dashboard` field in screening delete form
+- `controllers/screeningController.js`
+  - `delete` action now conditionally redirects:
+    - `/admin/dashboard` when `redirectTo=dashboard`
+    - `/admin/screenings` otherwise
+
+### Testing Performed
+- ✅ `get_errors` diagnostics on modified files (no reported errors)
+
+### Impact Assessment
+- **User Impact:** Clearer action layout and expected navigation after dashboard deletes
+- **System Impact:** Low risk, controller/view-only behavior updates
+
+---
+
 ## [2026-03-14] Module 6: Reuse Hall Seat Grid for Screening Occupancy (Read-Only)
 
 **Type:** Feature Enhancement

@@ -14,20 +14,18 @@
 
     <div class="card mb-3">
         <div class="card-body">
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                <button id="timelinePrevDate" type="button" class="btn btn-outline-secondary" aria-label="Previous day">
+            <div class="timeline-toolbar timeline-toolbar-row">
+                <button id="timelinePrevDate" type="button" class="btn btn-outline-secondary timeline-toolbar-box" aria-label="Previous day">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <input id="timelineDatePicker" type="date" class="form-control w-auto" value="<%= selectedDateValue %>">
-                <button id="timelineNextDate" type="button" class="btn btn-outline-secondary" aria-label="Next day">
+                <input id="timelineDatePicker" type="date" class="form-control timeline-toolbar-box" value="<%= selectedDateValue %>">
+                <button id="timelineNextDate" type="button" class="btn btn-outline-secondary timeline-toolbar-box" aria-label="Next day">
                     <i class="bi bi-chevron-right"></i>
                 </button>
-                <button id="timelineToday" type="button" class="btn btn-outline-primary">Today</button>
-                <div class="btn-group ms-md-2" role="group" aria-label="Schedule view toggle">
-                    <button id="timelineViewAM" type="button" class="btn btn-primary">AM Schedule</button>
-                    <button id="timelineViewPM" type="button" class="btn btn-outline-primary">PM Schedule</button>
-                </div>
-                <span class="text-muted small ms-md-3">
+                <button id="timelineToday" type="button" class="btn btn-outline-primary timeline-toolbar-box">Today</button>
+                <button id="timelineViewAM" type="button" class="btn btn-primary timeline-toolbar-box">AM Schedule</button>
+                <button id="timelineViewPM" type="button" class="btn btn-outline-primary timeline-toolbar-box">PM Schedule</button>
+                <span class="text-muted small timeline-toolbar-note">
                     Cleaning buffer: <strong><%= cleaningBufferMinutes %> min before + <%= cleaningBufferMinutes %> min after</strong>
                 </span>
             </div>

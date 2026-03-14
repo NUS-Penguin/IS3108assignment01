@@ -73,6 +73,7 @@
                             <td><%= screening.movie.durationMinutes %> min</td>
                             <td>
                                 <form action="/admin/screenings/<%= screening._id %>?_method=DELETE" method="POST" onsubmit="return confirm('Delete this screening?');">
+                                    <input type="hidden" name="redirectTo" value="dashboard">
                                     <button type="submit" class="action-btn">Delete</button>
                                 </form>
                             </td>

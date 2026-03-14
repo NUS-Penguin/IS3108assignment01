@@ -616,8 +616,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const getPayloadDurationSlots = (payload) => {
             const durationMinutes = Number(payload?.durationMinutes || 0);
-            const blockedDuration = Math.max(SLOT_MINUTES, durationMinutes + (Math.max(0, cleaningBuffer) * 2));
-            return Math.max(1, Math.ceil(blockedDuration / SLOT_MINUTES));
+            return Math.max(1, Math.ceil(Math.max(SLOT_MINUTES, durationMinutes) / SLOT_MINUTES));
         };
 
         const buildStartDateFromSlot = (selectedDateValue, slotIndex) => {
@@ -706,20 +705,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const getOverlapForView = (screening, viewStart, viewEnd) => {
             const start = new Date(screening.startTime);
             const end = new Date(screening.endTime);
-            const blockedEnd = new Date(end.getTime() + Math.max(0, cleaningBuffer) * 60000);
 
-            if (start >= viewEnd || blockedEnd <= viewStart) {
+            if (start >= viewEnd || end <= viewStart) {
                 return null;
             }
 
             const visibleStart = start < viewStart ? viewStart : start;
-            const visibleEnd = blockedEnd > viewEnd ? viewEnd : blockedEnd;
+            const visibleEnd = end > viewEnd ? viewEnd : end;
 
             return {
                 visibleStart,
                 visibleEnd,
                 clippedAtStart: start < viewStart,
-                clippedAtEnd: blockedEnd > viewEnd
+                clippedAtEnd: end > viewEnd
             };
         };
 
@@ -748,11 +746,16 @@ document.addEventListener('DOMContentLoaded', function () {
             block.style.gridColumn = `${startSlotIndex + 2} / span ${clampedDurationSlots}`;
 
             block.innerHTML = `
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="fw-semibold text-truncate">${screening.movie?.title || 'Movie'}</div>
-                    <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="edit">Edit</button>
+                <div class="timeline-block-content">
+                    <div class="timeline-block-main">
+                        <div class="timeline-block-title">${screening.movie?.title || 'Movie'}</div>
+                        <div class="timeline-block-time">${formatTime(screening.startTime)} - ${formatTime(screening.endTime)}</div>
+                    </div>
+                    <div class="timeline-block-actions">
+                        <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="edit">Edit</button>
+                        <button type="button" class="btn btn-light btn-sm py-0 px-1 timeline-block-action" data-action="delete">Delete</button>
+                    </div>
                 </div>
-                <div class="small">${formatTime(overlapInfo.visibleStart)} - ${formatTime(overlapInfo.visibleEnd)}</div>
             `;
 
             block.addEventListener('click', (event) => {
@@ -760,6 +763,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (action === 'edit') {
                     event.stopPropagation();
                     window.location.href = `/admin/screenings/${screening.id}`;
+                    return;
+                }
+
+                if (action === 'delete') {
+                    event.stopPropagation();
+                    const confirmed = confirm('Delete this screening?');
+                    if (confirmed) {
+                        deleteTimelineScreening(screening.id);
+                    }
                 }
             });
 

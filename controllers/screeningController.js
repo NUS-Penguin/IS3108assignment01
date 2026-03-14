@@ -278,6 +278,7 @@ exports.update = async (req, res, next) => {
 exports.delete = async (req, res, next) => {
     try {
         const screening = await Screening.findById(req.params.id);
+        const redirectTo = req.body?.redirectTo;
 
         if (!screening) {
             throw new AppError('Screening not found', 404);
@@ -289,6 +290,10 @@ exports.delete = async (req, res, next) => {
             type: 'success',
             message: 'Screening deleted successfully'
         };
+
+        if (redirectTo === 'dashboard') {
+            return res.redirect('/admin/dashboard');
+        }
 
         res.redirect('/admin/screenings');
 
