@@ -1,5 +1,5 @@
-Name: NUS-Penguin
-Student Number: E1397988
+Name: Xiang Pengyuan
+Student Number: A0307548X
 
 Database Details:
 - Database: MongoDB
@@ -29,8 +29,8 @@ Instructions for Deploying the Project:
    http://localhost:3000
 
 Extra Features Implemented:
-1. Screening overlap detection
-   - Prevents double-booking of the same hall time slot.
+1. Dynamic screening scheduler
+   - Allows admins to schedule drag and drop to schedule screenings. 
 
 2. Hall seat-configuration matrix tool
    - Allows admins to configure hall seating layout.
@@ -38,8 +38,23 @@ Extra Features Implemented:
 3. Movie poster upload support
    - Uses Multer to upload and store posters under public/uploads/posters.
 
-4. Dashboard analytics widgets
-   - Shows aggregate operational stats and upcoming screenings.
-
-5. Session-based authentication with route protection
+4. Session-based authentication with route protection
    - Secures admin routes and stores sessions in MongoDB.
+
+5. Movie search Features
+   - Allows admins to search through movies to schedule 
+
+6. Scheduled Movie seating
+   - Each scheduled movie creates a copy of the hall layout and admins are able to check which seats are filled
+
+7. Hall seat markings with seat types
+   - Supports multiple seat types and clearing of non-seat areas when creating or editing the hall seating arrangment
+
+8. Schedule time and overlap check
+   - Scheduler checks that you can only schedule movies in the future and when not overlapping other schedules
+
+9. Movie release date
+   - Scheduler checks movie release date to only schedule available movies
+
+10. vscode settings
+   - Vscode settings to not flag the ejs <- > as an error and many other ejs syntax
