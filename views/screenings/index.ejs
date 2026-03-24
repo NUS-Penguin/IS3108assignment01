@@ -50,7 +50,20 @@
                 <div class="card-header">
                     <h5 class="mb-0"><i class="bi bi-film me-2"></i>Movie Library</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body pb-2">
+                    <div class="input-group input-group-sm mb-3">
+                        <span class="input-group-text bg-transparent border-secondary">
+                            <i class="bi bi-search text-muted"></i>
+                        </span>
+                        <input
+                            id="movieLibrarySearch"
+                            type="search"
+                            class="form-control border-secondary bg-transparent text-light"
+                            placeholder="Search movies…"
+                            autocomplete="off">
+                    </div>
+                </div>
+                <div class="card-body pt-0">
                     <% if (movies && movies.length > 0) { %>
                         <div class="d-flex flex-column gap-2" id="timelineMovieLibrary">
                             <% movies.forEach((movie) => { %>

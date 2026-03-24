@@ -1057,6 +1057,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const movieItems = document.querySelectorAll('.timeline-movie-item');
+
+        // Movie library search filter
+        const movieSearchInput = document.getElementById('movieLibrarySearch');
+        if (movieSearchInput) {
+            movieSearchInput.addEventListener('input', () => {
+                const query = movieSearchInput.value.trim().toLowerCase();
+                movieItems.forEach((item) => {
+                    const title = (item.dataset.title || '').toLowerCase();
+                    const genre = item.querySelector('small') ? item.querySelector('small').textContent.toLowerCase() : '';
+                    const matches = !query || title.includes(query) || genre.includes(query);
+                    item.style.display = matches ? '' : 'none';
+                });
+            });
+        }
+
         movieItems.forEach((item) => {
             const durationMinutes = Number(item.dataset.duration || 0);
             const durationColumns = Math.max(1, Math.ceil(durationMinutes / SLOT_MINUTES));
