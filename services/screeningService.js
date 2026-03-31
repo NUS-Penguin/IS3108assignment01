@@ -100,6 +100,9 @@ class ScreeningService {
             throw new AppError('Cannot create screening in a hall under maintenance', 400);
         }
 
+        // 2b. Check if screening date falls within maintenance period
+        await this._checkHallMaintenanceConflict(hallDoc, parsedStartTime);
+
         // 3. Validate start time is in the future
         if (isNaN(parsedStartTime.getTime())) {
             throw new AppError('Invalid screening start time', 400);
@@ -240,6 +243,10 @@ class ScreeningService {
             throw new AppError('Cannot schedule screening in a hall under maintenance', 400);
         }
 
+        // 3b. Check if screening date falls within maintenance period
+        await this._checkHallMaintenanceConflict(hallDoc, parsedStartTime);
+
+        // 3. Validate start time is in the future
         if (isNaN(parsedStartTime.getTime())) {
             throw new AppError('Invalid screening start time', 400);
         }
@@ -372,6 +379,39 @@ class ScreeningService {
             .populate('movie', 'title durationMinutes genre')
             .populate('hall', 'name status')
             .sort({ startTime: 1 });
+    }
+
+    /**
+     * Check if screening date falls within hall maintenance period
+     *
+     * @param {Object} hallDoc - Hall document
+     * @param {Date} screeningStartTime - Screening start time
+     * @throws {AppError} If screening date conflicts with maintenance
+     */
+    static async _checkHallMaintenanceConflict(hallDoc, screeningStartTime) {
+        // If hall has maintenance dates, check for conflicts
+        if (hallDoc.maintenanceStartDate && hallDoc.maintenanceEndDate) {
+            const maintenanceStart = new Date(hallDoc.maintenanceStartDate);
+            const maintenanceEnd = new Date(hallDoc.maintenanceEndDate);
+
+            // Screening is in conflict if it falls within maintenance period
+            if (screeningStartTime >= maintenanceStart && screeningStartTime <= maintenanceEnd) {
+                const formattedStart = maintenanceStart.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+                const formattedEnd = maintenanceEnd.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+                throw new AppError(
+                    `Cannot schedule screening: ${hallDoc.name} is under maintenance from ${formattedStart} to ${formattedEnd}. Reason: ${hallDoc.maintenanceReason || 'Scheduled maintenance'}`,
+                    400
+                );
+            }
+        }
     }
 }
 

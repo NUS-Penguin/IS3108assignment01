@@ -9,16 +9,23 @@
 }
 
 :root {
-    --ui-scale: 0.75;
     --time-columns: 24;
     --column-width: 80px;
 }
 
-body {
-    transform: scale(var(--ui-scale));
-    transform-origin: top left;
-    width: calc(100% / var(--ui-scale));
-    min-height: calc(100vh / var(--ui-scale));
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.dashboard {
+    min-height: 100vh !important;
+}
+
+.sidebar {
+    height: 100vh !important;
+    min-height: 100vh !important;
 }
 
 /* Basic Layout - Sidebar and Page Wrapper */

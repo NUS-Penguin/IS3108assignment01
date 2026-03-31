@@ -1,0 +1,159 @@
+# Implementation Requirements for Cinema Management System
+
+## Feature 1: No Movies with Same Name
+**Objective:** Prevent duplicate movie entries in the system.
+
+**Current State:** 
+- Movie model uses `title` field (String) but lacks a unique constraint
+- Movies are created via POST /movies endpoint in movieRoutes.js
+
+**Implementation Details:**
+1. Add unique constraint to Movie schema's `title` field
+2. Update movieController.create() to handle MongoDB duplicate key errors (code 11000)
+   - Catch duplicate errors and return appropriate error message to user
+   - Implement frontend validation for movie creation form (search existing movies before submit)
+3. Update movieController.update() similarly for edit operations
+4. Ensure validation works with case-insensitive movie titles (e.g., "The Matrix" = "the matrix")
+
+**Testing Points:**
+- Cannot create movie with duplicate exact title
+- Cannot update existing movie to a title that already exists
+- Case-insensitive matching works correctly
+- Proper error messages displayed to user in views
+
+---
+
+## Feature 2: Maintenance -> Attach Maintenance to Date
+**Objective:** Enhanced maintenance scheduling for halls, explicitly tied to specific dates.
+
+**Current State:**
+- Hall model has `status` enum (active, maintenance, cleaning)
+- Maintenance fields exist: maintenanceStartDate, maintenanceEndDate, maintenanceReason
+- hallController handles hall management
+
+**Implementation Details:**
+1. Extend Screening model to include optional maintenance reference:
+   - When a hall is under maintenance for a date range, screenings on those dates should be canceled or marked unavailable
+   - OR add a `maintenanceSchedule` subdocument array to Hall to track individual maintenance dates/periods
+   
+2. Create maintenance management UI/endpoints:
+   - Allow admin to create maintenance entries with specific start/end dates
+   - Validate that start date < end date
+   - Query screenings that conflict with maintenance dates
+   - Either prevent creation or auto-cancel conflicting screenings
+   
+3. Update hall availability checks:
+   - When scheduling a new screening, check if hall is under maintenance during that date
+   - Return error if screening date falls within maintenance period
+   
+4. Display maintenance calendar:
+   - Show maintenance periods for each hall in dashboard
+   - Filter halls by availability based on maintenance dates
+
+**Testing Points:**
+- Can schedule maintenance with start/end dates
+- Screenings cannot be created for halls under maintenance
+- Maintenance dates properly block screening creation
+- Maintenance periods display correctly in calendar/list views
+
+---
+
+## Feature 3: No Register Admin (Disable Self-Registration)
+**Objective:** Remove public admin registration capability. Admin accounts must only be created by existing admins.
+
+**Current State:**
+- authRoutes.js exposes public endpoints: `GET /register` and `POST /register`
+- authController.register() creates users with default role 'manager' (not admin)
+- User model has role enum: 'admin' or 'manager'
+
+**Implementation Details:**
+1. Remove or disable the public registration endpoints:
+   - Delete `router.get('/register')` and `router.post('/register')` from authRoutes.js
+   - Delete `exports.renderRegister` and `exports.register` from authController.js (or comment out if needed for documentation)
+   - Remove register.ejs view file (or disable access)
+   
+2. Handle first-time setup:
+   - Document that first admin must be created via direct database entry or seed script
+   - OR create a setup endpoint that only works if no admins exist (accessible once on startup)
+
+3. Remove registration UI:
+   - Update login page if it has a "Register" link
+   - Remove register form from views
+
+**Security Considerations:**
+- Ensure no other routes accidentally allow admin registration
+- Log/audit admin account creation
+- Email hints at new admin creation for verification
+
+**Testing Points:**
+- /register route is not accessible (404 or redirect)
+- No registration form in UI
+- Cannot create new admin accounts through public endpoints
+
+---
+
+## Feature 4: Admin Can Create Another Admin
+**Objective:** Allow existing admins to create new admin accounts through a protected admin interface.
+
+**Current State:**
+- Only users with role='admin' should have this permission
+- authMiddleware has requireAuth but may not have role-based checks
+- No admin management interface currently exists
+
+**Implementation Details:**
+1. Create admin management interface:
+   - New route: `GET /admin/users` - list all users with role filtering
+   - New route: `GET /admin/users/new` - render create admin form
+   - New route: `POST /admin/users` - create new admin/manager account
+   - New route: `PUT /admin/users/:id` - update user role (admin can change other users' roles)
+   - New route: `DELETE /admin/users/:id` - delete user account (admin only)
+
+2. Create adminController.js:
+   - Method to create new user with specified role (admin or manager)
+   - Validate that requesting user is admin
+   - Generate temporary password or require password during creation
+   - Add user creation form validation (unique username/email)
+
+3. Implement role-based middleware:
+   - Create `requireAdminRole` middleware in authMiddleware.js
+   - Check `req.session.role === 'admin'` before allowing user management operations
+   - Apply to all user management routes
+
+4. Create UI views:
+   - users/list.ejs - table of all users with Edit/Delete actions
+   - users/create.ejs - form to create new admin or manager account
+   - users/edit.ejs - form to edit user details or change role
+
+5. Password handling for new admins:
+   - Option A: Admin sets temporary password that user must change on first login
+   - Option B: Generate random password and email to new user
+   - Store password securely following existing bcrypt pattern in User model
+
+**Database Considerations:**
+- User model already supports role field
+- Unique constraints on username and email already enforced
+- Password hashing via pre-save hook already implemented
+
+**Testing Points:**
+- Non-admin users cannot access admin user management
+- Admins can create new admin accounts with valid credentials
+- Cannot create user with duplicate username/email
+- New admin can login immediately
+- User list displays all users with their roles
+- Admins can modify other users' roles
+- Admins can delete users (or soft-delete records)
+
+---
+
+## Implementation Order & Dependencies
+1. **No Movies with Same Name** (Independent - implement first)
+2. **No Register Admin** (Independent - remove routes/views)
+3. **Admin Can Create Another Admin** (Depends on #2 - requires new admin routes)
+4. **Maintenance -> Attach to Date** (Independent - extends Hall/Screening logic)
+
+## Key Files Modified/Created
+- Models: User.js, Movie.js, Hall.js, Screening.js (minor updates)
+- Controllers: authController.js, adminController.js (new), movieController.js, hallController.js
+- Routes: authRoutes.js (remove register), adminRoutes.js (add users routes), movieRoutes.js, hallRoutes.js
+- Middleware: authMiddleware.js (add requireAdminRole)
+- Views: auth/register.ejs (remove), admin/users/*, movie forms, hall forms

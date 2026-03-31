@@ -1,0 +1,110 @@
+<%
+    const formAction = '/admin/users';
+    const pageTitle = 'Create New User';
+    const submitText = 'Create User';
+%>
+
+<div class="page-header">
+    <h1><i class="bi bi-person-plus me-2"></i><%= pageTitle %></h1>
+    <p>Add a new admin or manager account</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-user-plus me-2"></i><%= pageTitle %></h5>
+            </div>
+            <div class="card-body">
+                <% if (error) { %>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <%= error %>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <% } %>
+
+                <form action="<%= formAction %>" method="POST">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="username"
+                            name="username"
+                            required
+                            minlength="3"
+                            maxlength="30"
+                            pattern="^[a-zA-Z0-9_]+$"
+                            placeholder="e.g., john_admin"
+                            title="Username must be 3-30 characters, alphanumeric and underscores only">
+                        <small class="form-text text-muted">
+                            3-30 characters, alphanumeric and underscores only
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input
+                            type="email"
+                            class="form-control"
+                            id="email"
+                            name="email"
+                            required
+                            placeholder="user@example.com">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="">Select role...</option>
+                            <% roles.forEach(role => { %>
+                                <option value="<%= role %>">
+                                    <% if (role === 'admin') { %>
+                                        Admin - Full system access
+                                    <% } else { %>
+                                        Manager - Limited access
+                                    <% } %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
+                        <input
+                            type="password"
+                            class="form-control"
+                            id="password"
+                            name="password"
+                            required
+                            minlength="8"
+                            placeholder="Minimum 8 characters">
+                        <small class="form-text text-muted">
+                            Must contain uppercase, lowercase, number, and special character
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                        <input
+                            type="password"
+                            class="form-control"
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            required
+                            minlength="8"
+                            placeholder="Re-enter password">
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-3">
+                        <a href="/admin/users" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i><%= submitText %>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

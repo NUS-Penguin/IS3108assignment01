@@ -23,9 +23,9 @@ router.post('/login', authController.login);
 // Logout route
 router.post('/logout', authController.logout);
 
-// Registration routes (optional - for initial setup)
-router.get('/register', authController.renderRegister);
-router.post('/register', authController.register);
+// Registration routes (REMOVED - Admins can only be created by existing admins)
+// router.get('/register', authController.renderRegister);
+// router.post('/register', authController.register);
 
 // Password reset routes
 router.get('/forgot-password', authController.renderForgotPassword);

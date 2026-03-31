@@ -114,8 +114,11 @@ exports.logout = (req, res) => {
 };
 
 /**
- * Render registration page (optional - for initial setup)
+ * Registration methods removed - Admins can only be created by existing admins via Feature 4 interface
+ * See: controllers/userController.js and routes/adminRoutes.js for user management
  */
+
+/*
 exports.renderRegister = (req, res) => {
     res.render('auth/register', {
         title: 'Register',
@@ -123,9 +126,6 @@ exports.renderRegister = (req, res) => {
     });
 };
 
-/**
- * Handle registration form submission (optional - for initial setup)
- */
 exports.register = async (req, res, next) => {
     try {
         const { username, email, password, confirmPassword } = req.body;
@@ -182,6 +182,7 @@ exports.register = async (req, res, next) => {
         next(error);
     }
 };
+*/
 
 /**
  * Render forgot password page
