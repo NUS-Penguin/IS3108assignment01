@@ -62,6 +62,11 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+body[data-authenticated="true"] {
+    --dashboard-scale: 0.8;
+    overflow-x: hidden;
+}
+
 /* ========================================
    Dashboard Layout
 ======================================== */
@@ -70,6 +75,19 @@ body {
     display: flex;
     min-height: 100vh;
     height: 100vh;
+}
+
+body[data-authenticated="true"] .dashboard {
+    transform: scale(var(--dashboard-scale));
+    transform-origin: top left;
+    width: calc(100% / var(--dashboard-scale));
+    min-height: calc(100vh / var(--dashboard-scale));
+    height: calc(100vh / var(--dashboard-scale));
+}
+
+body[data-authenticated="true"] .sidebar {
+    min-height: calc(100vh / var(--dashboard-scale));
+    height: calc(100vh / var(--dashboard-scale));
 }
 
 /* ========================================
