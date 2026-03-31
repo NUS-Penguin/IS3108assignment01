@@ -41,13 +41,17 @@ exports.renderCreate = async (req, res, next) => {
         const roles = UserService.getValidRoles();
 
         res.render('users/create', {
-            title: 'Create New User',
+            title: 'Register New Account',
             username: req.session.username,
             userRole: req.session.role,
             roles,
             user: null,
             error: null,
-            formAction: 'create'
+            formAction: 'create',
+            initialRole: 'admin',
+            pageTitle: 'Register New Account',
+            submitText: 'Create Account',
+            formDescription: 'Add a new account'
         });
 
     } catch (error) {
@@ -61,8 +65,6 @@ exports.renderCreate = async (req, res, next) => {
  */
 exports.create = async (req, res, next) => {
     try {
-        const roles = UserService.getValidRoles();
-
         // Create user via service (validates all fields)
         await UserService.createUser(req.body, req.session.userId);
 
@@ -76,13 +78,17 @@ exports.create = async (req, res, next) => {
         // Handle specific errors by re-rendering form with error message
         if (error instanceof AppError) {
             return res.render('users/create', {
-                title: 'Create New User',
+                title: 'Register New Account',
                 username: req.session.username,
                 userRole: req.session.role,
                 roles: UserService.getValidRoles(),
                 user: null,
                 error: error.message,
-                formAction: 'create'
+                formAction: 'create',
+                initialRole: 'admin',
+                pageTitle: 'Register New Account',
+                submitText: 'Create Account',
+                formDescription: 'Add a new account'
             });
         }
 
@@ -90,26 +96,34 @@ exports.create = async (req, res, next) => {
         if (error.code === 11000) {
             const field = Object.keys(error.keyValue)[0];
             return res.render('users/create', {
-                title: 'Create New User',
+                title: 'Register New Account',
                 username: req.session.username,
                 userRole: req.session.role,
                 roles: UserService.getValidRoles(),
                 user: null,
                 error: `${field} already exists. Please use another.`,
-                formAction: 'create'
+                formAction: 'create',
+                initialRole: 'admin',
+                pageTitle: 'Register New Account',
+                submitText: 'Create Account',
+                formDescription: 'Add a new account'
             });
         }
 
         // Handle validation error
         if (error.name === 'ValidationError') {
             return res.render('users/create', {
-                title: 'Create New User',
+                title: 'Register New Account',
                 username: req.session.username,
                 userRole: req.session.role,
                 roles: UserService.getValidRoles(),
                 user: null,
                 error: Object.values(error.errors).map(e => e.message).join('. '),
-                formAction: 'create'
+                formAction: 'create',
+                initialRole: 'admin',
+                pageTitle: 'Register New Account',
+                submitText: 'Create Account',
+                formDescription: 'Add a new account'
             });
         }
 

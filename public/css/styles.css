@@ -29,16 +29,6 @@ body {
     min-height: 100vh !important;
 }
 
-body[data-authenticated="true"] .dashboard {
-    min-height: calc(100vh / var(--dashboard-scale, 0.8)) !important;
-    height: calc(100vh / var(--dashboard-scale, 0.8)) !important;
-}
-
-body[data-authenticated="true"] .sidebar {
-    min-height: calc(100vh / var(--dashboard-scale, 0.8)) !important;
-    height: calc(100vh / var(--dashboard-scale, 0.8)) !important;
-}
-
 /* Basic Layout - Sidebar and Page Wrapper */
 #sidebar-wrapper {
     min-width: 250px;

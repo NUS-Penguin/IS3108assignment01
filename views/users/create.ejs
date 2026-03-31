@@ -1,19 +1,20 @@
 <%
     const formAction = '/admin/users';
-    const pageTitle = 'Create New User';
-    const submitText = 'Create User';
+    const resolvedPageTitle = pageTitle || 'Register New Account';
+    const resolvedSubmitText = submitText || 'Create Account';
+    const resolvedDescription = formDescription || 'Add a new account';
 %>
 
 <div class="page-header">
-    <h1><i class="bi bi-person-plus me-2"></i><%= pageTitle %></h1>
-    <p>Add a new admin or manager account</p>
+    <h1><i class="bi bi-person-plus me-2"></i><%= resolvedPageTitle %></h1>
+    <p><%= resolvedDescription %></p>
 </div>
 
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-user-plus me-2"></i><%= pageTitle %></h5>
+                <h5 class="mb-0"><i class="bi bi-user-plus me-2"></i><%= resolvedPageTitle %></h5>
             </div>
             <div class="card-body">
                 <% if (error) { %>
@@ -54,21 +55,7 @@
                             placeholder="user@example.com">
                     </div>
 
-                    <div class="mb-3">
-                        <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
-                        <select class="form-select" id="role" name="role" required>
-                            <option value="">Select role...</option>
-                            <% roles.forEach(role => { %>
-                                <option value="<%= role %>">
-                                    <% if (role === 'admin') { %>
-                                        Admin - Full system access
-                                    <% } else { %>
-                                        Manager - Limited access
-                                    <% } %>
-                                </option>
-                            <% }); %>
-                        </select>
-                    </div>
+                    <input type="hidden" id="role" name="role" value="admin">
 
                     <div class="mb-3">
                         <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
@@ -100,7 +87,7 @@
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-3">
                         <a href="/admin/users" class="btn btn-outline-secondary">Cancel</a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-circle me-2"></i><%= submitText %>
+                            <i class="bi bi-check-circle me-2"></i><%= resolvedSubmitText %>
                         </button>
                     </div>
                 </form>
