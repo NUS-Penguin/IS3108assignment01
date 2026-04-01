@@ -85,6 +85,17 @@ exports.create = async (req, res, next) => {
             });
         }
 
+        if (error.code === 11000) {
+            return res.render('movies/form', {
+                title: 'Add New Movie',
+                username: req.session.username,
+                movie: null,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
+                error: 'A movie with this title already exists. Please use a different title.'
+            });
+        }
+
         if (error.name === 'ValidationError') {
             return renderMovieForm(res, req.session, {
                 title: 'Add New Movie',
@@ -115,6 +126,18 @@ exports.update = async (req, res, next) => {
                 title: 'Edit Movie',
                 id: req.params.id,
                 error: 'Poster file is too large. Maximum size is 5MB.'
+            });
+        }
+
+        if (error.code === 11000) {
+            const movie = await MovieService.getMovieById(req.params.id).catch(() => null);
+            return res.render('movies/form', {
+                title: 'Edit Movie',
+                username: req.session.username,
+                movie,
+                genres: MovieService.getValidGenres(),
+                statuses: MovieService.getValidStatuses(),
+                error: 'A movie with this title already exists. Please use a different title.'
             });
         }
 

@@ -1,2815 +1,2709 @@
-# FULL CODEBASE WALKTHROUGH DOCUMENT
-## Cinema Management System (Express + MongoDB)
+# CineVillage Admin Portal: Complete Technical Learning Walkthrough
 
-Audience: Students with basic programming knowledge (Java/Python/HTML/CSS) and limited experience with Node.js/Express/MongoDB/MVC.
+## Table of Contents
 
----
-
-## 1. HIGH LEVEL SYSTEM OVERVIEW
-
-### 1.1 What this system does
-This project is an **internal admin portal** for a cinema chain called **CineVillage**. It is not a customer-facing ticketing website. Instead, it is used by staff (admin/manager) to run cinema operations.
-
-Main responsibilities:
-- Manage cinema halls (layout, capacity, maintenance status)
-- Manage movies (metadata, poster, status)
-- Schedule screenings (time + hall + movie)
-- Enforce schedule constraints (no overlap, cleaning buffer, hall availability)
-- View seat occupancy snapshot per screening
-
-In short: this is an **operations control panel** for cinema planning.
+1. [Architecture Overview](#1-architecture-overview)
+2. [Technology Stack](#2-technology-stack)
+3. [Database Design & Models](#3-database-design--models)
+4. [Authentication System](#4-authentication-system)
+5. [Session Management](#5-session-management)
+6. [Middleware Architecture](#6-middleware-architecture)
+7. [Routing & Request Handling](#7-routing--request-handling)
+8. [Service Layer Architecture](#8-service-layer-architecture)
+9. [Frontend: Layout & Templating](#9-frontend-layout--templating)
+10. [Screening Scheduler UI](#10-screening-scheduler-ui)
+11. [File Upload & Image Processing](#11-file-upload--image-processing)
+12. [Error Handling & Validation](#12-error-handling--validation)
+13. [Data Persistence & Transactions](#13-data-persistence--transactions)
+14. [Client-Side Interactivity & State Management](#14-client-side-interactivity--state-management)
 
 ---
 
-### 1.2 What problem it solves
-If cinemas schedule manually in spreadsheets or chat messages, common problems appear:
-- Two movies accidentally booked in same hall at overlapping times
-- Hall under maintenance still gets scheduled
-- Movies deleted while future screenings still exist
-- No consistent seat template for each hall
-- No clear dashboard for upcoming screenings and activity
+## 1. Architecture Overview
 
-This system solves those with rules and centralized data.
+### Application Structure
 
----
+CineVillage is a **three-tier web application**:
 
-### 1.3 Who the users are
-The system is built for internal users:
-- **Admin**: full control
-- **Manager**: operational control
-
-The authentication model stores a role (`admin` or `manager`) in session, although role-based authorization is currently light (both use the same protected admin routes).
-
----
-
-### 1.4 High-level workflow (architecture-story style)
-A typical usage path:
-
-1. User opens app and logs in
-2. System creates session and grants access to `/admin/*`
-3. User sees dashboard summary:
-   - movies count
-   - active halls count
-   - today’s screenings
-   - upcoming screenings table
-4. User configures halls:
-   - dimensions
-   - seat matrix (regular/VIP/wheelchair/unavailable/empty)
-   - status (active/maintenance/cleaning)
-5. User creates or edits movies
-6. User schedules screenings through:
-   - manual form, or
-   - drag-and-drop timeline scheduler
-7. Scheduler checks:
-   - hall exists and active
-   - movie can be scheduled
-   - start time is future
-   - no duplicate screening (same movie/hall/start)
-   - no overlap against existing screenings with cleaning buffer
-8. User opens screening details and sees seat occupancy grid
-9. Completed screenings are auto-marked by backend logic
-
-This is a classic **server-rendered MVC app**: browser requests pages, server renders HTML (EJS), database stores domain data, and JS enhances interactions.
-
----
-
-### 1.5 Software architecture map in words
-Think of a flow diagram with these boxes:
-
-- **Browser (Client)**
-  - submits forms
-  - receives rendered HTML
-  - runs `public/js/main.js` for UI behavior
-
-- **Express App (`app.js`)**
-  - parses requests
-  - manages sessions
-  - dispatches route handlers
-
-- **Routes**
-  - map URLs + HTTP methods to controllers
-
-- **Controllers**
-  - receive request
-  - call services/models
-  - decide which EJS view or JSON response to return
-
-- **Services**
-  - contain business rules (especially scheduling/seat logic)
-
-- **Models (Mongoose)**
-  - schemas, validation, hooks, database querying
-
-- **MongoDB**
-  - persistent data store
-
-- **Views (EJS)**
-  - HTML templates with embedded dynamic data
-
-- **Public assets (CSS/JS/images)**
-  - styling and interactive behavior
-
----
-
-## 2. TECHNOLOGY STACK EXPLANATION
-
-### 2.1 Node.js
-**Node.js** is JavaScript runtime on the server.
-
-Why used here:
-- same language (JS) for server and client-side scripts
-- large ecosystem (`express`, `mongoose`, `multer`, etc.)
-- excellent for web APIs and request handling
-
-Java/Python comparison:
-- Similar to running a Java Spring Boot app on JVM or a Python Flask app on CPython.
-- Node’s concurrency model is event-loop based (non-blocking I/O), unlike traditional thread-per-request models.
-
----
-
-### 2.2 Express.js
-**Express** is the web framework handling:
-- routing (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`)
-- middleware chain
-- request/response abstraction
-
-Why used here:
-- minimal but powerful structure
-- easy middleware composition
-- works naturally with server-rendered EJS
-
-Java analogy:
-- Express routes + middleware are conceptually similar to Spring `@Controller`, filters, and handler mappings.
-
-Python analogy:
-- similar in spirit to Flask route functions + decorators + middlewares.
-
----
-
-### 2.3 MongoDB + Mongoose
-**MongoDB** stores JSON-like documents (BSON), not relational tables.
-
-**Mongoose** provides:
-- schemas (field types + validation)
-- model methods/statics
-- middleware hooks (`pre('save')`, `pre('validate')`)
-
-Why used here:
-- flexible schema for nested structures like seat matrices (`[[String]]`, `[[SeatCell]]`)
-- easy references between collections (`movie`, `hall` in screening)
-- rapid development for CRUD-heavy admin tools
-
-SQL comparison:
-- No joins in DB schema design; references are linked and later `populate`d.
-- Nested arrays are straightforward in document model.
-
----
-
-### 2.4 EJS Templates
-**EJS (Embedded JavaScript)** renders HTML on server with injected variables.
-
-Why used here:
-- simple server-side rendering
-- no heavy SPA framework required
-- easy to maintain for CRUD dashboards
-
-Comparison:
-- Similar to JSP/Thymeleaf in Java, or Jinja2 templates in Python Flask/Django.
-
----
-
-### 2.5 Session stack (`express-session` + `connect-mongo`)
-Sessions are persisted in MongoDB.
-
-Why this matters:
-- authentication survives server restarts better than in-memory sessions
-- centralized session store
-- secure cookie settings (httpOnly, sameSite, secure in prod)
-
----
-
-### 2.6 File upload (`multer`)
-`multer` handles movie poster uploads.
-- validates MIME type
-- file size limit (5MB)
-- safe generated filename
-
----
-
-### 2.7 Styling stack
-- Bootstrap 5 base utilities/components
-- TemplateMo theme files
-- Project custom overrides (`public/css/styles.css`)
-
-Why this split:
-- fast UI foundation
-- consistent branded dark theme
-- custom cinema-specific widgets (seat grids, timeline scheduler)
-
----
-
-## 3. PROJECT FOLDER STRUCTURE
-
-Below is the conceptual structure and interaction map.
-
-### 3.1 Root files
-- `app.js`: application entry point
-- `package.json`: dependencies + scripts
-- `README.md`: setup and overview
-
-### 3.2 `config/`
-- `db.js`: MongoDB connection logic
-
-Interaction:
-- `app.js` calls `connectDB()` before serving traffic.
-
-### 3.3 `models/`
-- `User.js`
-- `Hall.js`
-- `Movie.js`
-- `Screening.js`
-
-Purpose:
-- define data schema, validations, hooks, methods
-
-Interaction:
-- services and controllers query/update these models.
-
-### 3.4 `services/`
-- `hallService.js`
-- `movieService.js`
-- `screeningService.js`
-
-Purpose:
-- business rules and domain logic
-
-Interaction:
-- controllers delegate complex decisions to services.
-
-### 3.5 `controllers/`
-- `authController.js`
-- `dashboardController.js`
-- `hallController.js`
-- `movieController.js`
-- `screeningController.js`
-
-Purpose:
-- route handlers: parse request, call service/model, render response
-
-### 3.6 `routes/`
-- `authRoutes.js`
-- `adminRoutes.js`
-- `hallRoutes.js`
-- `movieRoutes.js`
-- `screeningRoutes.js`
-
-Purpose:
-- map URLs + HTTP methods to controller functions
-
-### 3.7 `middleware/`
-- `authMiddleware.js`: login guard
-- `errorMiddleware.js`: centralized error handling + `AppError`
-- `uploadMiddleware.js`: poster upload processing
-- `validationMiddleware.js`: request validations
-
-### 3.8 `utils/`
-- `validationUtils.js`: password strength helper utilities
-
-### 3.9 `views/`
-- `layouts/`: global shell layout
-- `partials/`: reusable fragments (sidebar/footer/header)
-- feature folders (`auth`, `dashboard`, `halls`, `movies`, `screenings`, `admin`)
-- `error.ejs`
-
-### 3.10 `public/`
-- `css/`: theme + custom styles
-- `js/`: main client behavior
-- `images/`: static assets including seat icon
-- `uploads/posters/`: uploaded movie posters
-
-### 3.11 `css-template/`
-Present but empty in this workspace. Likely scaffolding folder; active CSS is under `public/css`.
-
-### 3.12 `documents/`, `prompts/`
-Assignment and documentation artifacts. Not part of runtime logic.
-
----
-
-## 4. APPLICATION ENTRY POINT
-
-File: `app.js`
-
-We will walk top to bottom.
-
-### 4.1 Imports and dependencies
-`app.js` imports:
-- express core
-- path helpers
-- method override
-- session modules
-- env config
-- app-specific modules (db, middleware, routes)
-
-### 4.2 Express app creation + DB connection
-```js
-const app = express();
-connectDB();
 ```
-Important design choice: DB connection is initiated during startup. If connection fails, process exits from `config/db.js`.
+Presentation Layer (EJS Templates + Bootstrap UI)
+    ↓
+Business Logic Layer (Controllers + Services)
+    ↓
+Data Access Layer (Mongoose Models + MongoDB)
+```
 
-### 4.3 View engine setup
-```js
+**Key Architectural Patterns:**
+- **MVC Model**: Models define data, Views render UI, Controllers orchestrate logic
+- **Service Layer Pattern**: Business logic separated from HTTP handling
+- **Middleware Chain**: Stackable request/response processing
+- **Repository Pattern**: Service classes abstract database operations
+- **Singleton Pattern**: Shared database connection through `config/db.js`
+
+### Entry Point: app.js
+
+The `app.js` file bootstraps the entire application:
+
+```javascript
+// 1. Import dependencies
+const express = require('express');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
+
+// 2. Create Express app
+const app = express();
+
+// 3. Configure view engine (EJS + Layouts)
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
 app.set('layout', 'layouts/main');
-```
-Meaning:
-- EJS renders templates
-- default wrapper is `views/layouts/main.ejs`
 
-### 4.4 Request body parsing middleware
-```js
+// 4. Register middleware (order matters!)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-```
-- JSON parsing for API-style requests
-- URL-encoded parsing for HTML forms
-
-### 4.5 Method override for HTML forms
-```js
 app.use(methodOverride('_method'));
-```
-Because HTML forms support only `GET` and `POST`, this enables semantic methods via query string:
-- `?_method=PUT`
-- `?_method=DELETE`
-- `?_method=PATCH`
+app.use(session({...}));
 
-### 4.6 Static files
-```js
-app.use(express.static(path.join(__dirname, 'public')));
-```
-Serves CSS/JS/images and uploaded posters under `/public` path root.
-
-### 4.7 Session setup
-Session config includes:
-- secret key
-- MongoDB session store (`connect-mongo`)
-- TTL one day
-- cookie security settings
-
-Notable security settings:
-- `httpOnly: true`
-- `sameSite: 'strict'`
-- `secure` enabled in production
-
-### 4.8 Locals middleware (global template variables)
-```js
-res.locals.flash = req.session.flash;
-res.locals.user = req.session.userId ? { ... } : null;
-delete req.session.flash;
-```
-This injects `flash` and `user` into all EJS views automatically.
-
-### 4.9 Route mounting
-```js
-app.use('/', authRoutes);
+// 5. Mount routes
+app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
 app.use('/admin/halls', hallRoutes);
 app.use('/admin/movies', movieRoutes);
 app.use('/admin/screenings', screeningRoutes);
-```
-This means each route file defines **sub-paths** relative to these prefixes.
 
-### 4.10 404 handler and error handler
-Order matters:
-1. catch unmatched route -> render 404 page
-2. error middleware handles thrown operational/unexpected errors
+// 6. Error handler (last middleware)
+app.use(errorHandler);
 
-### 4.11 Server startup
-`PORT` from env (default 3000), then `app.listen`.
-
----
-
-## 5. ROUTING SYSTEM
-
-### 5.1 Express routing fundamentals in this project
-Every route maps:
-- HTTP method (`GET`, `POST`, etc.)
-- URL path
-- middleware chain
-- final controller function
-
-Example:
-```js
-router.post('/', validateHall, hallController.create);
-```
-Flow:
-1. incoming POST `/admin/halls`
-2. `validateHall` runs first
-3. if valid, `hallController.create` executes
-
----
-
-### 5.2 Route groups
-
-#### Auth routes (`/` prefix)
-From `authRoutes.js`:
-- `GET /` redirect logic
-- `GET /login`, `POST /login`
-- `POST /logout`
-- register/forgot/reset password endpoints
-
-#### Admin general (`/admin`)
-From `adminRoutes.js`:
-- protected by `requireAuth`
-- `GET /admin/dashboard`
-- `GET /admin/settings`
-
-#### Hall routes (`/admin/halls`)
-- list, create form, create, show, edit form, update, delete
-
-#### Movie routes (`/admin/movies`)
-- list, create form, create, edit form, update, delete
-- create/update include upload + validation middleware
-
-#### Screening routes (`/admin/screenings`)
-Two clusters:
-1) standard CRUD pages
-2) timeline JSON endpoints for drag-and-drop scheduler:
-   - `GET /timeline/data`
-   - `POST /timeline`
-   - `PATCH /timeline/:id/move`
-   - `PATCH /timeline/:id/cancel`
-   - `DELETE /timeline/:id`
-
----
-
-### 5.3 GET vs POST vs PUT vs PATCH vs DELETE in this app
-- **GET**: fetch pages/data (no data mutation)
-- **POST**: create new records or login/logout actions
-- **PUT**: full update operations (hall/movie/screening forms)
-- **PATCH**: partial state change (cancel, move timeline)
-- **DELETE**: remove resources
-
-Because form method limitations exist, method override makes PUT/PATCH/DELETE possible from EJS forms.
-
----
-
-## 6. CONTROLLERS
-
-Controllers are the request orchestration layer. Let’s examine each.
-
-### 6.1 `authController`
-Responsibilities:
-- render login/register/password pages
-- perform authentication and account recovery
-- manage session lifecycle
-
-#### `renderLogin`
-- if already authenticated, redirects to dashboard
-- else renders login form
-
-#### `login`
-Detailed logic:
-1. validate required username/password
-2. find user by username
-3. if user missing -> generic invalid credentials
-4. if account locked -> show remaining lock time
-5. verify password with bcrypt method on model
-6. if mismatch:
-   - increment failed attempts
-   - warn about remaining attempts
-   - lock after threshold (5 attempts)
-7. if success:
-   - reset attempts
-   - update `lastLogin`
-   - write session fields (`userId`, `username`, `role`, `lastLogin`)
-   - redirect dashboard
-
-#### `logout`
-- destroys server session
-- clears session cookie
-- redirects to login
-
-#### `register`
-1. validate fields
-2. check password match
-3. enforce strength policy (`validationUtils`)
-4. create `User` with plain password in `passwordHash` field
-5. model `pre('save')` hashes password
-6. set session and redirect dashboard
-
-#### Forgot/reset password flow
-- generates cryptographic token
-- stores hashed token + expiry in DB
-- development mode logs reset URL in server console
-- reset endpoint validates token and expiry
-- checks password policy + password history reuse
-- updates password and clears reset fields
-
-This controller is security-heavy and uses model methods extensively.
-
----
-
-### 6.2 `dashboardController`
-#### `index`
-- computes today range (`todayStart`, `todayEnd`)
-- loads current user profile
-- runs four parallel queries:
-  - movie count
-  - active hall count
-  - today screening count
-  - upcoming screenings list with populated movie/hall
-- renders dashboard view with stats and table data
-
-#### `renderSettings`
-Simple page render.
-
----
-
-### 6.3 `hallController`
-Responsibilities:
-- hall CRUD
-- seat matrix parsing + validation handling
-- maintenance constraints
-
-Helper functions inside controller:
-- `normalizeSeatMatrixInput`: accepts array or JSON string and normalizes
-- `getSeatTypeCounts`: computes counts for form display
-- `renderEditFormWithError`: convenience renderer for update error paths
-
-#### `index`
-Fetches all halls sorted by latest and renders list.
-
-#### `show`
-Delegates to `HallService.getHallStatistics`, then renders details and seat preview.
-
-#### `renderForm`
-- create mode: blank form
-- edit mode: loads hall + seat matrix
-
-#### `create`
-Step-by-step:
-1. parse primitive fields (name/rows/columns/status)
-2. parse and normalize seatMatrix payload
-3. if matrix given -> `HallService.processSeatMatrix`
-4. else generate regular default matrix
-5. compute `seatTypes`
-6. if status maintenance -> require and validate date range
-7. build hall document and save
-8. set flash success and redirect
-
-#### `update`
-Similar to create, plus:
-- fetches existing hall
-- applies updates
-- if maintenance status, checks conflicts with screenings (`checkMaintenanceConflicts`)
-- clears maintenance fields when status not maintenance
-
-#### `delete`
-- blocks deletion if future screenings exist for hall
-- otherwise deletes and flashes success
-
----
-
-### 6.4 `movieController`
-Responsibilities:
-- movie listing with filters
-- movie create/update/delete
-- poster upload error handling
-
-Helper:
-- `getMovieFormData` + `renderMovieForm` to avoid duplicate form rendering logic
-
-#### `index`
-Reads query filters (`search`, `genre`, `status`, `releaseYear`) and calls `MovieService.getAllMovies`.
-
-#### `create` / `update`
-Pipeline includes:
-1. upload middleware sets `req.file` or `req.uploadError`
-2. validation middleware ensures required fields
-3. controller checks upload errors
-4. delegates to service create/update
-5. handles validation/AppError paths by rerendering form
-
-#### `delete`
-Delegates to service which blocks deletion if future screenings exist.
-
----
-
-### 6.5 `screeningController`
-This is the most complex controller because it supports both page rendering and timeline API endpoints.
-
-Constants/helpers:
-- default cleaning buffer from env
-- timeline slot size = 30 minutes
-- date normalization helpers
-- screening serializer for client-side JSON
-- `_snapToTimelineSlot` rounds times to nearest slot
-
-#### `index`
-1. marks old scheduled screenings as completed
-2. loads selected date
-3. fetches halls, non-archived movies, and timeline screenings in parallel
-4. transforms halls and screenings to simplified JSON-friendly structures
-5. renders timeline page
-
-#### `show`
-Seat occupancy logic:
-- loads screening + populated movie/hall
-- checks if `seatOccupancy` exists
-- if missing, generates fallback from hall and persists
-- computes stats (occupied/available/unavailable/total)
-- renders occupancy page
-
-#### `create` / `update`
-Use `ScreeningService` for full scheduling validation and persistence.
-
-#### `delete` / `cancel`
-- delete removes screening document
-- cancel changes status to `Cancelled` through service
-
-#### Timeline JSON endpoints
-- `getTimelineData`: returns screenings for date
-- `createFromTimeline`: validates payload, snaps time, creates screening
-- `moveTimelineScreening`: move existing screening to hall/time
-- `deleteTimelineScreening`: hard delete
-- `cancelTimelineScreening`: status update
-
-These endpoints allow AJAX drag-and-drop scheduling without full page reload.
-
----
-
-## 7. DATABASE MODELS (MONGODB)
-
-### 7.1 `User` schema
-Fields:
-- identity: `username`, `email`
-- auth: `passwordHash`
-- authorization: `role`
-- security: failed attempts, lock state, lock expiration
-- audit: `lastLogin`
-- password reuse prevention: `passwordHistory`
-- reset flow: token + expiry
-
-Key methods:
-- `verifyPassword`
-- `isPasswordReused`
-- `incrementLoginAttempts`
-- `resetLoginAttempts`
-- `isLocked`
-- `updateLastLogin`
-- `createPasswordResetToken`
-
-Key hook:
-- pre-save password hashing with bcrypt
-- pushes old hash into history when changed
-
-Design insight:
-- password history and lockout policy move logic close to user model.
-
----
-
-### 7.2 `Hall` schema
-Fields:
-- basic: `name`, `rows`, `columns`
-- seat metadata: `seatTypes` (counts by type)
-- seat matrix: `seats` as 2D string array
-- status: active/maintenance/cleaning
-- maintenance schedule fields
-
-Virtual:
-- `capacity = rows * columns`
-
-Methods:
-- `getSeatDistribution`
-- `generateSeatingLayout`
-- `_getSeatLabel`
-- `getStatusBadgeClass`
-
-Validations:
-- matrix dimensions must match rows/columns
-- seat values constrained to valid types
-- seat type totals cannot exceed capacity
-- maintenance date consistency
-
-Important note:
-`capacity` includes geometric size (`rows*columns`) even if matrix includes `empty` or `unavailable`; practical sellable seats are interpreted from matrix itself where needed.
-
----
-
-### 7.3 `Movie` schema
-Fields:
-- `title`, `description`
-- `durationMinutes`
-- `genre` (enum)
-- `releaseDate`
-- poster fields (`posterURL`, `posterPath`)
-- lifecycle status (`Now Showing`, `Coming Soon`, `Archived`)
-
-Virtual:
-- `durationFormatted` (e.g., `2h 10m`)
-
-Model logic:
-- instance method `getFutureScreeningsCount`
-- static `search` with title regex and optional filters
-
-Design choice:
-- both URL and local path for poster allow flexible source.
-
----
-
-### 7.4 `Screening` schema
-Fields:
-- references: `movie`, `hall`
-- schedule: `startTime`, `endTime`, `date`
-- status: `Scheduled` / `Cancelled` / `Completed`
-- `seatOccupancy`: 2D array of seat state objects
-
-Seat occupancy cell object:
-- `type`: regular/vip/wheelchair/unavailable/empty
-- `status`: available/occupied/unavailable
-
-Indexes:
-- `{ hall, date }`
-- `{ startTime }`
-- `{ movie }`
-
-Pre-validate hook behavior:
-- computes normalized `date` from startTime
-- fetches movie duration and computes endTime
-- auto-switches past scheduled records to completed
-
-Design rationale:
-- schedule and seat state are attached to screening itself, enabling historical correctness.
-
----
-
-### 7.5 Relationships between collections
-- `Screening.movie` references `Movie`
-- `Screening.hall` references `Hall`
-- User is mostly independent except auth/session
-
-No direct relational constraints like SQL foreign keys; integrity is enforced by application logic and query checks.
-
----
-
-### 7.6 Seat matrix and occupancy structures (critical)
-Two separate representations exist:
-
-1) **Hall template (`Hall.seats`)**
-```js
-[
-  ['regular', 'regular', 'vip'],
-  ['wheelchair', 'regular', 'empty']
-]
-```
-Meaning: physical seat layout blueprint for that hall.
-
-2) **Screening snapshot (`Screening.seatOccupancy`)**
-```js
-[
-  [ {type:'regular', status:'available'}, {type:'regular', status:'occupied'} ],
-  [ {type:'vip', status:'available'}, {type:'empty', status:'unavailable'} ]
-]
-```
-Meaning: stateful view of seat availability for one specific screening.
-
-This separation is foundational and will be revisited in sections 9 and 13.
-
----
-
-## 8. SCREENING SCHEDULER SYSTEM
-
-This is the most complex feature. It combines backend validation with frontend timeline UX.
-
-### 8.1 Timeline concept
-- Day is represented in 30-minute slots
-- UI splits into AM and PM views
-- Each hall is one row
-- Each screening is a block spanning duration slots
-
-In CSS, `--time-columns: 24` with `SLOT_MINUTES=30` means each view shows 12 hours.
-
----
-
-### 8.2 Scheduling input channels
-Two ways to create/update screening:
-
-1) Manual form (`/admin/screenings/new`) with datetime input
-2) Drag movie into timeline slot (`POST /timeline`), or drag existing block to move (`PATCH /timeline/:id/move`)
-
-Both paths eventually hit `ScreeningService` for rule enforcement.
-
----
-
-### 8.3 Duration and end time calculation
-Core formula:
-
-$$
-\text{endTime} = \text{startTime} + (\text{movieDurationMinutes} \times 60{,}000)
-$$
-
-This is enforced in:
-- service create/update logic
-- model pre-validate hook (safety net)
-
----
-
-### 8.4 Overlap prevention logic (including cleaning buffer)
-Service constants:
-- `BUFFER_BEFORE_MINUTES`
-- `BUFFER_AFTER_MINUTES`
-- default from env, fallback 15
-
-For a new screening interval `[start, end]`, buffered interval is:
-
-$$
-[start - b_{before},\; end + b_{after}]
-$$
-
-Query pulls possible conflicts in same hall where:
-- existing.start < newBufferedEnd
-- existing.end > newBufferedStart
-- existing not cancelled
-
-Then overlap is validated again in code and throws AppError with detailed message including conflicting movie and time window.
-
-This double-check is robust and user-friendly.
-
----
-
-### 8.5 Duplicate screening prevention
-Additional rule checks exact duplicate:
-- same movie
-- same hall
-- same startTime
-- non-cancelled
-
-Prevents accidental duplicate block creation.
-
----
-
-### 8.6 Movie eligibility rules for scheduling
-`_validateMovieSchedulingEligibility` enforces:
-- archived movies cannot be scheduled
-- coming-soon movies with future release date cannot be scheduled yet
-
-This links planning workflow directly to movie lifecycle status.
-
----
-
-### 8.7 Hall eligibility rules for scheduling
-Hall must exist and have `status === 'active'`.
-Maintenance/cleaning halls are blocked.
-
----
-
-### 8.8 Timeline data retrieval and rendering
-Backend:
-- `getTimelineScreeningsByDate` loads screenings overlapping selected day
-
-Frontend (`main.js`):
-1. parse preloaded halls/screenings from `data-*` attributes
-2. build master grid with hall column + hourly markers
-3. for each screening, compute visible overlap with current AM/PM window
-4. render block with title/time and actions
-
----
-
-### 8.9 Drag-and-drop mechanics
-Movie drag payload:
-```js
-{ type: 'movie', movieId, durationMinutes, title }
-```
-Screening drag payload:
-```js
-{ type: 'screening', screeningId, durationMinutes, title }
+// 7. Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT);
 ```
 
-On slot hover:
-- render preview block showing start/end and buffer note
-
-On drop:
-- block past times
-- block inactive halls
-- dispatch create or move API call
-- refresh timeline data
-
----
-
-### 8.10 Slot snapping
-Controller method `_snapToTimelineSlot` rounds submitted start times to nearest 30-minute boundary.
-This keeps data aligned with visual grid and prevents weird half-slot offsets.
+**Middleware Execution Order** (critical for understanding request flow):
+1. Body parsers (`express.json`, `express.urlencoded`)
+2. Method override (converts POST with `_method=PUT` to PUT)
+3. Session middleware (populates `req.session`)
+4. Flash middleware (reads/clears flash messages)
+5. Auth middleware on protected routes
+6. Controller logic
+7. Error handler (only if error thrown)
 
 ---
 
-### 8.11 Status lifecycle in scheduler
-- new/update -> `Scheduled`
-- cancel endpoint -> `Cancelled`
-- periodic update call in index/data endpoints marks old scheduled screenings as `Completed`
+## 2. Technology Stack
 
-This keeps timeline semantically clean.
+### Backend
 
----
+| Component | Package | Purpose |
+|-----------|---------|---------|
+| **Server** | Express 4.x | HTTP server, routing, middleware |
+| **Database** | MongoDB | Document store |
+| **ODM** | Mongoose 7.x | Schema validation, hooks, queries |
+| **Sessions** | express-session + connect-mongo | Persistent user sessions in MongoDB |
+| **Templating** | EJS + express-ejs-layouts | Server-side HTML rendering with layout inheritance |
+| **File Upload** | multer | Middleware for poster image uploads |
+| **Passwords** | bcrypt | Secure password hashing with salt rounds |
+| **Env Config** | dotenv | Environment variable management |
+| **HTTP Override** | method-override | Simulate PUT/DELETE from HTML forms |
 
-## 9. SEAT MANAGEMENT SYSTEM
+### Frontend
 
-### 9.1 Two-level seat architecture
-The system intentionally separates:
-- **hall-level template** (physical arrangement)
-- **screening-level occupancy** (state at runtime)
+| Component | Library | Purpose |
+|-----------|---------|---------|
+| **Framework** | Bootstrap 5 | Responsive grid, components, utilities |
+| **Icons** | Bootstrap Icons | SVG icon set |
+| **CSS Theme** | Custom Dark Theme | Dark mode with CSS variables |
+| **Interactive UI** | Vanilla JavaScript | Event listeners, DOM manipulation, AJAX |
+| **Drag-Drop** | Native HTML5 API | Timeline scheduling & movie dragging |
+| **HTTP Requests** | Fetch API | Async AJAX calls to backend |
 
-This is similar to:
-- class definition (template)
-- object instance state (runtime-specific)
+User clicks button
+↓
+Frontend JS (event listener)
+↓
+AJAX request (fetch)
+↓
+Express route
+↓
+Controller
+↓
+Database (Model)
+↓
+Response sent back
+↓
+Frontend updates DOM
 
----
+### Development & Runtime
 
-### 9.2 Hall seat template creation/editing
-On hall form page:
-- user sets rows/columns
-- clicks “Generate Seating Layout”
-- seat grid appears
-- seat editing modes: regular/vip/wheelchair/unavailable/empty
-- client script updates 2D matrix and hidden JSON payload
-
-Backend receives flattened matrix JSON and reconstructs matrix via `HallService.processSeatMatrix`.
-
----
-
-### 9.3 Seat type counting and distribution
-After matrix processed:
-- service counts types
-- stores compact `seatTypes` summary
-
-Used in hall list/detail for quick stats and badges.
-
----
-
-### 9.4 Screening seat snapshot initialization
-When screening is created or hall changed:
-- `buildInitialSeatOccupancy(hallDoc)` maps hall seat template into occupancy cells
-
-Mapping logic:
-- `empty` => `{ type:'empty', status:'unavailable' }`
-- `unavailable` => `{ type:'unavailable', status:'unavailable' }`
-- regular/vip/wheelchair => same type with status `available`
-
-Result: screening receives independent snapshot.
+| Tool | Version | Purpose |
+|------|---------|---------|
+| **Node.js** | 14+ | JavaScript runtime |
+| **npm** | 6+ | Package manager |
+| **.env** | (local) | Database URI, session secret, API config |
 
 ---
 
-### 9.5 Why snapshot per screening matters
-Suppose hall template changes tomorrow (renovation). Historical screenings from last week should still show old seat map. Snapshot ensures that.
+## 3. Database Design & Models
 
-Without snapshot:
-- old screening views would mutate retroactively
-- occupancy analytics would become inconsistent
+### MongoDB Connection Flow
 
-So snapshot gives temporal data integrity.
+**File**: `config/db.js`
 
----
+```javascript
+const connectDB = async () => {
+    try {
+        await mongoose.connect(process.env.MONGODB_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        console.log('✓ Connected to MongoDB');
+    } catch (error) {
+        console.error('✗ MongoDB connection failed:', error);
+        process.exit(1);
+    }
+};
+```
 
-### 9.6 Occupancy view rendering
-`screenings/show.ejs`:
-- reads `seatOccupancy`
-- computes counts by status
-- displays read-only seat grid with color-coded legend
+**Connection String Format**: `mongodb://localhost:27017/cinevillage` or MongoDB Atlas URI
 
-If missing occupancy, controller generates fallback and saves it, preventing broken page states.
+### Model: User
 
----
+**Location**: `models/User.js`
 
-### 9.7 Current scope and future extension
-Current app visualizes occupancy but does not include customer booking flow. However model design already supports it (`occupied` status). Future booking engine could toggle seat statuses per ticket purchase.
+**Purpose**: Stores admin credentials, passwords, session tokens, and lockout state for brute-force protection.
 
----
+**Schema Fields**:
+```javascript
+{
+  username: String (required, unique, lowercase),
+  email: String (required, unique, lowercase),
+  passwordHash: String (required, bcrypt hashed),
+  role: String (enum: ['admin', 'editor'], default: 'admin'),
+  isActive: Boolean (default: true),
+  
+  // Brute-force protection
+  lockoutUntil: Date (null unless locked),
+  lockoutAttempts: Number (default: 0),
+  
+  // Password recovery
+  passwordHistory: [String] (last 5 hashed passwords),
+  resetToken: String (one-time token for password reset),
+  resetTokenExpiry: Date (expires in 1 hour),
+  
+  // Audit trail
+  createdAt: Date (auto),
+  updatedAt: Date (auto)
+}
+```
 
-## 10. FRONTEND TEMPLATE SYSTEM (EJS)
-
-### 10.1 What EJS is in this app
-EJS files are HTML with embedded JS tags:
-- `<%= value %>` escaped output
-- `<%- html %>` unescaped output
-- `<% logic %>` control flow
-
-Server renders final HTML string and sends to browser.
-
----
-
-### 10.2 Layout architecture
-`views/layouts/main.ejs` is global shell.
-
-It handles two page modes:
-- authenticated: sidebar + main content + footer
-- unauthenticated: auth page layout
-
-It includes all shared CSS and main JS, plus optional per-page `style`/`script` blocks.
-
----
-
-### 10.3 Partials
-Reusable fragments:
-- `partials/sidebar.ejs`
-- `partials/navbar.ejs`
-- `partials/header.ejs`
-- `partials/footer.ejs`
-
-Benefits:
-- avoids duplication
-- consistent navigation and branding
-
----
-
-### 10.4 Feature view organization
-- `auth/`: login/register/forgot/reset
-- `dashboard/`: dashboard summary
-- `halls/`: list/form/details
-- `movies/`: list/form
-- `screenings/`: timeline/form/show
-- `admin/settings.ejs`
-- `error.ejs`
-
-Create/edit wrapper files include shared `form.ejs` to avoid repeated markup.
-
----
-
-### 10.5 Controller-to-view data passing pattern
-Example pattern:
-```js
-res.render('movies/index', {
-  title: 'Movies',
-  username: req.session.username,
-  movies,
-  genres,
-  statuses,
-  filters
+**Pre-Save Hook** (runs before every save):
+```javascript
+userSchema.pre('save', async function(next) {
+  // If password not modified, skip hashing
+  if (!this.isModified('password')) return next();
+  
+  // Hash password with 10 salt rounds
+  this.passwordHash = await bcrypt.hash(this.password, 10);
+  
+  // Rotate password history (keep last 5)
+  if (this.passwordHistory && this.passwordHistory.length >= 5) {
+    this.passwordHistory.shift();
+  }
+  this.passwordHistory.push(this.passwordHash);
+  
+  next();
 });
 ```
 
-In EJS, these become variables directly available in template.
+**Methods**:
+- `comparePassword(password)` → Boolean (compares input password with hashed)
+- `isLocked()` → Boolean (checks lockout status)
+- `lock(durationMinutes)` → void (applies lockout)
 
----
+### Model: Hall
 
-### 10.6 Dynamic rendering examples
-- conditional alerts:
-  ```ejs
-  <% if (error) { %> ... <% } %>
-  ```
-- loops for table rows:
-  ```ejs
-  <% movies.forEach(movie => { %> ... <% }) %>
-  ```
-- computed classes for status badges
-- date formatting with JavaScript Date methods
+**Location**: `models/Hall.js`
 
----
+**Purpose**: Represents cinema halls with configurable seating layouts and maintenance schedules.
 
-### 10.7 Flash message integration
-`app.js` sets `res.locals.flash`, layout renders alert if present. This pattern centralizes user feedback after redirects.
-
----
-
-### 10.8 EJS vs plain HTML
-Plain HTML is static.
-EJS generates dynamic pages from data at request time.
-
-Equivalent idea in Java/Python:
-- JSP/Thymeleaf templates (Java)
-- Jinja2 templates (Python)
-
----
-
-## 11. CSS TEMPLATE SYSTEM
-
-### 11.1 CSS files and roles
-Loaded in layout in this order:
-1. `templatemo-crypto-style.css` (base theme, variables, layout primitives)
-2. `templatemo-crypto-dashboard.css` (dashboard components)
-3. `templatemo-crypto-pages.css` (page-level reusable patterns)
-4. `templatemo-crypto-login.css` (auth page styles)
-5. `styles.css` (project-specific overrides and cinema features)
-
-Order matters: later files can override earlier styles.
-
----
-
-### 11.2 Theme strategy
-Template uses CSS custom properties (variables) for dark theme:
-- background palette
-- text colors
-- borders/shadows
-- accent gradient
-
-`styles.css` also remaps many Bootstrap variables (`--bs-*`) to dark equivalents, ensuring Bootstrap components match template theme.
-
----
-
-### 11.3 Reusable UI components
-Examples:
-- `.action-btn` variants
-- cards and tables
-- sidebar navigation states
-- status badges
-- alert color tuning for dark mode
-
-These classes are reused across halls/movies/screenings pages.
-
----
-
-### 11.4 Seat UI styling
-`styles.css` defines cinema-specific classes:
-- `.cinema-layout`
-- `.seat-layout`
-- `.seat-grid`
-- `.seat-regular`, `.seat-vip`, `.seat-wheelchair`, `.seat-unavailable`, `.seat-empty`, `.seat-occupied`
-- labels and legend icon classes
-
-Grid dimensions are controlled by CSS variables (`--rows`, `--cols`) and set dynamically in JS.
-
----
-
-### 11.5 Timeline scheduler styling
-Key classes:
-- `.timeline-master-grid`
-- `.timeline-hall-name`
-- `.timeline-slot-cell`
-- `.timeline-screening-block`
-- `.timeline-preview-block`
-- toolbar alignment classes
-
-This styling turns plain divs into a schedule planner UI.
-
----
-
-### 11.6 Responsive behavior
-- mobile sidebar toggle and overlay
-- reduced seat size at narrow width
-- timeline hall column width adjustments
-
----
-
-### 11.7 Notes on template assets
-`public/js/templatemo-crypto-script.js` exists but main layout currently uses `public/js/main.js`, so many template default interactions are effectively superseded by project-specific logic.
-
----
-
-## 12. REQUEST FLOW EXAMPLES
-
-This section traces real request lifecycle from browser to rendered output.
-
-### Example 1: Admin logs in
-
-#### Step 1: Browser submits form
-`POST /login` with `username`, `password` from `views/auth/login.ejs`.
-
-#### Step 2: Route dispatch
-`authRoutes.js` maps to `authController.login`.
-
-#### Step 3: Controller validation + user lookup
-- checks missing fields
-- `User.findOne({ username })`
-- lockout check
-
-#### Step 4: Password verification
-`await user.verifyPassword(password)` compares with bcrypt hash.
-
-#### Step 5: Session creation
-If valid:
-- set `req.session.userId`, `username`, `role`, `lastLogin`
-
-#### Step 6: Redirect
-`res.redirect('/admin/dashboard')`
-
-#### Step 7: Protected route access
-`adminRoutes.js` uses `requireAuth`; since session exists, access granted.
-
-#### Step 8: Dashboard data queries
-`dashboardController.index` fetches counts and screenings.
-
-#### Step 9: View rendering
-`res.render('dashboard/index', data)` inside `layouts/main.ejs`.
-
-#### Step 10: Browser receives HTML + CSS + JS
-User sees dashboard.
-
----
-
-### Example 2: Admin schedules a movie screening from timeline
-
-#### Step 1: User drag movie to timeline slot
-Client JS computes target hall + slot -> datetime.
-
-#### Step 2: AJAX request
-`POST /admin/screenings/timeline` with payload:
-- movieId
-- hallId
-- startDateTime
-
-#### Step 3: Controller parsing
-`screeningController.createFromTimeline`:
-- validates required fields
-- snaps time to 30-min slot
-- calls `ScreeningService.createScreening`
-
-#### Step 4: Service rule checks
-- movie exists and schedulable
-- hall exists and active
-- start in future
-- duplicate check
-- overlap check with cleaning buffer
-
-#### Step 5: Seat snapshot initialization
-Service generates `seatOccupancy` from hall matrix.
-
-#### Step 6: Save screening document
-MongoDB receives new screening.
-
-#### Step 7: JSON success response
-Controller returns serialized screening data.
-
-#### Step 8: Client refreshes timeline
-`refreshTimelineData()` calls `GET /timeline/data?date=...` and re-renders grid.
-
-Outcome: user sees new block instantly.
-
----
-
-### Example 3: Admin views seat occupancy for screening
-
-#### Step 1: Browser navigation
-`GET /admin/screenings/:id`
-
-#### Step 2: Route -> controller
-`screeningController.show`
-
-#### Step 3: Load screening + references
-`Screening.findById(...).populate('movie').populate('hall')`
-
-#### Step 4: Occupancy integrity check
-If occupancy missing/empty:
-- build fallback from hall via service
-- save screening
-
-#### Step 5: Compute seat statistics
-Counts occupied/available/unavailable from matrix.
-
-#### Step 6: Render EJS
-`views/screenings/show.ejs` generates read-only seat map.
-
-#### Step 7: Browser displays occupancy legend and grid
-User sees screening-specific seat state snapshot.
-
----
-
-## 13. KEY DESIGN DECISIONS
-
-### 13.1 Service layer between controller and model
-Decision:
-- keep controllers thinner
-- put reusable business rules in services
-
-Why good:
-- avoids duplicating overlap logic in multiple controller functions
-- easier to test and maintain domain rules
-
----
-
-### 13.2 Screening stores seat snapshot (not just hall reference)
-Decision:
-- persist `seatOccupancy` inside screening
-
-Why good:
-- historical consistency over time
-- supports per-screening seat states
-- future booking integration ready
-
-Tradeoff:
-- data duplication (similar structure copied from hall)
-
----
-
-### 13.3 Timeline uses slot-based grid (30-min blocks)
-Decision:
-- discrete slots instead of free-pixel timeline
-
-Why good:
-- easier drag/drop alignment
-- easier overlap reasoning
-- cleaner UX for operators
-
-Tradeoff:
-- less granular than minute-level scheduling
-
----
-
-### 13.4 Cleaning buffer enforced before and after screenings
-Decision:
-- include operational turnaround time in conflict checks
-
-Why good:
-- realistic cinema operations
-- prevents impossible back-to-back schedules
-
-Tradeoff:
-- slightly reduced hall utilization
-
----
-
-### 13.5 Soft lifecycle via statuses
-Movies: Now Showing / Coming Soon / Archived
-Screenings: Scheduled / Cancelled / Completed
-Halls: active / maintenance / cleaning
-
-Why good:
-- supports workflows beyond simple CRUD delete
-- keeps history while controlling behavior
-
----
-
-### 13.6 Session-based authentication with Mongo store
-Decision:
-- classic server-side session model
-
-Why good:
-- simple for server-rendered apps
-- no JWT complexity for this assignment scope
-- integrates naturally with EJS pages
-
----
-
-### 13.7 `AppError` + centralized error handler
-Decision:
-- operational errors use structured custom class
-
-Why good:
-- consistent user-facing error pages
-- centralized handling of validation/cast/duplicate errors
-
----
-
-### 13.8 Method override for REST-like forms
-Decision:
-- use `_method` query parameter
-
-Why good:
-- keeps semantic HTTP methods while using standard HTML forms
-
----
-
-### 13.9 Multi-layer validation strategy
-Validation exists in:
-- route middleware
-- service logic
-- model schema/hooks
-
-Why good:
-- defense in depth
-- prevents invalid states from multiple entry paths
-
----
-
-## 14. POTENTIAL IMPROVEMENTS
-
-This section proposes realistic expansion directions.
-
-### 14.1 Customer ticket booking module
-Add customer-facing flow:
-- browse screenings
-- pick seats
-- reserve/purchase ticket
-- mark seats occupied atomically
-
-Technical additions:
-- booking model (customer, screening, seats, total)
-- transaction/locking strategy for seat concurrency
-
----
-
-### 14.2 Payment integration
-Integrate payment gateway (e.g., Stripe/PayPal)
-- payment intents
-- webhook reconciliation
-- failed payment rollback of seat reservation
-
----
-
-### 14.3 Role-based authorization hardening
-Currently both admin/manager share routes.
-Enhance with middleware checks:
-- only admin can delete halls/movies
-- manager can schedule but not manage users
-
----
-
-### 14.4 Hall capacity semantics refinement
-Current `capacity = rows*columns` might include `empty` and `unavailable` cells.
-Potential improvement:
-- computed sellable capacity excluding non-sellable seat types
-
----
-
-### 14.5 Better screening lifecycle automation
-Use scheduled jobs (cron/queue) instead of opportunistic updates during page load to mark completed screenings.
-
----
-
-### 14.6 API and frontend decoupling option
-For scaling:
-- expose REST/GraphQL API
-- build separate SPA frontend (React/Vue)
-
-Current server-rendered model is excellent for learning and internal admin operations, but decoupling can improve large-team scalability.
-
----
-
-### 14.7 Observability and auditing
-Add:
-- structured logs
-- operation audit trail (who changed what and when)
-- metrics for scheduling conflicts and utilization
-
----
-
-### 14.8 Testing strategy expansion
-Current codebase has no test suite.
-Recommended additions:
-- unit tests for service rules (especially overlap logic)
-- integration tests for route flows
-- UI smoke tests for timeline drag/drop
-
----
-
-### 14.9 Database indexing and query optimization
-As data grows:
-- compound index tuning for frequent timeline queries
-- pagination on large lists
-- projection optimization for dashboard queries
-
----
-
-### 14.10 Security enhancements
-- CSRF protection for form actions
-- stricter rate limiting on login/reset endpoints
-- security headers via helmet
-- stronger session invalidation policies
-
----
-
-### 14.11 Maintenance and deployment hardening
-- environment-specific config management
-- containerized deployment (Docker)
-- health checks
-- backup/restore plan for MongoDB
-
----
-
-## Closing Learning Notes (for students)
-
-If you are transitioning from Java/Python, the key conceptual bridges are:
-- Express routes ≈ controller endpoints
-- middleware chain ≈ request filter pipeline
-- Mongoose schema/model ≈ ORM entity + repository behavior
-- EJS templates ≈ server-side templating engines in other ecosystems
-- service layer = domain logic boundary
-
-The most educational parts of this codebase are:
-1. multi-layer validation
-2. scheduling conflict algorithm with buffer
-3. seat template vs screening snapshot design
-4. timeline UI + API interaction loop
-
-A practical way to study this project deeply:
-1. Start at `app.js`
-2. Follow one route group end-to-end (e.g., screenings)
-3. Read corresponding service rules
-4. Inspect model schema and hooks
-5. Open the EJS view and `main.js` section that consumes the response
-
-By repeating this pattern for each module, you will gain a full-stack mental model of MVC in Express + MongoDB.
-
----
-
-## APPENDIX A — FILE-BY-FILE DEEP WALKTHROUGH
-
-This appendix expands the main sections and walks through implementation details file by file. Treat this as a “guided code reading companion.”
-
-### A.1 `package.json` deep reading
-
-#### Metadata and scripts
-- `name`, `version`, `description` identify project package
-- `main: app.js` marks entry script
-- scripts:
-  - `start`: production-like run (`node app.js`)
-  - `dev`: hot-reload style run (`nodemon app.js`)
-  - `test`: placeholder currently
-
-This reveals development maturity stage: operational app, but no automated test pipeline yet.
-
-#### Dependencies by responsibility
-
-1) **Server framework**
-- `express`
-
-2) **View rendering**
-- `ejs`
-- `express-ejs-layouts`
-
-3) **Database and session persistence**
-- `mongoose`
-- `express-session`
-- `connect-mongo`
-
-4) **Security/auth primitives**
-- `bcrypt`
-
-5) **HTTP ergonomics**
-- `method-override`
-- `dotenv`
-
-6) **Uploads**
-- `multer`
-
-The dependency set is tightly focused and avoids unnecessary libraries. This is good for educational readability.
-
----
-
-### A.2 `config/db.js` deep reading
-
-`connectDB` is asynchronous and wraps `mongoose.connect` in try/catch.
-
-Behavior:
-1. Read `process.env.MONGODB_URI`
-2. Attempt connection
-3. On success, print host
-4. On failure, print message and `process.exit(1)`
-
-Design interpretation:
-- failing fast at startup is preferred over serving a broken app without DB
-- this makes operational errors obvious in development and deployment
-
-Potential extension:
-- add retry strategy for transient startup issues
-- add explicit options for timeout tuning
-
----
-
-### A.3 `middleware/errorMiddleware.js` deep reading
-
-`AppError` is custom typed error.
-
-Fields:
-- `statusCode`
-- `status` (`fail` for 4xx, `error` for 5xx)
-- `isOperational = true`
-
-Operational errors are expected business/user errors; programming errors are unexpected bugs.
-
-`errorHandler` execution path:
-1. default status and status string
-2. log error detail
-3. map known error kinds:
-  - Mongoose validation error
-  - duplicate key (`11000`)
-  - cast error (bad ObjectId)
-4. if operational error -> render controlled message
-5. otherwise 500 generic message (or detailed in development)
-
-Educational takeaway:
-- centralizing error translation is cleaner than repeating try/catch render logic in every controller.
-
----
-
-### A.4 `middleware/authMiddleware.js` deep reading
-
-`requireAuth` is intentionally small:
-```js
-if (!req.session || !req.session.userId) return res.redirect('/login');
-```
-
-This middleware protects admin routes by presence of session identity.
-
-Security note:
-- it is authentication guard, not role-based authorization. Role checks could be added as additional middleware.
-
----
-
-### A.5 `middleware/validationMiddleware.js` deep reading
-
-This middleware validates incoming request fields before controller logic.
-
-#### `validateScreening`
-Checks:
-1. movie/hall/startTime present
-2. startTime parseable as date
-3. startTime is in future
-
-#### `validateHall`
-Checks:
-1. required fields
-2. rows range 1–25
-3. columns range 1–25
-
-#### `validateMovie`
-Checks:
-1. required fields
-2. duration range 1–500
-3. valid release date
-4. status in enum if provided
-
-Pattern insight:
-- these are coarse-grained checks. Detailed business checks happen later in services/models.
-
----
-
-### A.6 `middleware/uploadMiddleware.js` deep reading
-
-Purpose: poster upload pipeline for movie forms.
-
-Steps:
-1. Ensure upload directory exists (`public/uploads/posters`)
-2. Configure disk storage:
-  - destination folder
-  - generated filename from sanitized title + timestamp + extension
-3. Restrict MIME types (`jpeg/jpg/png/webp`)
-4. Enforce file size max 5MB
-5. Expose `handlePosterUpload` wrapper that:
-  - attaches upload errors into `req.uploadError` (non-fatal to pipeline)
-  - continues controller flow
-
-Educational detail:
-- by attaching upload errors on request object, controller can rerender form with user message rather than crash.
-
----
-
-### A.7 `utils/validationUtils.js` deep reading
-
-Contains password policy logic:
-- minimum length
-- uppercase
-- number
-- special character
-
-Two exported helpers:
-1. boolean validator
-2. detailed error list generator
-
-Using both enables:
-- simple policy check where only pass/fail needed
-- user-friendly feedback when registration/reset fails
-
----
-
-### A.8 `models/User.js` line-by-line conceptual walkthrough
-
-#### Schema fields and rationale
-- `username`: unique human-readable login ID
-- `email`: unique recovery channel
-- `passwordHash`: stores hash, never plaintext
-- `role`: user type
-- lockout fields (`failedLoginAttempts`, `accountLocked`, `lockUntil`)
-- reset token fields (`resetPasswordToken`, `resetPasswordExpires`)
-- `passwordHistory`: prevents recent password reuse
-
-#### Pre-save hook behavior
-When `passwordHash` modified:
-1. if update (not new user), push previous hash into history
-2. keep only latest 5 history entries
-3. hash new password with bcrypt salt rounds 10
-
-This hook means controllers can assign plaintext password into `passwordHash`, and model guarantees final stored value is hashed.
-
-#### Methods deep usage map
-- `verifyPassword` used by login controller
-- `isPasswordReused` used in reset flow
-- `incrementLoginAttempts` called on failed login
-- `resetLoginAttempts` called on successful login
-- `isLocked` used before password verification
-- `updateLastLogin` updates audit timestamp
-- `createPasswordResetToken` generates random token, stores hash
-
-Lockout policy details:
-- after 5 failed attempts, lock for 30 minutes
-- lock info persisted in DB, so restart does not reset it
-
----
-
-### A.9 `models/Hall.js` deep walkthrough
-
-#### Schema structure
-
-`seatTypeSchema` summarizes counts by seat category (`regular`, `vip`, `wheelchair`).
-
-Main hall schema includes:
-- geometry (`rows`, `columns`)
-- matrix blueprint (`seats`)
-- summarized counts (`seatTypes`)
-- status and maintenance window
-
-#### Custom matrix validator
-When `seats` exists and non-empty:
-1. number of rows must equal `this.rows`
-2. each row length must equal `this.columns`
-3. each seat token must be valid enum
-
-This validator protects matrix consistency at persistence level.
-
-#### Virtual and methods
-- `capacity`: geometric capacity
-- `getSeatDistribution`: percentages by seat type
-- `generateSeatingLayout`: builds row/column label objects for rendering
-- `getStatusBadgeClass`: maps status to bootstrap badge class
-
-#### Pre-save hooks
-Hook 1:
-- validates maintenance date order
-- clears maintenance fields when status not maintenance
-
-Hook 2:
-- verifies seatType count sum <= capacity
-
-Design note:
-- two hooks separate concerns (maintenance integrity vs seat count integrity).
-
----
-
-### A.10 `models/Movie.js` deep walkthrough
-
-#### Core constraints
-- title and description length
-- duration bounds
-- genre enum
-- status enum
-- optional poster URL regex
-
-#### Virtual
-`durationFormatted` converts minutes into human-friendly text.
-
-#### Method
-`getFutureScreeningsCount` queries Screening collection for startTime > now.
-
-#### Static search
-Builds dynamic query from optional filters:
-- title regex (case-insensitive)
-- exact genre
-- exact status
-- release year range filter
-
-Educational mapping:
-- this static is equivalent to a parameterized repository search method in Java/Python.
-
----
-
-### A.11 `models/Screening.js` deep walkthrough
-
-#### Why both `date` and `startTime`/`endTime`?
-- `startTime`/`endTime` needed for exact schedule conflict logic
-- `date` supports day-level filters/indexing
-
-#### Pre-validate hook
-If new or relevant fields changed:
-1. normalize `date` to day boundary of start time
-2. load movie duration
-3. compute `endTime`
-4. if scheduled screening already in past, mark completed
-
-This hook ensures consistency even if controller/service forget to compute fields.
-
-#### Index strategy
-- hall+date for per-hall day checks
-- startTime for temporal queries
-- movie for movie-based lookups
-
----
-
-### A.12 `services/HallService.js` deep walkthrough
-
-#### `getHallStatistics`
-Aggregates hall-level operational data:
-- total screenings all-time
-- upcoming screenings
-- today screenings
-- seat distribution and rendered layout
-
-This keeps hall controller simple and avoids repeated query code.
-
-#### `validateMaintenanceDates`
-Strong date sanity checks:
-- both provided
-- both valid dates
-- start < end
-
-#### `checkMaintenanceConflicts`
-Counts screenings in maintenance range; blocks if any found.
-
-This is key operational rule: hall cannot be marked maintenance during scheduled shows.
-
-#### Seat matrix helpers
-- `processSeatMatrix`: validates and reconstructs 2D matrix from flattened payload
-- `calculateSeatTypesFromMatrix`: derive summary counts
-- `generateDefaultSeatMatrix`: all-regular fallback
-
-Design insight:
-- matrix conversion logic in service avoids cluttering controller.
-
----
-
-### A.13 `services/MovieService.js` deep walkthrough
-
-Responsibilities:
-- abstract movie CRUD rules
-- ensure deletion safety relative to screenings
-- enrich listing with future screening counts
-
-#### `getAllMovies`
-Calls `Movie.search` then `_attachScreeningCounts`.
-
-`_attachScreeningCounts` uses aggregation pipeline:
-1. match future screenings for given movie IDs
-2. group by movie
-3. map counts back into each movie object
-
-This avoids N+1 query pattern where each movie would individually query count.
-
-#### `createMovie` / `updateMovie`
-Maps form data to model fields and handles poster path if uploaded.
-
-#### `deleteMovie`
-Precondition: `futureScreeningsCount` must be zero.
-
-This protects referential business integrity at application level.
-
----
-
-### A.14 `services/ScreeningService.js` deep walkthrough
-
-This file is domain core for scheduling logic.
-
-#### Constants
-- default cleaning buffer from env
-- symmetric buffer before and after screening
-- minute-to-ms constant
-
-#### `buildInitialSeatOccupancy`
-Transforms hall matrix into occupancy objects.
-
-Pseudo-transformation:
-```text
-if hall has seats matrix:
-  use it
-else:
-  build rows x columns all regular
-
-for each seat token:
-  empty -> {type:empty, status:unavailable}
-  unavailable -> {type:unavailable, status:unavailable}
-  regular/vip/wheelchair -> status:available
-```
-
-#### `_validateMovieSchedulingEligibility`
-Rules:
-- archived blocked
-- coming soon blocked until release date
-
-#### `createScreening`
-Sequence:
-1. parse start time
-2. fetch movie and hall
-3. apply movie eligibility
-4. ensure hall active
-5. ensure future date
-6. compute end time from duration
-7. check exact duplicate
-8. overlap check with buffer
-9. create screening with seat snapshot
-
-#### `_checkForOverlap`
-Computes buffered windows and finds conflicting screenings in same hall.
-
-Conflict condition concept:
-Two intervals overlap if
-$$
-start_1 < end_2 \;\text{and}\; end_1 > start_2
-$$
-
-Using buffered intervals broadens collision zone.
-
-#### `updateScreening`
-Same validation chain as create, with exclude-self overlap logic.
-If hall changed or occupancy missing, reinitialize seat snapshot.
-
-#### `cancelScreening`
-Sets status cancelled, with guard against double-cancel.
-
-#### `markCompletedScreenings`
-Batch update sets scheduled screenings in past to completed.
-
-#### `getTimelineScreeningsByDate`
-Returns screenings overlapping selected day boundaries.
-
----
-
-### A.15 `controllers/dashboardController.js` deep walkthrough
-
-Key design detail: uses `Promise.all` to run independent queries concurrently.
-
-Why important:
-- lower total response latency compared to sequential awaits
-- cleaner grouped data assembly
-
-The controller populates movie and hall fields for upcoming screenings, making dashboard table rendering straightforward.
-
----
-
-### A.16 `controllers/hallController.js` deep walkthrough
-
-#### Input handling complexity
-Seat matrix may arrive as:
-- JS array
-- JSON string
-
-Controller normalizes both. This robustness helps because forms/JS may serialize data differently.
-
-#### Rendering strategy
-Same `form.ejs` is used for create and edit, with variable flags and defaults.
-
-#### Error strategy
-Operational and validation errors rerender the form with user-friendly messages rather than redirecting to generic error page.
-
-#### Delete strategy
-Soft business protection:
-- if future screenings > 0, deny deletion and flash danger message.
-
----
-
-### A.17 `controllers/movieController.js` deep walkthrough
-
-#### Filtering UX
-Controller persists filter state by sending `filters` object back to view, so selected filter inputs remain visible after search.
-
-#### Upload ergonomics
-Instead of hard-failing immediately on upload issue, controller can display exact upload error inside same form context.
-
-#### Delete UX
-Service may throw 400/404 app errors; controller converts these into flash messages and redirects back to list.
-
----
-
-### A.18 `controllers/screeningController.js` deep walkthrough
-
-This controller bridges two interaction styles:
-- full-page SSR
-- JSON API for dynamic timeline actions
-
-#### Date normalization helpers
-`_normalizeSelectedDate` and `_toDateInputValue` avoid timezone glitches and keep date pickers stable.
-
-#### Serialization helper
-`_serializeScreening` deliberately returns minimal client payload shape. This avoids leaking unnecessary fields and simplifies frontend code.
-
-#### Timeline endpoints and HTTP semantics
-- create -> `201` JSON
-- successful move/delete/cancel -> `200` JSON
-- failures -> status from `AppError` or default `500`
-
-#### Show page fallback strategy
-If a legacy screening lacks occupancy matrix, controller heals data in-place by generating fallback and saving.
-
-This is a practical migration-safe pattern.
-
----
-
-### A.19 `routes/*` deep walkthrough by pattern
-
-Each route file follows this structure:
-1. `express.Router()`
-2. imports
-3. optional `router.use(requireAuth)`
-4. endpoint declarations
-5. export router
-
-Patterns worth learning:
-- route-level middleware chain composition
-- dynamic params (`:id`, `:token`)
-- grouping by resource (`/admin/halls`, `/admin/movies`)
-
----
-
-### A.20 View layer deep walkthrough (`views/layouts/main.ejs`)
-
-#### Head section
-- sets page title dynamically
-- preloads theme from localStorage
-- includes shared CSS and bootstrap icons
-
-#### Body data attributes
-- `data-authenticated`
-- `data-session-max-age`
-
-These are consumed in `main.js` for session warning logic.
-
-#### Authenticated branch
-Renders:
-- mobile toggle
-- overlay
-- dashboard wrapper with sidebar
-- flash alert
-- page body
-- footer
-
-#### Unauthenticated branch
-Renders simpler auth layout.
-
-Educational insight:
-- this conditional layout is a lightweight alternative to separate base templates for auth/admin.
-
----
-
-### A.21 Sidebar and navigation deep walkthrough
-
-`views/partials/sidebar.ejs` contains navigation map and active state logic:
-- active class based on page title text includes checks
-- grouped sections: Main Menu, Account
-
-Logout is a POST form (good practice; avoids destructive GET semantics).
-
----
-
-### A.22 Auth pages deep walkthrough
-
-Common structure:
-- left branding panel
-- right form panel
-- consistent message/error alerts
-
-#### Login page
-- username/password fields
-- links to forgot/register
-
-#### Register page
-- username/email/password/confirm
-- HTML-level constraints (`minlength`, `pattern`) complement backend validation
-
-#### Forgot password page
-- email input only
-- generic success response to avoid account enumeration leakage
-
-#### Reset password page
-- token validity branch
-- requirements list shown when token valid
-
----
-
-### A.23 Dashboard view deep walkthrough
-
-`views/dashboard/index.ejs` includes:
-- stat cards
-- quick action buttons
-- upcoming screenings table with poster thumbnail
-- inline delete form from dashboard context
-
-Interesting detail:
-- fallback poster URL used if both local and remote poster fields empty.
-
----
-
-### A.24 Hall views deep walkthrough
-
-#### Hall list (`halls/index.ejs`)
-- tabular overview of capacity, configuration, status, maintenance period
-- action buttons (view/edit/delete)
-
-#### Hall form (`halls/form.ejs`)
-This is one of the richest templates:
-- create/edit mode toggles
-- dynamic seat editor controls
-- maintenance conditional fields
-- hidden `seatMatrix` payload
-- inline script for capacity and maintenance field behavior
-
-#### Hall show (`halls/show.ejs`)
-- KPI cards
-- seat distribution with progress bars
-- read-only seat matrix preview
-- hall metadata table
-
----
-
-### A.25 Movie views deep walkthrough
-
-#### Movie list (`movies/index.ejs`)
-Includes:
-- filter/search form
-- results table
-- status badges
-- future screening count badge
-- delete guard modal for movies with future screenings
-
-#### Movie form (`movies/form.ejs`)
-- status select with policy guidance
-- poster file input + live preview
-- create/edit mode support
-
----
-
-### A.26 Screening views deep walkthrough
-
-#### Screening index timeline (`screenings/index.ejs`)
-Structure:
-- scheduler root with encoded JSON data attributes
-- date controls (prev/next/today)
-- AM/PM view toggles
-- timeline alert box
-- timeline grid container
-- draggable movie library panel
-
-This template is mostly UI shell; heavy behavior is in `main.js`.
-
-#### Screening form (`screenings/form.ejs`)
-- manual scheduling controls
-- end-time preview computed in browser
-- future min datetime initialization
-
-#### Screening show (`screenings/show.ejs`)
-- summary cards
-- screening metadata
-- read-only occupancy grid by row/column labels
-
----
-
-### A.27 `public/js/main.js` deep walkthrough (part 1: global UI behavior)
-
-Global DOM-ready tasks:
-- enforce dark theme
-- mobile sidebar toggles
-- auto-dismiss non-info alerts
-- generic form submit loading state
-- nav active highlight helper
-- password confirmation custom validity
-- datetime min guard for local datetime inputs
-
-Session warning subsystem:
-- reads session max age from body data attr
-- schedules warning modal 5 min before expected expiry
-- supports “Continue Session” ping via `HEAD /admin/dashboard`
-- resets timer on user activity with throttled reset logic
-
-Educational note:
-- this is a client-side approximation of session expiry, not guaranteed exact server TTL sync.
-
----
-
-### A.28 `public/js/main.js` deep walkthrough (part 2: hall seat editor)
-
-Triggered only when hall form has `generateLayoutBtn`.
-
-Main local state:
-- `currentSeatMode`
-- `seatMatrix`
-- `rows`, `columns`
-
-Workflow:
-1. generate matrix defaults regular
-2. show editor controls
-3. render row labels, column labels, seat cells
-4. click seat -> change type according to mode
-5. recalc counts
-6. flatten matrix into hidden input JSON
-
-Edit mode:
-- reads `window.seatMatrix` (injected by EJS)
-- preloads existing matrix and displays immediately
-
-This is a good example of server-injected data bootstrapping client state.
-
----
-
-### A.29 `public/js/main.js` deep walkthrough (part 3: timeline scheduler engine)
-
-#### Initialization
-- activates if `#screeningScheduler` exists
-- defines slot model (`SLOT_MINUTES=30`)
-- parses halls and screenings from encoded data attrs
-
-#### Time helpers
-- day start normalization
-- date formatting for display and API payloads
-- slot index to datetime conversion
-
-#### Grid rendering logic
-For each hall row:
-1. create hall info cell
-2. create slot cells
-3. attach dragover/dragleave/drop listeners per slot
-4. render existing screening blocks overlapping view
-
-#### Screening block rendering
-Each block includes:
-- title and time text
-- edit and delete mini actions
-- drag handle behavior for scheduled entries
-
-Poster support:
-- if poster exists, uses background image + dark overlay
-
-#### Preview block
-During dragover:
-- renders temporary preview showing proposed schedule
-- includes duration and buffer text
-
-#### Drop behavior
-On drop slot:
-- reject inactive hall
-- reject past time
-- if payload movie -> create API
-- if payload screening -> move API
-
-#### API utility
-`requestJson` wraps fetch, parses JSON, throws on non-success.
-
-#### Data refresh cycle
-After create/move/delete/cancel operations:
-1. call timeline data endpoint
-2. replace in-memory screenings
-3. rerender grid
-
-This render-refresh approach avoids complex in-place mutation bugs.
-
----
-
-### A.30 `public/css/styles.css` deep walkthrough
-
-#### UI scaling
-Uses global scale variable (`--ui-scale: 0.75`) applied to body transform.
-This is uncommon but can standardize density for dashboard-like views.
-
-#### Seat system CSS
-Defines grid geometry with CSS variables and semantic seat color classes.
-
-#### Timeline CSS
-Defines master grid columns, block visuals, preview styles, toolbar dimensions.
-
-#### Dark Bootstrap remapping
-Extensive override of `--bs-*` variables ensures Bootstrap components match dark palette and avoid white-card mismatches.
-
----
-
-### A.31 `views/error.ejs` deep walkthrough
-
-A standalone layout (does not rely on main layout) used by centralized error middleware.
-
-Behavior:
-- prints title + message
-- if user exists, back to dashboard button
-- else go to login button
-
-This keeps error UX simple and reliable even if main layout context is not ideal.
-
----
-
-### A.32 End-to-end data shape examples
-
-#### Hall create payload (simplified)
-```json
+**Schema**:
+```javascript
 {
-  "name": "Hall A",
-  "rows": "10",
-  "columns": "15",
-  "status": "active",
-  "seatMatrix": "[\"regular\",\"vip\", ... ]"
+  code: String (required, unique, e.g. "HALL_A"),
+  name: String (required, e.g. "Hall A - Premium"),
+  capacity: Number (computed from seats array),
+  
+  // 2D seat matrix: [[seatType]]
+  // seatType = 'standard' | 'reclined' | 'disabled' | null (aisle/blocked)
+  seats: [[String]],  // e.g. [['standard', 'standard', null, 'reclined']]
+  
+  // Summary of seat types
+  seatTypes: {
+    standard: Number,
+    reclined: Number,
+    disabled: Number
+  },
+  
+  // Maintenance scheduling
+  maintenanceStart: Date,
+  maintenanceEnd: Date,
+  maintenanceDescription: String,
+  
+  createdAt: Date,
+  updatedAt: Date
 }
 ```
 
-#### Movie create payload
-`multipart/form-data`:
-- text fields (`title`, `description`, ...)
-- file field `poster`
+**Virtual Field** (`capacity`):
+```javascript
+hallSchema.virtual('capacity').get(function() {
+  return this.seats.reduce((total, row) => {
+    return total + row.filter(seat => seat !== null).length;
+  }, 0);
+});
+```
 
-#### Timeline create payload
-```json
+**Pre-Validate Hook** (business logic before validation):
+```javascript
+hallSchema.pre('validate', function(next) {
+  // Ensure maintenance dates don't conflict
+  // Ensure capacity calculation is sound
+  next();
+});
+```
+
+**Seat Matrix Structure Example**:
+```javascript
+// 3 rows × 4 columns (one aisle in middle)
+seats: [
+  ['standard', 'standard', null,  'reclined'],   // Row 1
+  ['standard', 'standard', null,  'reclined'],   // Row 2
+  ['reclined', 'reclined',  null,  'disabled']   // Row 3
+]
+```
+
+### Model: Movie
+
+**Location**: `models/Movie.js`
+
+**Purpose**: Stores movie metadata (title, genre, duration) and references future screenings.
+
+**Schema**:
+```javascript
 {
-  "movieId": "...",
-  "hallId": "...",
-  "startDateTime": "2026-03-14T14:30"
+  title: String (required),
+  description: String,
+  genre: String (enum: ['Action', 'Comedy', 'Drama', 'Horror', 'Thriller', 'Romance']),
+  durationMinutes: Number (required, e.g. 120),
+  releaseDate: Date,
+  endDate: Date,
+  
+  status: String (enum: ['upcoming', 'now-showing', 'archived'], default: 'upcoming'),
+  
+  posterUrl: String (path to uploaded image, e.g. '/uploads/posters/movie_123.jpg'),
+  
+  // Denormalized count (updated when screening created/deleted)
+  futureScreeningsCount: Number (default: 0),
+  
+  createdAt: Date,
+  updatedAt: Date
 }
 ```
 
-#### Serialized timeline screening returned to browser
-```json
+**Virtual Field** (`durationFormatted`):
+```javascript
+movieSchema.virtual('durationFormatted').get(function() {
+  return `${Math.floor(this.durationMinutes / 60)}h ${this.durationMinutes % 60}m`;
+});
+```
+
+**Static Method** (`search`):
+```javascript
+movieSchema.statics.search = async function(query) {
+  const regex = new RegExp(query, 'i'); // case-insensitive
+  return this.find({ $or: [
+    { title: regex },
+    { genre: regex },
+    { description: regex }
+  ]});
+};
+```
+
+**Post-Delete Hook**:
+```javascript
+movieSchema.post('findByIdAndDelete', function(doc) {
+  // Cascade: delete all screenings for this movie
+  Screening.deleteMany({ movieId: doc._id });
+});
+```
+
+### Model: Screening
+
+**Location**: `models/Screening.js`
+
+**Purpose**: Represents a scheduled showing of a movie at a specific hall, date, and time, including per-seat occupancy.
+
+**Schema**:
+```javascript
 {
-  "id": "...",
-  "status": "Scheduled",
-  "startTime": "...",
-  "endTime": "...",
-  "movie": { "id": "...", "title": "...", "durationMinutes": 120, "genre": "Action", "poster": "/uploads/posters/..." },
-  "hall": { "id": "...", "name": "Hall 1", "status": "active" }
+  movieId: ObjectId (ref: 'Movie', required),
+  hallId: ObjectId (ref: 'Hall', required),
+  screeningDate: Date (required, normalized to start of day),
+  startTime: String (required, format: 'HH:MM', e.g. '14:30'),
+  endTime: String (auto-calculated from movie duration),
+  
+  // Seat occupancy: 2D array mirroring hall.seats structure
+  // Each cell tracks occupancy and type for each seat
+  seatOccupancy: [[{
+    type: String (seat type: 'standard' | 'reclined' | 'disabled'),
+    status: String (enum: ['available', 'reserved', 'sold', 'blocked'])
+  }]],
+  
+  totalRevenue: Number (cumulative ticket sales),
+  status: String (enum: ['scheduled', 'in-progress', 'completed', 'cancelled']),
+  
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+**Pre-Validate Hook** (applies business rules):
+```javascript
+screeningSchema.pre('validate', function(next) {
+  // 1. Normalize screeningDate to midnight UTC
+  this.screeningDate = new Date(this.screeningDate.toISOString().split('T')[0]);
+  
+  // 2. Calculate endTime = startTime + movie duration
+  // 3. Check for hall-level conflicts (no overlapping screenings + buffer)
+  
+  next();
+});
+```
+
+**Compound Indexes** (for query performance):
+```javascript
+screeningSchema.index({ hallId: 1, screeningDate: 1, startTime: 1 });
+screeningSchema.index({ movieId: 1, status: 1 });
+```
+
+---
+
+## 4. Authentication System
+
+### Authentication Flow
+
+**File**: `controllers/authController.js`
+
+#### 1. **User Registration**
+
+```
+POST /auth/register
+   ↓ Body validation (username, email, password)
+   ↓ Check username/email uniqueness
+   ↓ Create User document (password auto-hashed by pre-save hook)
+   ↓ Redirect to login
+```
+
+**Code walkthrough**:
+```javascript
+exports.registerUser = async (req, res, next) => {
+  try {
+    const { username, email, password, passwordConfirm } = req.body;
+    
+    // Validation
+    if (!username || !email || !password) {
+      return res.status(400).render('auth/register', {
+        message: 'All fields are required'
+      });
+    }
+    
+    // Check if user exists
+    const existingUser = await User.findOne({ 
+      $or: [{ username }, { email }] 
+    });
+    if (existingUser) {
+      return res.status(400).render('auth/register', {
+        message: 'Username or email already in use'
+      });
+    }
+    
+    // Create user (password hashed automatically in pre-save)
+    const user = await User.create({ username, email, password });
+    
+    res.status(201).redirect('/auth/login');
+  } catch (error) {
+    next(error);
+  }
+};
+```
+
+#### 2. **User Login (with Brute-Force Protection)**
+
+```
+POST /auth/login
+   ↓ Retrieve user from DB
+   ↓ Check if account is locked
+   ↓ Compare passwords (bcrypt.compare)
+   ↓ Reset lockout counter on success
+   ↓ Create session (express-session middleware)
+   ↓ Redirect to dashboard
+```
+
+**Lockout rules**:
+- After 5 failed attempts → lockout for 15 minutes
+- Lockout timestamp stored in `user.lockoutUntil`
+- On successful login → `lockoutAttempts = 0`, `lockoutUntil = null`
+
+**Code**:
+```javascript
+exports.login = async (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+    
+    // Find user
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(401).render('auth/login', {
+        message: 'Invalid username or password'
+      });
+    }
+    
+    // Check lockout
+    if (user.isLocked()) {
+      return res.status(403).render('auth/login', {
+        message: 'Account locked. Try again later.'
+      });
+    }
+    
+    // Compare passwords
+    const isPasswordCorrect = await user.comparePassword(password);
+    if (!isPasswordCorrect) {
+      user.lockoutAttempts += 1;
+      
+      // Lock after 5 attempts
+      if (user.lockoutAttempts >= 5) {
+        user.lock(15); // lock for 15 minutes
+      }
+      await user.save();
+      
+      return res.status(401).render('auth/login', {
+        message: 'Invalid username or password'
+      });
+    }
+    
+    // Success: reset lockout and create session
+    user.lockoutAttempts = 0;
+    user.lockoutUntil = null;
+    await user.save();
+    
+    req.session.userId = user._id;
+    req.session.username = user.username;
+    
+    res.status(200).redirect('/admin/dashboard');
+  } catch (error) {
+    next(error);
+  }
+};
+```
+
+#### 3. **Password Recovery (Forgot/Reset)**
+
+```
+GET /auth/forgot-password
+   ↓ Display email form
+   
+POST /auth/forgot-password
+   ↓ Find user by email
+   ↓ Generate random reset token (crypto)
+   ↓ Store token hash + expiry (1 hour)
+   ↓ Send email with reset link (backend ready, email simulation in logs)
+   ↓ Show "Check your email" message
+   
+GET /auth/reset-password?token=xyz
+   ↓ Verify token (check DB, expiry)
+   ↓ Display new password form
+   
+POST /auth/reset-password
+   ↓ Verify token validity
+   ↓ Hash new password
+   ↓ Clear token fields
+   ↓ Redirect to login
+```
+
+---
+
+## 5. Session Management
+
+### Session Storage
+
+**Configuration** (in `app.js`):
+
+```javascript
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret',
+  resave: false,
+  saveUninitialized: false,
+  
+  // Use MongoDB for persistence (survives server restart)
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+    ttl: 24 * 60 * 60  // Auto-delete after 1 day (cleanup in MongoDB)
+  }),
+  
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24,  // 1 day in milliseconds
+    httpOnly: true,                 // Inaccessible to client-side JS (prevents XSS)
+    secure: process.env.NODE_ENV === 'production',  // Only HTTPS in production
+    sameSite: 'strict'              // CSRF protection
+  }
+}));
+```
+
+### Session Data Flow
+
+**1. On Login:**
+```javascript
+// After password validation
+req.session.userId = user._id;
+req.session.username = user.username;
+// Session object automatically serialized and stored in MongoDB
+```
+
+**2. On Each Request:**
+```javascript
+// express-session middleware automatically:
+// 1. Reads session ID from cookie
+// 2. Fetches session data from MongoDB
+// 3. Populates req.session
+// 4. Makes available to controllers and views
+```
+
+**3. Flash Messages:**
+```javascript
+// In middleware (app.js):
+app.use((req, res, next) => {
+  res.locals.flash = req.session.flash;
+  res.locals.user = req.session.userId ? {
+    id: req.session.userId,
+    username: req.session.username
+  } : null;
+  delete req.session.flash;  // Clear after reading
+  next();
+});
+
+// In controller:
+req.session.flash = {
+  type: 'success',
+  message: 'Hall created successfully'
+};
+res.redirect('/admin/halls');
+
+// In view (layouts/main.ejs):
+<% if (flash && flash.message) { %>
+  <div class="alert alert-<%= flash.type %>">
+    <%= flash.message %>
+  </div>
+<% } %>
+```
+
+### Session Warning
+
+**File**: `public/js/main.js`
+
+A JavaScript timer warns users before session expires:
+```javascript
+// Set to trigger at 30-minute mark (configurable)
+setInterval(() => {
+  // If session > 30 minutes old, show warning modal
+  if (sessionExpiresAt < Date.now() + 5 * 60 * 1000) {
+    showSessionWarning();
+  }
+}, 60000);  // Check every minute
+```
+
+---
+
+## 6. Middleware Architecture
+
+### Middleware Pipeline
+
+Each request flows through this sequence:
+
+```
+1. Express built-in
+   ├─ express.json()              → Parse JSON body
+   ├─ express.urlencoded()        → Parse form data
+   └─ express.static()            → Serve CSS/JS/images
+
+2. Method override
+   └─ methodOverride('_method')   → Convert POST+_method to PUT/DELETE
+
+3. Session
+   └─ session middleware          → Load req.session from MongoDB
+
+4. Flash & User injection
+   └─ Custom middleware           → Set res.locals.flash, res.locals.user
+
+5. Route handlers
+   └─ Controllers (auth, admin, halls, movies, screenings)
+
+6. Error handler
+   └─ errorHandler middleware     → Catch and format errors
+```
+
+### Custom Middleware Files
+
+#### `middleware/authMiddleware.js`
+
+**Purpose**: Protect routes from unauthenticated access.
+
+```javascript
+exports.requireLogin = (req, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).redirect('/auth/login');
+  }
+  // Attach user to request object for use in controllers
+  req.user = { id: req.session.userId };
+  next();
+};
+```
+
+**Usage in routes**:
+```javascript
+router.get('/dashboard', requireLogin, (req, res) => {
+  // Only executes if user is logged in
+});
+```
+
+#### `middleware/errorMiddleware.js`
+
+**Purpose**: Centralized error handling and formatting.
+
+```javascript
+exports.errorHandler = (err, req, res, next) => {
+  // Set default error properties
+  err.statusCode = err.statusCode || 500;
+  err.message = err.message || 'Internal server error';
+  
+  // Handle specific Mongoose errors
+  if (err.name === 'ValidationError') {
+    err.statusCode = 400;
+    err.message = Object.values(err.errors)
+      .map(e => e.message)
+      .join(', ');
+  }
+  
+  if (err.name === 'MongoServerError' && err.code === 11000) {
+    // Duplicate key
+    err.statusCode = 400;
+    err.message = `Duplicate value for ${Object.keys(err.keyPattern)[0]}`;
+  }
+  
+  // Render error page
+  res.status(err.statusCode).render('error', {
+    message: err.message,
+    error: process.env.NODE_ENV === 'development' ? err : {}
+  });
+};
+```
+
+#### `middleware/uploadMiddleware.js`
+
+**Purpose**: Configure multer for poster image uploads.
+
+```javascript
+const multer = require('multer');
+const path = require('path');
+
+// Define storage location and filename
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'public/uploads/posters');
+  },
+  filename: (req, file, cb) => {
+    // Sanitize filename: movie_1234_timestamp.jpg
+    const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1e9);
+    cb(null, 'movie_' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+// File filter: only images
+const fileFilter = (req, file, cb) => {
+  const allowedMimes = ['image/jpeg', 'image/png', 'image/gif'];
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files allowed'), false);
+  }
+};
+
+module.exports = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }  // 5MB limit
+});
+```
+
+#### `middleware/validationMiddleware.js`
+
+**Purpose**: Input validation helpers.
+
+```javascript
+exports.validateHallForm = (req, res, next) => {
+  const { code, name, capacity } = req.body;
+  
+  if (!code || !name || !capacity) {
+    return res.status(400).render('halls/create', {
+      message: 'All fields required'
+    });
+  }
+  
+  if (capacity < 10 || capacity > 1000) {
+    return res.status(400).render('halls/create', {
+      message: 'Capacity must be between 10 and 1000'
+    });
+  }
+  
+  next();
+};
+```
+
+---
+
+## 7. Routing & Request Handling
+
+### Route Mounting Hierarchy
+
+```
+app.js (main)
+├─ /auth → authRoutes.js
+│  ├─ GET  /login           → render login form
+│  ├─ POST /login           → authController.login
+│  ├─ GET  /register        → render register form
+│  ├─ POST /register        → authController.registerUser
+│  ├─ GET  /forgot-password → render forgot form
+│  ├─ POST /forgot-password → authController.forgotPassword
+│  ├─ GET  /reset-password  → render reset form
+│  └─ POST /reset-password  → authController.resetPassword
+│
+├─ /admin → adminRoutes.js (requireLogin)
+│  ├─ GET / → dashboardController.index
+│  └─ GET /settings → render settings page
+│
+├─ /admin/halls → hallRoutes.js (requireLogin)
+│  ├─ GET  /           → hallController.getAllHalls
+│  ├─ GET  /new        → render create form
+│  ├─ POST /           → hallController.createHall
+│  ├─ GET  /:id        → hallController.getHallById
+│  ├─ GET  /:id/edit   → render edit form
+│  ├─ PUT  /:id        → hallController.updateHall
+│  └─ DELETE /:id      → hallController.deleteHall
+│
+├─ /admin/movies → movieRoutes.js (requireLogin)
+│  ├─ GET  /           → movieController.getAllMovies
+│  ├─ GET  /new        → render create form
+│  ├─ POST /           → uploadMiddleware, movieController.createMovie
+│  ├─ GET  /:id        → movieController.getMovieById
+│  ├─ GET  /:id/edit   → render edit form
+│  ├─ PUT  /:id        → uploadMiddleware, movieController.updateMovie
+│  └─ DELETE /:id      → movieController.deleteMovie
+│
+└─ /admin/screenings → screeningRoutes.js (requireLogin)
+   ├─ GET  /           → screeningController.index
+   ├─ GET  /new        → render create form
+   ├─ POST /           → screeningController.createScreening
+   ├─ GET  /:id        → screeningController.getScreening
+   ├─ PATCH /:id/move  → screeningController.moveScreening (AJAX)
+   ├─ PATCH /:id/seat  → screeningController.markSeatOccupancy (AJAX)
+   └─ DELETE /:id      → screeningController.deleteScreening
+```
+
+### Route File: screeningRoutes.js
+
+```javascript
+const express = require('express');
+const {
+  index,
+  createScreening,
+  moveScreening,
+  cancelScreening
+} = require('../controllers/screeningController');
+const { requireLogin } = require('../middleware/authMiddleware');
+
+const router = express.Router();
+
+// Protected route: require login
+router.use(requireLogin);
+
+// Timeline/scheduler view with movie library
+router.get('/', index);
+
+// Create screening via form OR AJAX
+router.post('/', async (req, res, next) => {
+  try {
+    const result = await createScreening(req.body);
+    
+    // If AJAX request (header), return JSON
+    if (req.xhr || req.headers.accept?.includes('application/json')) {
+      return res.json({ success: true, screening: result });
+    }
+    
+    // Otherwise form submission, redirect
+    res.redirect('/admin/screenings');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Move screening on timeline (AJAX)
+router.patch('/:id/move', moveScreening);
+
+// Cancel screening
+router.delete('/:id', cancelScreening);
+
+module.exports = router;
+```
+
+---
+
+## 8. Service Layer Architecture
+
+### Service Pattern Explanation
+
+**Why services exist**: Separation of concerns. Controllers handle HTTP, services handle business logic.
+
+```
+HTTP Request
+    ↓
+Controller (req/res, status codes)
+    ↓
+Service (pure business logic, no req/res)
+    ↓
+Models (database operations)
+    ↓
+MongoDB
+```
+
+### Service: ScreeningService
+
+**File**: `services/screeningService.js`
+
+#### Core Methods:
+
+**1. `buildInitialSeatOccupancy(hallId)`**
+
+Mirrors the hall's seat layout, initializing every seat as "available".
+
+```javascript
+async buildInitialSeatOccupancy(hallId) {
+  const hall = await Hall.findById(hallId);
+  
+  // Transform hall.seats 2D array
+  return hall.seats.map(row =>
+    row.map(seatType => ({
+      type: seatType,
+      status: seatType ? 'available' : 'blocked'  // null → blocked
+    }))
+  );
+}
+```
+
+**Example**:
+- Input hall seats: `[['standard', 'standard', null, 'reclined']]`
+- Output seat occupancy: `[[{type:'standard',status:'available'}, {type:'standard',status:'available'}, {type:null,status:'blocked'}, {type:'reclined',status:'available'}]]`
+
+**2. `createScreening(data)`**
+
+Main screening creation logic with validation:
+
+```javascript
+async createScreening({
+  movieId,
+  hallId,
+  screeningDate,
+  startTime
+}) {
+  // 1. Fetch movie and hall
+  const movie = await Movie.findById(movieId);
+  const hall = await Hall.findById(hallId);
+  
+  // 2. Validate hall is not in maintenance
+  const isMaintaining = hall.maintenanceStart <= screeningDate
+    && screeningDate <= hall.maintenanceEnd;
+  if (isMaintaining) {
+    throw new Error('Hall under maintenance');
+  }
+  
+  // 3. Check for overlapping screenings with buffer
+  const conflict = await this._checkForOverlap(hallId, screeningDate, startTime, movie.durationMinutes);
+  if (conflict) {
+    throw new Error('Time slot conflicts with existing screening');
+  }
+  
+  // 4. Build seat occupancy matrix
+  const seatOccupancy = await this.buildInitialSeatOccupancy(hallId);
+  
+  // 5. Calculate end time
+  const endTime = this._calculateEndTime(startTime, movie.durationMinutes);
+  
+  // 6. Create screening document
+  const screening = await Screening.create({
+    movieId,
+    hallId,
+    screeningDate,
+    startTime,
+    endTime,
+    seatOccupancy,
+    status: 'scheduled'
+  });
+  
+  // 7. Update movie's denormalized screening count
+  await Movie.updateOne(
+    { _id: movieId },
+    { $inc: { futureScreeningsCount: 1 } }
+  );
+  
+  return screening;
+}
+```
+
+**3. `_checkForOverlap(hallId, date, startTime, movieDurationMinutes)`**
+
+Overlap Detection Algorithm:
+
+```javascript
+async _checkForOverlap(hallId, date, startTime, durationMinutes) {
+  // Parse times to minutes since midnight
+  const newStart = this._timeToMinutes(startTime);
+  const newEnd = newStart + durationMinutes;
+  
+  // Fetch all screenings for this hall on the same date
+  const existingScreenings = await Screening.find({
+    hallId,
+    screeningDate: {
+      $gte: new Date(date),
+      $lt: new Date(date.getTime() + 24 * 60 * 60 * 1000)
+    },
+    status: { $ne: 'cancelled' }
+  });
+  
+  // Buffer: 10 minutes after each movie ends
+  const BUFFER = 10;
+  
+  for (const existing of existingScreenings) {
+    const existingStart = this._timeToMinutes(existing.startTime);
+    const existingEnd = this._timeToMinutes(existing.endTime) + BUFFER;
+    
+    // Detect overlap: new screening doesn't fit in the gap
+    if (newStart < existingEnd && newEnd + BUFFER > existingStart) {
+      return existing;  // Conflict found
+    }
+  }
+  
+  return null;  // No conflicts
+}
+```
+
+**Timeline Logic**:
+```
+Existing:  [====10:00-11:00====][+10min buffer]
+                                 11:10
+
+New:       Want to book 11:15-12:00
+           Start (11:15) >= buffer end (11:10) ✓ OK
+           
+New:       Want to book 11:05-11:40
+           Start (11:05) < buffer end (11:10) ✗ CONFLICT
+```
+
+**4. `updateScreening(id, updates)`**
+
+```javascript
+async updateScreening(id, { startTime, hallId, screeningDate }) {
+  const screening = await Screening.findById(id);
+  const movie = await Movie.findById(screening.movieId);
+  
+  // Validate new time slot
+  const conflict = await this._checkForOverlap(
+    hallId,
+    screeningDate,
+    startTime,
+    movie.durationMinutes
+  );
+  
+  if (conflict && conflict._id.toString() !== id) {
+    throw new Error('New time slot conflicts');
+  }
+  
+  // Update
+  screening.startTime = startTime;
+  screening.endTime = this._calculateEndTime(startTime, movie.durationMinutes);
+  screening.screeningDate = screeningDate;
+  
+  return await screening.save();
+}
+```
+
+**5. `markCompletedScreenings()`**
+
+Batch operation (runs daily via cron/scheduler):
+
+```javascript
+async markCompletedScreenings() {
+  const yesterday = new Date();
+  yesterday.setHours(0, 0, 0, 0);
+  
+  return await Screening.updateMany(
+    {
+      screeningDate: { $lt: yesterday },
+      status: 'scheduled'
+    },
+    { status: 'completed' }
+  );
+}
+```
+
+### Service: MovieService
+
+**File**: `services/movieService.js`
+
+**Key responsibility**: Attach screening counts to each movie via aggregation pipeline.
+
+```javascript
+async getAllMovies() {
+  const movies = await Movie.find();
+  return this._attachScreeningCounts(movies);
+}
+
+async _attachScreeningCounts(movies) {
+  // Use aggregation to count future screenings per movie
+  const counts = await Screening.aggregate([
+    {
+      $match: {
+        movieId: { $in: movies.map(m => m._id) },
+        screeningDate: { $gte: new Date() }
+      }
+    },
+    {
+      $group: {
+        _id: '$movieId',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+  
+  // Create lookup map
+  const countMap = {};
+  counts.forEach(c => countMap[c._id] = c.count);
+  
+  // Attach to each movie
+  return movies.map(movie => ({
+    ...movie.toObject(),
+    futureScreeningsCount: countMap[movie._id] || 0
+  }));
+}
+```
+
+### Service: HallService
+
+**File**: `services/hallService.js`
+
+```javascript
+async validateMaintenanceDates(start, end) {
+  if (start >= end) {
+    throw new Error('Start date must be before end date');
+  }
+  
+  // Check hall is not already in maintenance
+  const today = new Date();
+  if (start < today) {
+    throw new Error('Cannot schedule maintenance in the past');
+  }
+}
+
+async processSeatMatrix(seatMatrix) {
+  // Validate matrix format
+  // Calculate seat type counts
+  // Return { seatTypes: {standard: 10, reclined: 5} }
 }
 ```
 
 ---
 
-### A.33 Code-reading exercises for students
-
-To deepen understanding, try these exercises:
-
-1. **Trace one request manually**
-  - choose `POST /admin/screenings/timeline`
-  - write each function called in order
-
-2. **Change buffer value**
-  - set `SCREENING_BUFFER_MINUTES` in env
-  - predict overlap behavior before running
-
-3. **Create hall with empty seats**
-  - verify how occupancy snapshot maps `empty` and `unavailable`
-
-4. **Test movie status rules**
-  - attempt scheduling archived and coming-soon movies
-  - observe service error messages
-
-5. **Inspect session lifecycle**
-  - login, wait near timeout, observe warning modal behavior
-
-Exercises convert passive reading into active architecture learning.
-
----
-
-### A.34 Conceptual mapping table (Java/Python to this stack)
-
-| Concept (Java/Python) | This project equivalent |
-|---|---|
-| Controller endpoint method | Express route + controller function |
-| Filter/interceptor | Express middleware |
-| Service class | `services/*Service.js` |
-| Entity/ORM model | Mongoose model schema |
-| Template engine (JSP/Jinja) | EJS |
-| Session auth | `express-session` + `connect-mongo` |
-| Validation annotations + checks | middleware + schema validators + hooks |
-
-Use this table when switching mental models between ecosystems.
-
----
-
-### A.35 Common misconceptions clarified
-
-1. **“MongoDB has no schema, so anything goes.”**
-  - In raw MongoDB maybe flexible, but this app uses Mongoose schema validation heavily.
-
-2. **“Controller should contain all logic.”**
-  - Here, heavy rules are intentionally in services for reuse and clarity.
-
-3. **“If hall layout changes, old screenings should update automatically.”**
-  - Not desired; historical screening snapshot must stay stable.
-
-4. **“Cancelled screenings are same as deleted.”**
-  - No. Cancel keeps record and history; delete removes document.
-
-5. **“Client timeline checks are enough.”**
-  - Backend always re-validates to prevent unsafe states.
-
----
-
-### A.36 Suggested refactor roadmap (educational sequence)
-
-If this were a semester-long evolution project:
-
-Phase 1:
-- extract constants and shared date helpers into utility modules
-- add DTO-style serializers for all JSON endpoints
-
-Phase 2:
-- add unit tests for `ScreeningService._checkForOverlap`
-- add integration tests for auth and CRUD paths
-
-Phase 3:
-- enforce role-based authorization middleware
-- implement soft-delete strategy where appropriate
-
-Phase 4:
-- add booking subsystem and payment simulation
-
-Phase 5:
-- improve observability (audit trail + structured logs)
-
-This progression preserves current architecture while increasing capability safely.
-
----
-
-## APPENDIX B — STEP-BY-STEP EXECUTION TRACES (SLOW WALKTHROUGH)
-
-This appendix intentionally slows down the pace. The purpose is to show exactly how runtime control moves through functions.
-
-### B.1 Full trace: first app startup (`node app.js`)
-
-1. Node runtime loads `app.js`.
-2. `require('dotenv').config()` reads environment variables.
-3. Modules are imported (`routes`, `middleware`, `connectDB`, libraries).
-4. `const app = express()` creates Express application object.
-5. `connectDB()` runs asynchronously:
-  - calls Mongoose connect
-  - if success logs host
-  - if failure exits process
-6. View engine and layout configuration are applied.
-7. General middleware registered in order:
-  - JSON parser
-  - URL encoded parser
-  - method override
-  - static file server
-  - session middleware
-8. Locals injection middleware registered.
-9. Routers mounted to prefixes.
-10. 404 fallback registered.
-11. error handler registered.
-12. `app.listen` starts server socket and logs URL.
-
-Key learning: middleware order is not decorative; it is runtime control flow order.
-
----
-
-### B.2 Full trace: page load for unauthenticated user (`GET /`)
-
-1. Browser sends `GET /`.
-2. Express passes request through middleware chain.
-3. Route mount `/` matches `authRoutes`.
-4. Route handler in `authRoutes.js` checks session:
-  - if `req.session.userId` exists -> redirect `/admin/dashboard`
-  - else redirect `/login`
-5. Browser follows redirect to `/login`.
-6. `authController.renderLogin` renders `auth/login.ejs`.
-7. Layout branch sees no `user`, so auth-page layout branch is used.
-8. Browser receives final HTML and loads styles/js.
-
----
-
-### B.3 Full trace: successful login
-
-Let’s walk this like debugger steps.
-
-#### Request
-`POST /login` with form body.
-
-#### Step-by-step runtime
-1. Request reaches `authRoutes` -> `authController.login`.
-2. Controller extracts `username`, `password` from `req.body`.
-3. Null/empty check performed.
-4. `User.findOne({ username })` query executes.
-5. If user missing, returns rendered login with generic error.
-6. If user present, `user.isLocked()` check runs.
-7. If locked and lock expiry in future, render lock warning.
-8. `await user.verifyPassword(password)` executes bcrypt compare.
-9. If mismatch:
-  - `await user.incrementLoginAttempts()`
-  - calculate remaining attempts
-  - render login with warning
-10. If match:
-  - `await user.resetLoginAttempts()`
-  - `await user.updateLastLogin()`
-  - set session fields
-  - redirect `/admin/dashboard`
-11. Browser requests dashboard.
-12. `requireAuth` middleware passes.
-13. dashboard controller queries stats and renders page.
-
-Important observation:
-- login is not just “verify and redirect”; it also performs security-state maintenance (lock counters, timestamps).
-
----
-
-### B.4 Full trace: failed login until lockout
-
-Attempt 1 to 4:
-- each mismatch increments `failedLoginAttempts`
-- message includes remaining attempts when close to lock
-
-Attempt 5:
-- `incrementLoginAttempts` sets:
-  - `accountLocked = true`
-  - `lockUntil = now + 30 minutes`
-- user is effectively blocked until lock window expires
-
-Subsequent attempts before expiry:
-- `isLocked()` returns true
-- controller returns lock message immediately
-
-Security value:
-- slows brute-force attacks
-- gives user visible feedback
-
----
-
-### B.5 Full trace: registration
-
-1. Browser submits `POST /register`.
-2. Controller validates required fields and matching passwords.
-3. `isStrongPassword` policy check.
-4. New `User` object created with `passwordHash: password` (plaintext currently in memory).
-5. `user.save()` triggers pre-save hook:
-  - hashes password
-6. Mongo stores hash, never plaintext.
-7. Session fields set and redirect dashboard.
-
-Potential concern students often have:
-- “Why assign plaintext to field named passwordHash?”
-  - because hook transforms before persistence. Naming is slightly confusing but behavior is safe if hook always runs.
-
----
-
-### B.6 Full trace: forgot/reset password
-
-#### Forgot
-1. `POST /forgot-password` with email
-2. find user by email
-3. if not found, still return generic success-style message
-4. if found:
-  - generate random reset token
-  - store SHA-256 hash of token
-  - set expiry timestamp
-  - save without full validation
-  - in development, log reset URL
-
-#### Reset page open
-1. `GET /reset-password/:token`
-2. hash incoming token and query by hash + expiry > now
-3. if invalid/expired, render invalid token state
-4. else render reset form
-
-#### Reset submit
-1. same token validation
-2. validate new password + confirmation
-3. enforce strength
-4. check reuse against password history hashes
-5. assign new password (hook hashes)
-6. clear reset token fields and lockout fields
-7. save and render login success message
-
----
-
-### B.7 Full trace: hall creation with custom seat matrix
-
-1. User opens `/admin/halls/new`.
-2. Form rendered with defaults.
-3. User enters rows/columns and generates seat layout.
-4. Client JS creates 2D array and interactive grid.
-5. User changes some seats to vip/wheelchair/unavailable/empty.
-6. On submit, JS flattens matrix into hidden `seatMatrix` JSON string.
-7. `POST /admin/halls` arrives.
-8. `validateHall` middleware checks basic fields.
-9. `hallController.create` parses body.
-10. `normalizeSeatMatrixInput` parses JSON into array.
-11. `HallService.processSeatMatrix` rebuilds 2D matrix with validation.
-12. `calculateSeatTypesFromMatrix` computes counts.
-13. Hall document created and saved.
-14. Flash success stored in session.
-15. Redirect to hall list where flash is displayed once.
-
----
-
-### B.8 Full trace: hall update to maintenance status
-
-1. User edits hall and sets status to maintenance.
-2. Form requires start/end dates (client-side requirement toggled by JS).
-3. Submit `PUT /admin/halls/:id`.
-4. Controller loads hall.
-5. Service validates maintenance date order.
-6. Service checks conflict screenings within maintenance window.
-7. If conflicts > 0 -> AppError returned to form.
-8. If no conflicts -> maintenance fields set and save succeeds.
-
-This demonstrates business validation that requires database context (cannot be done by simple field checks alone).
-
----
-
-### B.9 Full trace: movie create with poster upload
-
-1. Browser submits multipart form with file.
-2. `handlePosterUpload` middleware runs before validation middleware.
-3. Multer saves file if valid.
-4. If file invalid/too large, middleware sets `req.uploadError`.
-5. `validateMovie` checks textual fields.
-6. `movieController.create` sees `req.uploadError`:
-  - rerenders form with upload error (no crash)
-7. If no upload error, service creates movie with `posterPath`.
-8. Redirect and flash success.
-
----
-
-### B.10 Full trace: movie deletion blocked by future screenings
-
-1. User clicks delete on movie list.
-2. `DELETE /admin/movies/:id`
-3. Controller calls `MovieService.deleteMovie`.
-4. Service queries movie.
-5. Service calls `movie.getFutureScreeningsCount()`.
-6. If count > 0, throw `AppError(400)` with explanatory message.
-7. Controller catches and sets flash danger.
-8. User redirected to movie list with explanatory alert.
-
-This is a robust UX because the reason is specific and actionable.
-
----
-
-### B.11 Full trace: screening create from manual form
-
-1. User fills movie, hall, datetime.
-2. `POST /admin/screenings` -> validation middleware first.
-3. Controller converts start time string to Date object.
-4. `ScreeningService.createScreening` executes rule chain.
-5. On success save + flash + redirect list.
-6. On failure controller rerenders form with error and repopulated movies/halls.
-
----
-
-### B.12 Full trace: screening create from timeline drag-and-drop
-
-This is asynchronous JSON flow.
-
-1. Movie card drag starts in browser.
-2. `dragPayload` stored with movie id + duration.
-3. User drags over hall slot; preview block shown.
-4. User drops.
-5. Client computes start datetime from slot index and selected date.
-6. Client calls `POST /admin/screenings/timeline`.
-7. Controller validates, snaps to nearest slot.
-8. Service applies full schedule checks.
-9. On success returns serialized screening JSON.
-10. Client refreshes timeline dataset.
-11. Grid rerenders with new block.
-
----
-
-### B.13 Full trace: screening move operation
-
-1. Existing block drag starts (if status scheduled).
-2. Payload type is `screening`.
-3. Drop on target hall/slot.
-4. Client calls `PATCH /timeline/:id/move` with new hall/time.
-5. Controller loads existing screening to preserve movie id.
-6. Service `updateScreening` applies duplicate and overlap checks excluding same record.
-7. If hall changed, seat occupancy is rebuilt from new hall template.
-8. Updated screening returned and timeline refreshed.
-
----
-
-### B.14 Full trace: screening cancellation vs deletion
-
-Cancellation (`PATCH /:id/cancel` or timeline cancel):
-- sets status cancelled
-- record remains for history
-
-Deletion (`DELETE /:id` or timeline delete):
-- physically removes record
-
-Operational guidance:
-- cancellation preferred when historical trace matters
-- deletion for cleanup of mistakes/test data
-
----
-
-### B.15 Full trace: opening screening seat overview page
-
-1. Browser requests `/admin/screenings/:id`.
-2. Controller loads screening with populated refs.
-3. If occupancy matrix invalid/missing:
-  - generate from hall
-  - save screening
-4. Flatten matrix to calculate stats.
-5. Render show page with legend and read-only seat map.
-
----
-
-### B.16 Detailed pseudo-code for overlap algorithm
-
-```text
-function checkOverlap(hallId, newStart, newEnd, excludeId=null):
-   beforeBufferMs = BUFFER_BEFORE_MINUTES * 60000
-   afterBufferMs  = BUFFER_AFTER_MINUTES  * 60000
-
-   newStartBuffered = newStart - beforeBufferMs
-   newEndBuffered   = newEnd   + afterBufferMs
-
-   candidates = screenings where
-      hall == hallId
-      status != Cancelled
-      startTime < newEndBuffered
-      endTime > newStartBuffered
-      if excludeId: id != excludeId
-
-   for each existing in candidates:
-      existingStartBuffered = existing.startTime - beforeBufferMs
-      existingEndBuffered   = existing.endTime   + afterBufferMs
-
-      if existingStartBuffered < newEndBuffered AND
-        existingEndBuffered > newStartBuffered:
-          throw conflict error with movie title/hall/time
-
-   return true
+## 9. Frontend: Layout & Templating
+
+### EJS + express-ejs-layouts
+
+**How templating works**:
+
+1. **Layout Shell** (`views/layouts/main.ejs`):
+   ```ejs
+   <!DOCTYPE html>
+   <html>
+   <head>
+       <meta charset="utf-8">
+       <title>CineVillage</title>
+       <%- style %>  <!-- CSS per-page -->
+   </head>
+   <body>
+       <%- include('../partials/header') %>
+       
+       <div class="container main-content">
+           <%- body %>  <!-- Page-specific content -->
+       </div>
+       
+       <%- include('../partials/footer') %>
+       <%- script %>  <!-- JS per-page -->
+   </body>
+   </html>
+   ```
+
+2. **Page Content** (`views/movies/index.ejs`):
+   ```ejs
+   <h1>Movies</h1>
+   <p><%= movies.length %> movies available</p>
+   ```
+
+3. **Rendering** (in controller):
+   ```javascript
+   res.render('movies/index', {
+     movies: [...],
+     layout: 'layouts/main'  // Auto-used by middleware
+   });
+   ```
+
+   **Result**:
+   ```html
+   [Header]
+   <h1>Movies</h1>
+   <p>5 movies available</p>
+   [Footer]
+   ```
+
+### View Structure
+
+```
+views/
+├─ layouts/
+│  └─ main.ejs          (shared shell with header/footer)
+├─ partials/
+│  ├─ header.ejs        (navigation bar)
+│  ├─ navbar.ejs        (top nav)
+│  ├─ sidebar.ejs       (left sidebar with menu)
+│  └─ footer.ejs        (footer scripts)
+├─ auth/
+│  ├─ login.ejs
+│  ├─ register.ejs
+│  ├─ forgot-password.ejs
+│  └─ reset-password.ejs
+├─ dashboard/
+│  └─ index.ejs         (main admin dashboard)
+├─ halls/
+│  ├─ index.ejs         (list)
+│  ├─ create.ejs        (form wrapper)
+│  ├─ edit.ejs          (form wrapper with current data)
+│  └─ show.ejs          (detail view)
+├─ movies/
+│  ├─ index.ejs         (list)
+│  ├─ create.ejs
+│  └─ form.ejs          (reused by create/edit)
+├─ screenings/
+│  ├─ index.ejs         (timeline scheduler)
+│  └─ show.ejs
+└─ error.ejs            (error page)
 ```
 
-Why query and loop both?
-- query narrows candidate set efficiently in DB
-- loop allows rich conflict message and explicit final check
+### Flash Messages Pattern
 
----
-
-### B.17 Detailed pseudo-code for seat matrix transformation
-
-#### Hall form flattened payload to 2D matrix
-```text
-input: flatSeatArray length rows*columns
-for row in 0..rows-1:
-   rowSeats = []
-   for col in 0..cols-1:
-      index = row*cols + col
-      type = flatSeatArray[index] or 'empty'
-      validate type
-      rowSeats.push(type)
-   result.push(rowSeats)
+**In View** (`layouts/main.ejs`):
+```ejs
+<% if (flash && flash.message) { %>
+  <div class="alert alert-<%= flash.type || 'info' %> alert-dismissible fade show">
+    <%= flash.message %>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<% } %>
 ```
 
-#### Hall template to screening occupancy
-```text
-for each seatType in hall.seats matrix:
-   if seatType == 'empty':
-     push {type:'empty', status:'unavailable'}
-   else if seatType == 'unavailable':
-     push {type:'unavailable', status:'unavailable'}
-   else:
-     normalized = seatType in [regular,vip,wheelchair] ? seatType : regular
-     push {type:normalized, status:'available'}
+**In Controller**:
+```javascript
+req.session.flash = {
+  type: 'success',
+  message: 'Hall updated successfully'
+};
+res.redirect('/admin/halls');
+```
+
+**In Middleware** (app.js):
+```javascript
+app.use((req, res, next) => {
+  res.locals.flash = req.session.flash;
+  delete req.session.flash;  // Clear after this request
+  next();
+});
 ```
 
 ---
 
-### B.18 Detailed pseudo-code for session warning timer in `main.js`
+## 10. Screening Scheduler UI
 
-```text
-SESSION_MAX_AGE = body.dataset.sessionMaxAge or 86400000
-WARNING_TIME = 5 minutes
-TIME_UNTIL_WARNING = SESSION_MAX_AGE - WARNING_TIME
+### Timeline Scheduler Page (`views/screenings/index.ejs`)
 
-schedule warning timeout
-
-on warning:
-  show modal
-  start countdown from 5:00
-  if continue clicked:
-    HEAD /admin/dashboard
-    if success: reset timers
-    else redirect login
-  if countdown reaches 0:
-    redirect login?expired=true
-
-on user activity (throttled):
-  reset timer state
+#### Layout:
+```
+┌─────────────────────────────────────────────┐
+│ Timeline Toolbar (date, AM/PM toggle)       │
+├────────────────────────┬────────────────────┤
+│                        │ Movie Library      │
+│ Timeline Master Grid   │ [Search Input] ← NEW
+│ (halls × time slots)   │                    │
+│                        │ [Draggable movie   │
+│                        │  buttons]          │
+├────────────────────────┴────────────────────┤
+│ Helper text                                 │
+└─────────────────────────────────────────────┘
 ```
 
-This illustrates how frontend can provide UX warnings for backend session expiry.
+#### Movie Library with Search
+
+**HTML Structure** (now updated):
+```html
+<div class="card">
+  <div class="card-header">
+    <h5><i class="bi bi-film"></i>Movie Library</h5>
+  </div>
+  
+  <!-- NEW: Search input -->
+  <div class="card-body pb-2">
+    <div class="input-group input-group-sm mb-3">
+      <span class="input-group-text bg-transparent border-secondary">
+        <i class="bi bi-search text-muted"></i>
+      </span>
+      <input
+        id="movieLibrarySearch"
+        type="search"
+        class="form-control border-secondary bg-transparent text-light"
+        placeholder="Search movies…"
+        autocomplete="off">
+    </div>
+  </div>
+  
+  <!-- Movie buttons -->
+  <div class="card-body pt-0">
+    <div id="timelineMovieLibrary" class="d-flex flex-column gap-2">
+      <button class="btn btn-outline-secondary timeline-movie-item" draggable="true"
+              data-movie-id="<%= movie._id %>"
+              data-duration="<%= movie.durationMinutes %>"
+              data-title="<%= movie.title %>">
+        <span class="fw-semibold"><%= movie.title %></span>
+        <small class="text-muted"><%= movie.durationMinutes %> min • <%= movie.genre %></small>
+      </button>
+    </div>
+  </div>
+</div>
+```
+
+#### JavaScript: Movie Search Filter
+
+**File**: `public/js/main.js`
+
+```javascript
+// Movie library search filter
+const movieSearchInput = document.getElementById('movieLibrarySearch');
+if (movieSearchInput) {
+  movieSearchInput.addEventListener('input', () => {
+    const query = movieSearchInput.value.trim().toLowerCase();
+    
+    movieItems.forEach((item) => {
+      // Extract movie metadata
+      const title = (item.dataset.title || '').toLowerCase();
+      const genre = item.querySelector('small')
+        ? item.querySelector('small').textContent.toLowerCase()
+        : '';
+      
+      // Test: matches title OR genre
+      const matches = !query 
+        || title.includes(query) 
+        || genre.includes(query);
+      
+      // Show/hide: hide by setting display:none
+      item.style.display = matches ? '' : 'none';
+    });
+  });
+}
+```
+
+**Behavior**:
+- User types "Action" → filters to Action movies
+- User types "120" → filters to 120-min movies
+- User clears → shows all movies
+- Real-time filtering (no page reload)
+
+#### Timeline Data Encoding
+
+Movies and halls are encoded as JSON in data attributes:
+
+```javascript
+// In controller
+const timelineHalls = halls.map(h => ({
+  id: h._id,
+  code: h.code,
+  name: h.name
+}));
+
+const timelineScreenings = screenings.map(s => ({
+  id: s._id,
+  hallId: s.hallId,
+  movieId: s.movieId,
+  startTime: s.startTime,
+  endTime: s.endTime,
+  title: movie.title
+}));
+
+// In view
+<div id="screeningScheduler"
+     data-halls="<%- encodeURIComponent(JSON.stringify(timelineHalls)) %>"
+     data-screenings="<%- encodeURIComponent(JSON.stringify(timelineScreenings)) %>">
+```
+
+**Why encode?**:
+- `JSON.stringify()` converts objects to strings
+- `encodeURIComponent()` escapes special HTML characters (quotes, angle brackets)
+- JavaScript later decodes: `JSON.parse(decodeURIComponent(attr))`
+
+#### Timeline Grid Rendering
+
+**Grid dimensions**:
+- Rows: one per hall
+- Columns: 30-minute time slots (configurable)
+- Time range: 06:00 to 22:00 (16 hours × 2 = 32 slots)
+
+**CSS Grid**:
+```css
+.timeline-master-grid {
+  display: grid;
+  grid-template-columns: 150px repeat(32, 1fr);  /* 32 × 30-min slots */
+  gap: 1px;
+  background: #333;
+}
+
+.timeline-row {
+  grid-column: 1 / 2;  /* Hall label column */
+}
+
+.timeline-slot {
+  grid-column: auto;
+  height: 60px;
+  min-width: 40px;
+  background: #222;
+  border: 1px solid #333;
+}
+```
 
 ---
 
-### B.19 Troubleshooting decision tree (runtime)
+## 11. File Upload & Image Processing
 
-If app does not start:
-1. Check MongoDB reachable and `MONGODB_URI` valid
-2. Check session secret and env loading
-3. Inspect startup logs from `connectDB` and `app.listen`
+### Movie Poster Upload
 
-If login always fails:
-1. Verify user exists in DB
-2. Check lock state fields
-3. Confirm bcrypt hashing by checking user creation path
+**Middleware**: `middleware/uploadMiddleware.js` (multer configuration)
 
-If scheduling fails unexpectedly:
-1. Verify hall is active
-2. Verify movie status/release date constraints
-3. Confirm startTime is future
-4. Inspect overlap buffer conflict message
+**Flow**:
+```
+User selects file via <input type="file">
+                 ↓
+             Form submits
+                 ↓
+    multer middleware intercepts
+                 ↓
+  File validation (MIME type, size)
+                 ↓
+  Saved to disk: public/uploads/posters/
+                 ↓
+  Filename passed to controller as req.file.filename
+                 ↓
+  Controller stores filename in DB: posterUrl
+```
 
-If seat view appears empty:
-1. Check hall seat template exists
-2. Confirm fallback generation logic ran
-3. Verify `seatOccupancy` persisted after fallback save
+**HTML Form** (`views/movies/form.ejs`):
+```html
+<form method="POST" enctype="multipart/form-data">
+  <input type="file" name="posterImage" accept="image/*" required>
+  <input type="hidden" name="_method" value="PUT">
+  <button type="submit">Upload & Save</button>
+</form>
+```
+
+**Middleware Config**:
+```javascript
+const upload = multer({
+  storage: diskStorage({
+    destination: 'public/uploads/posters',
+    filename: (req, file, cb) => {
+      const uniqueName = `movie_${Date.now()}_${Math.random().toString(36)}${path.extname(file.originalname)}`;
+      cb(null, uniqueName);
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif'];
+    cb(allowed.includes(file.mimetype) ? null : new Error('Invalid format'), allowed.includes(file.mimetype));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }  // 5 MB
+});
+```
+
+**Controller Integration** (`controllers/movieController.js`):
+```javascript
+exports.createMovie = async (req, res, next) => {
+  try {
+    const posterUrl = req.file ? `/uploads/posters/${req.file.filename}` : null;
+    
+    const movie = await movieService.createMovie({
+      title: req.body.title,
+      genre: req.body.genre,
+      durationMinutes: req.body.duration,
+      posterUrl
+    });
+    
+    req.session.flash = { type: 'success', message: 'Movie created' };
+    res.redirect('/admin/movies');
+  } catch (error) {
+    next(error);
+  }
+};
+```
+
+**Error Handling**:
+```javascript
+// If multer rejects file
+router.post('/', upload.single('posterImage'), (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).render('movies/create', {
+      message: `Upload error: ${err.message}`
+    });
+  }
+  // Continue to controller
+  next();
+});
+```
 
 ---
 
-### B.20 Incremental study plan (multi-session)
+## 12. Error Handling & Validation
 
-To truly get “several hours” value from this document, use this pacing:
+### Validation Strategy
 
-Session 1 (90–120 min):
-- Sections 1–5 + Appendix A.1–A.7
+**Three-layer validation**:
 
-Session 2 (90–120 min):
-- Models and services (Sections 6–9 + Appendix A.8–A.14)
+1. **Client-side** (HTML5):
+   ```html
+   <input type="email" required>
+   <input type="number" min="10" max="1000">
+   ```
 
-Session 3 (90–120 min):
-- View/template/CSS/JS engine (Sections 10–12 + Appendix A.20–A.30)
+2. **Middleware** (before controller):
+   ```javascript
+   router.post('/', validationMiddleware.validateHallForm, hallController.createHall);
+   
+   // Middleware checks format, required fields, ranges
+   ```
 
-Session 4 (60–90 min):
-- Design decisions and improvements + Appendix B traces
+3. **Database** (Mongoose schema):
+   ```javascript
+   const hallSchema = new Schema({
+     capacity: {
+       type: Number,
+       required: [true, 'Capacity is required'],
+       min: [10, 'Capacity must be at least 10'],
+       max: [1000, 'Capacity cannot exceed 1000']
+     }
+   });
+   ```
 
-This schedule turns reading into guided architecture training.
+### Error Handler Middleware
 
+**File**: `middleware/errorMiddleware.js`
+
+```javascript
+exports.errorHandler = (err, req, res, next) => {
+  // Default values
+  let statusCode = err.statusCode || 500;
+  let message = err.message || 'Internal Server Error';
+  
+  // Handle specific errors
+  
+  // Mongoose Validation Error
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+    message = Object.values(err.errors)
+      .map(e => e.message)
+      .join(', ');
+  }
+  
+  // Mongoose Duplicate Key (e.g., unique username)
+  if (err.name === 'MongoServerError' && err.code === 11000) {
+    const field = Object.keys(err.keyPattern)[0];
+    statusCode = 400;
+    message = `${field} already exists`;
+  }
+  
+  // JWT/Auth errors
+  if (err.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    message = 'Invalid authentication token';
+  }
+  
+  // Multer errors (file upload)
+  if (err.message?.includes('File too large')) {
+    statusCode = 413;
+    message = 'File exceeds 5MB limit';
+  }
+  
+  // Render error page
+  res.status(statusCode).render('error', {
+    message,
+    error: process.env.NODE_ENV === 'development' ? err : {}
+  });
+};
+```
+
+**Error page** (`views/error.ejs`):
+```ejs
+<div class="error-container">
+  <h1><%= message %></h1>
+  <% if (error && error.stack) { %>
+    <pre><%= error.stack %></pre>
+  <% } %>
+  <a href="javascript:history.back()">Go Back</a>
+</div>
+```
+
+---
+
+## 13. Data Persistence & Transactions
+
+### MongoDB Data Persistence
+
+**Document vs Relational**:
+
+| Aspect | MongoDB | SQL |
+|--------|---------|-----|
+| Structure | Dynamic JSON-like documents | Rigid tables/rows |
+| Joins | Embedding or `$lookup` | Foreign keys + JOIN |
+| Transactions | Single doc atomic; multi-doc optional | Multi-table ACID |
+
+#### Denormalization Example: Movie Screening Count
+
+**Approach 1: Compute on-demand (slower)**
+```javascript
+const movieWithCount = await Movie.findById(id);
+const count = await Screening.countDocuments({ movieId: id, screeningDate: { $gte: new Date() } });
+```
+
+**Approach 2: Denormalize (faster)**
+```javascript
+// Movie schema includes:
+futureScreeningsCount: Number
+
+// When screening created:
+await Movie.updateOne({ _id: movieId }, { $inc: { futureScreeningsCount: 1 } });
+
+// When screening deleted:
+await Movie.updateOne({ _id: movieId }, { $inc: { futureScreeningsCount: -1 } });
+
+// Query is now instant:
+const movie = await Movie.findById(id);  // futureScreeningsCount included
+```
+
+### Multi-Document Updates
+
+**Atomic batch operations**:
+
+```javascript
+// Mark all old screenings as completed
+const result = await Screening.updateMany(
+  {
+    screeningDate: { $lt: new Date() },
+    status: 'scheduled'
+  },
+  { status: 'completed' });
+
+console.log(`${result.modifiedCount} screenings marked complete`);
+```
+
+**Session/Transaction** (enterprise feature, optional):
+```javascript
+const session = await mongoose.startSession();
+session.startTransaction();
+
+try {
+  await Screening.findByIdAndDelete(id, { session });  // Delete screening
+  await Movie.updateOne({ _id: movieId }, { $inc: { futureScreeningsCount: -1 } }, { session });  // Update count
+  
+  await session.commitTransaction();
+} catch (error) {
+  await session.abortTransaction();
+  throw error;
+}
+finally {
+  await session.endSession();
+}
+```
+
+---
+
+## 14. Client-Side Interactivity & State Management
+
+### JavaScript Architecture
+
+**File**: `public/js/main.js` (~1089 lines)
+
+#### 1. **Global State Variables**
+
+```javascript
+let dragPayload = null;           // Current drag operation data
+let previewSpan = null;           // Preview element during drag
+let selectedScreeningForEdit = null;  // Editing mode
+let activeView = 'AM';            // Timeline view (AM or PM)
+let SLOT_MINUTES = 30;            // Grid unit size
+let cleaningBuffer = 10;          // Minutes buffer between movies
+```
+
+#### 2. **Movie Library Search** (NEW FEATURE)
+
+```javascript
+const movieSearchInput = document.getElementById('movieLibrarySearch');
+if (movieSearchInput) {
+  movieSearchInput.addEventListener('input', () => {
+    const query = movieSearchInput.value.trim().toLowerCase();
+    
+    // Filter movie items in real-time
+    movieItems.forEach((item) => {
+      const title = (item.dataset.title || '').toLowerCase();
+      const genre = item.querySelector('small')?.textContent.toLowerCase() || '';
+      
+      const matches = !query || title.includes(query) || genre.includes(query);
+      item.style.display = matches ? '' : 'none';
+    });
+  });
+}
+```
+
+**User experience**:
+- Type "Action" → only Action movies visible
+- Type "90" → only ~90-minute movies visible
+- Clear field → all movies reappear
+- No page reload needed
+
+#### 3. **Seat Matrix Editor**
+
+Component for creating/editing hall seat layouts visually:
+
+**Modes**:
+- **Viewing**: Display seat grid, read-only
+- **Editing**: Click seats to cycle through types (standard → reclined → disabled → blank)
+
+**Data structure**:
+```javascript
+const seatMatrix = [
+  ['standard', 'standard', null, 'reclined'],
+  ['standard', 'standard', null, 'reclined'],
+  ['reclined', 'reclined', null, 'disabled']
+];
+// Serialized to form input: JSON string or array format
+```
+
+**Code flow**:
+```javascript
+function generateSeatGrid(seatMatrix) {
+  const grid = document.createElement('div');
+  grid.className = 'seat-grid';
+  
+  seatMatrix.forEach((row, r) => {
+    row.forEach((seatType, c) => {
+      const seat = document.createElement('button');
+      seat.className = `seat seat-${seatType}`;
+      seat.dataset.row = r;
+      seat.dataset.col = c;
+      
+      seat.addEventListener('click', () => cycleSeatType(seat, seatMatrix, r, c));
+      grid.appendChild(seat);
+    });
+  });
+  
+  return grid;
+}
+
+function cycleSeatType(seatEl, matrix, row, col) {
+  const cycle = [null, 'standard', 'reclined', 'disabled'];
+  const current = matrix[row][col];
+  const nextIndex = (cycle.indexOf(current) + 1) % cycle.length;
+  
+  matrix[row][col] = cycle[nextIndex];
+  seatEl.className = `seat seat-${cycle[nextIndex]}`;
+  updateCapacityStats();
+}
+```
+
+#### 4. **Timeline Scheduler (Drag & Drop)**
+
+**Architecture**:
+
+```
+renderMasterGrid()
+  ├─ Build time header (06:00, 06:30, ..., 22:00)
+  ├─ Loop halls
+  │  ├─ Build hall row with CSS Grid
+  │  └─ Loop screenings for this hall on this date
+  │     └─ Position screening block based on startTime + duration
+  └─ Attach event listeners
+     ├─ movieItems: dragstart/dragend → droppable zones
+     ├─ timeSlots: dragover/drop → handle placement
+     └─ screeningBlocks: click → edit modal
+```
+
+**Drag payload**:
+```javascript
+// When dragging movie
+dragPayload = {
+  type: 'movie',
+  movieId: 'xxx',
+  durationMinutes: 120,
+  title: 'Movie Title'
+};
+
+// When dragging existing screening
+dragPayload = {
+  type: 'screening',
+  screeningId: 'yyy',
+  movieId: 'xxx',
+  durationMinutes: 120
+};
+```
+
+**Drop zones**:
+- **Hall rows**: Accept movies, create new screening
+- **Existing screening blocks**: Accept screenings, move to new time
+
+**Conflict resolution**:
+```javascript
+async function placeScreening(hallId, startTime, movieId) {
+  try {
+    const response = await fetch('/admin/screenings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hallId, startTime, movieId })
+    });
+    
+    if (response.ok) {
+      showAlert('Screening scheduled successfully', 'success');
+      renderMasterGrid();  // Refresh UI
+    } else {
+      const error = await response.json();
+      showAlert(error.message, 'danger');  // e.g., "Time slot conflicts"
+    }
+  } catch (error) {
+    showAlert('Scheduling failed: ' + error.message, 'danger');
+  }
+}
+```
+
+#### 5. **AJAX Movie Library with Search**
+
+Updating the timeline without page reload:
+
+```javascript
+// Fetch fresh movie list from server
+async function refreshMovieLibrary() {
+  const response = await fetch('/api/movies');
+  const movies = await response.json();
+  
+  // Rebuild movie library HTML
+  const libraryDiv = document.getElementById('timelineMovieLibrary');
+  libraryDiv.innerHTML = '';
+  
+  movies.forEach(movie => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-outline-secondary timeline-movie-item';
+    btn.draggable = true;
+    btn.dataset.movieId = movie._id;
+    btn.dataset.duration = movie.durationMinutes;
+    btn.dataset.title = movie.title;
+    btn.innerHTML = `
+      <span class="fw-semibold">${movie.title}</span>
+      <small>${movie.durationMinutes} min • ${movie.genre}</small>
+    `;
+    
+    btn.addEventListener('dragstart', handleMovieDragStart);
+    libraryDiv.appendChild(btn);
+  });
+}
+```
+
+#### 6. **Session Warning Timer**
+
+Warns user before session expires:
+
+```javascript
+function setupSessionWarning() {
+  // Session expires in SESSION_TIMEOUT milliseconds (default 24 hours)
+  const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+  const WARNING_TIME = 5 * 60 * 1000;  // Warn at 5 minutes before expiry
+  
+  setInterval(() => {
+    const elapsed = Date.now() - sessionStartTime;
+    const remaining = SESSION_TIMEOUT - elapsed;
+    
+    if (remaining < WARNING_TIME && remaining > 0) {
+      showSessionWarningModal(remaining);
+    }
+    
+    if (remaining <= 0) {
+      // Session expired, redirect to login
+      window.location.href = '/auth/login';
+    }
+  }, 60000);  // Check every minute
+}
+```
+
+#### 7. **Form Utilities**
+
+Helper functions used across all pages:
+
+```javascript
+// Serialize form data to JSON
+function getFormData(formElement) {
+  const formData = new FormData(formElement);
+  const data = {};
+  for (let [key, value] of formData.entries()) {
+    data[key] = value;
+  }
+  return data;
+}
+
+// Add loading state to submit button
+function addLoadingHandler(form) {
+  form.addEventListener('submit', () => {
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.classList.add('loading');
+  });
+}
+
+// Show dismissible alert
+function showAlert(message, type = 'info') {
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+  alertDiv.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  const container = document.querySelector('.main-content');
+  container.insertBefore(alertDiv, container.firstChild);
+  
+  // Auto-dismiss after 5 seconds (non-error alerts)
+  if (!['danger', 'warning'].includes(type)) {
+    setTimeout(() => alertDiv.remove(), 5000);
+  }
+}
+```
+
+---
+
+## Appendix A: File-by-File Deep Dive
+
+### A.1 package.json
+
+**Purpose**: Declares all npm dependencies and scripts.
+
+```json
+{
+  "name": "cinevillage",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^7.0.0",
+    "bcryptjs": "^2.4.3",
+    "express-session": "^1.17.3",
+    "connect-mongo": "^5.0.0",
+    "multer": "^1.4.5-lts.1",
+    "ejs": "^3.1.9",
+    "express-ejs-layouts": "^2.5.1",
+    "method-override": "^3.0.0",
+    "dotenv": "^16.0.3"
+  }
+}
+```
+
+### A.2 config/db.js
+
+**Single responsibility**: Establish MongoDB connection.
+
+```javascript
+const mongoose = require('mongoose');
+
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+    
+    console.log(`✓ MongoDB connected: ${conn.connection.host}`);
+    return conn;
+  } catch (error) {
+    console.error('✗ MongoDB error:', error.message);
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+```
+
+### A.3 All Controllers
+
+| Controller | Methods | Responsibility |
+|------------|---------|-----------------|
+| authController.js | login, register, forgotPassword, resetPassword | User authentication & password recovery |
+| dashboardController.js | index | Dashboard stats (concurrent queries) |
+| hallController.js | getAllHalls, createHall, updateHall, deleteHall | Hall CRUD + seat matrix processing |
+| movieController.js | getAllMovies, createMovie, updateMovie, deleteMovie | Movie CRUD + poster upload |
+| screeningController.js | index, createScreening, moveScreening, cancelScreening | Timeline scheduling + occupancy |
+
+### A.4 All Services
+
+| Service | Methods | Responsibility |
+|---------|---------|-----------------|
+| screeningService.js | createScreening, updateScreening, moveScreening, cancelScreening, markCompletedScreenings, \_checkForOverlap, buildInitialSeatOccupancy | Core scheduling logic with conflict detection |
+| movieService.js | getAllMovies, \_attachScreeningCounts | Movie queries + denormalization |
+| hallService.js | validateMaintenanceDates, processSeatMatrix | Hall validation & seat processing |
+
+### A.5 All Routes
+
+| Route File | Mounts | Methods |
+|-----------|--------|---------|
+| authRoutes.js | /auth | GET/POST login, register, forgot, reset |
+| adminRoutes.js | /admin | GET dashboard, settings |
+| hallRoutes.js | /admin/halls | GET/POST/PUT/DELETE halls |
+| movieRoutes.js | /admin/movies | GET/POST/PUT/DELETE movies + upload |
+| screeningRoutes.js | /admin/screenings | GET/POST/PATCH/DELETE screenings |
+
+### A.6 All Middleware
+
+| Middleware | Purpose |
+|-----------|---------|
+| authMiddleware.js | require login, inject user |
+| errorMiddleware.js | centralize error handling |
+| uploadMiddleware.js | multer file upload config |
+| validationMiddleware.js | input validation helpers |
+
+### A.7 CSS Files
+
+| File | Purpose |
+|------|---------|
+| styles.css | Custom CSS + dark theme overrides, seat matrix grid, timeline grid |
+| templatemo-crypto-*.css | Bootstrap theme (dashboard, login, pages, style) |
+
+### A.8 main.js Sections
+
+| Lines | Section | Functionality |
+|-------|---------|-----------------|
+| 1–200 | Global setup | Theme, sidebar, alerts, form validation |
+| 201–400 | Seat editor | Grid generation, mode cycling, stats |
+| 401–800 | Timeline scheduler | Grid rendering, drag-drop setup |
+| 801–1030 | AJAX operations | Create/move/cancel screenings |
+| 1031–1089 | Movie library + initialization | **Search filter** (NEW) + drag handlers |
+
+---
+
+## Appendix B: Execution Traces & Pseudo-Code
+
+### B.1 Application Startup Trace
+
+```
+1. Node.js reads app.js
+   ↓
+2. require() imports: express, mongoose, middleware, routes
+   ↓
+3. connectDB() executes → MongoDB client connects
+   ↓
+4. Express app created: app = express()
+   ↓
+5. Middleware registered (in order):
+   - Body parsers
+   - Session middleware (connects to MongoDB)
+   - Custom user/flash injection
+   ↓
+6. Routes mounted:
+   - /auth → authRoutes
+   - /admin → adminRoutes
+   - /admin/halls → hallRoutes
+   - /admin/movies → movieRoutes
+   - /admin/screenings → screeningRoutes
+   ↓
+7. Error handler registered (last)
+   ↓
+8. app.listen(3000)
+   ↓
+9. Console: "✓ Server running on port 3000"
+   ✓ Application ready for requests
+```
+
+### B.2 Successful User Login Trace
+
+```
+1. User clicks "Login" button on /auth/login form
+   ↓
+2. POST /auth/login with { username, password }
+   ↓
+3. authController.login() called
+   ├─ Find user by username in DB
+   ├─ Check if account is locked
+   ├─ Compare submitted password with hash (bcrypt.compare)
+   ├─ Match? Yes → Reset lockoutAttempts = 0
+   └─ Match? No → Increment lockoutAttempts, possibly lock
+   ↓
+4. Create session:
+   req.session.userId = user._id
+   req.session.username = user.username
+   ↓
+5. Session middleware saves session to MongoDB (connect-mongo)
+   ↓
+6. Set-Cookie header sent to client with session ID
+   ↓
+7. Redirect to /admin/dashboard
+   ↓
+8. GET /admin/dashboard
+   ├─ requireLogin middleware checks req.session.userId
+   ├─ Session exists? Yes → Allow
+   └─ dashboardController.index() executes
+   ↓
+9. Dashboard queriesfor data (movies, halls, screenings count)
+   ↓
+10. res.render('dashboard/index', { movies, halls, statistics })
+    ├─ EJS template rendered with layout
+    └─ HTML sent to client
+    ✓ User logged in, session active
+```
+
+### B.3 Brute-Force Lockout Trace
+
+```
+1. User enters wrong password 5 times on /auth/login
+   ↓
+2. Controller increments user.lockoutAttempts each time
+   ↓
+3. After 5th attempt:
+   - user.lockoutAttempts = 5
+   - user.lock(15) sets:
+     * user.lockoutUntil = Date.now() + 15 * 60 * 1000
+     * user.save()
+   ↓
+4. User tries login 6th time:
+   - user.isLocked() checks: lockoutUntil > Date.now()? Yes
+   - Return: "Account locked. Try again later."
+   ↓
+5. User waits 15 minutes
+   ↓
+6. user.isLocked() now returns false
+   ↓
+7. Login attempt 7:
+   - Password check succeeds
+   - user.lockoutAttempts = 0
+   - user.lockoutUntil = null
+   ✓ Account unlocked, user logged in
+```
+
+### B.4 Create Screening (Overlap Detection) Trace
+
+```
+INPUT: movieId='A', hallId='H1', screeningDate='2026-03-20', startTime='14:00'
+
+1. screeningService.createScreening() called
+   ↓
+2. Fetch movie (duration = 120 minutes)
+   Fetch hall (check if under maintenance)
+   ↓
+3. Call _checkForOverlap(hallId='H1', date='2026-03-20', startTime='14:00', duration=120)
+   ├─ Convert new startTime '14:00' → 840 minutes since midnight
+   ├─ Calculate newEnd = 840 + 120 = 960 min (16:00)
+   ├─ Query DB for existing screenings on 2026-03-20 in hall H1
+   │  └─ Results:
+   │     - Screening X: startTime='13:00' (780 min), endTime='15:00' (900 min)
+   │     - Screening Y: startTime='16:30' (990 min), endTime='18:30' (1110 min)
+   │
+   ├─ Loop through existing:
+   │  ├─ Screening X: existingEnd + buffer = 900 + 10 = 910
+   │  │  Overlap check: newStart (840) < existingEnd+buffer (910)? YES
+   │  │              AND newEnd+buffer (970) > existingStart (780)? YES
+   │  │  → OVERLAP DETECTED!
+   │  └─ Return existing screening (Conflict)
+   ↓
+4. Controller catches conflict:
+   throw new Error('Time slot conflicts with existing screening')
+   ↓
+5. Error handler catches, returns JSON:
+   { success: false, message: 'Time slot conflicts...' }
+   ✓ Request fails with 400 status
+```
+
+### B.5 Move Screening on Timeline Trace
+
+```
+INPUT: screeningId='S1', newStartTime='15:30'
+
+1. User drags existing screening block to new time slot on UI
+   ↓
+2. dragstart event fires:
+   dragPayload = { type: 'screening', screeningId: 'S1', movieId: 'A', durationMinutes: 120 }
+   ↓
+3. dragover event on target time slot:
+   showPreview(hallId, newStartTime, durationMinutes)
+   ├─ Visually highlight the target slot
+   └─ Calculate endTime
+   ↓
+4. drop event:
+   ├─ clearPreview()
+   └─ AJAX POST /admin/screenings/S1/move { startTime: '15:30' }
+   ↓
+5. Backend: screeningController.moveScreening()
+   ├─ Fetch existing screening (old time)
+   ├─ Call screeningService.updateScreening()
+   │  ├─ Check overlap with new time
+   │  ├─ If overlap found → throw error
+   │  └─ If OK → Update screening.startTime, save
+   └─ Return JSON { success: true, screening: {...} }
+   ↓
+6. Front end: Response received
+   ├─ Re-render timeline grid
+   ├─ Show "Screening moved" success message
+   └─ Refresh movie library (if needed)
+   ✓ Screening now at new time
+```
+
+### B.6 Edit Screening via Modal Trace
+
+```
+1. User clicks existing screening block on timeline
+   ↓
+2. Click handler:
+   selectedScreeningForEdit = screeningData
+   showEditModal(screeningData)
+   ├─ Populate form with current values
+   ├─ Hall dropdown set to current hall
+   ├─ Time input set to startTime
+   └─ Show modal
+   ↓
+3. User changes startTime to '16:00' and clicks Save
+   ↓
+4. Modal submit handler:
+   AJAX POST /admin/screenings/:id { startTime: '16:00' }
+   ↓
+5. Backend processes, returns { success: true }
+   ↓
+6. Frontend:
+   ├─ Close modal
+   ├─ Re-render timeline
+   └─ Show success flash
+   ✓ Screening updated
+```
+
+### B.7 Delete vs Cancel Screening Trace
+
+```
+DELETE Operation (removes from DB):
+  1. User clicks delete icon on screening block
+  2. Confirm("Delete this screening?")
+  3. DELETE /admin/screenings/S1
+  4. Backend: screening removed from DB completely
+  5. Movie.futureScreeningsCount decremented
+  6. UI re-renders, block gone
+
+CANCEL Operation (marks as cancelled, keeps record):
+  1. User clicks cancel button on screening detail page
+  2. PATCH /admin/screenings/S1/cancel { status: 'cancelled' }
+  3. Backend: screening.status = 'cancelled'
+  4. Saved to DB (record preserved for audit trail)
+  5. UI marks as greyed out (still visible but inactive)
+```
+
+### B.8 Seat Occupancy Update Trace
+
+```
+1. User attends screening, buys ticket for Seat[2][1]
+   
+2. Frontend: User clicks seat button to mark SOLD
+   └─ AJAX PATCH /admin/screenings/:id/seat
+      { rowIndex: 2, colIndex: 1, status: 'sold' }
+   
+3. Backend:
+   ├─ Find screening document
+   ├─ Access seatOccupancy[2][1]
+   ├─ Update status: 'available' → 'sold'
+   ├─ screening.save()
+   └─ Return updated occupancy grid
+   
+4. Frontend:
+   ├─ Update visual seat grid
+   ├─ Change seat color (green → red/sold)
+   └─ Update capacity counter (X / Total available)
+   ✓ Seat marked as sold
+```
+
+### B.9 Movie Search Filter Trace
+
+```
+1. User opens Screening Scheduler (/admin/screenings)
+   ├─ Movies loaded from backend
+   ├─ Movie library populated with buttons
+   └─ Event listeners attached
+   
+2. User types "Action" in search box
+   ↓
+3. Input event fires:
+   query = 'action' (lowercased, trimmed)
+   
+4. JavaScript filter logic:
+   movieItems.forEach(item => {
+     title = item.dataset.title.toLowerCase() = 'godzilla' (example)
+     genre = item.querySelector('small').textContent.toLowerCase() = 'action thriller'
+     
+     matches = query ('action') included in title ('godzilla')? NO
+            OR query ('action') included in genre ('action thriller')? YES
+     
+     item.style.display = 'block'  // Show this movie
+   })
+   
+5. Non-action movies:
+   item.style.display = 'none'  // Hide
+   
+6. UI updates instantly (no network call)
+   ✓ User sees filtered list
+```
+
+### B.10 Session Data Persistence Trace
+
+```
+1. User logs in successfully
+   └─ Express-session stores in memory: sessionID → { userId, username }
+   
+2. connect-mongo store syncs to MongoDB:
+   Collection: 'sessions' document added:
+   {
+     _id: 'sessionID123',
+     session: { userId: 'user_xxx', username: 'john' },
+     expires: <date 24 hours from now>
+   }
+   
+3. Client receives Set-Cookie header:
+   Set-Cookie: connect.sid=sessionID123; Path=/; HttpOnly
+   
+4. Browser stores cookie (HTTP-only, not accessible to JS)
+   
+5. Next request: User navigates to /admin/halls
+   ├─ Browser sends Cookie: connect.sid=sessionID123
+   ├─ Express-session middleware:
+   │  ├─ Reads cookie
+   │  ├─ Queries MongoDB for sessionID123
+   │  └─ Populates req.session = { userId, username }
+   └─ Controller accesses req.session.userId
+   
+6. Server restart or network issue:
+   ├─ Session persisted in MongoDB
+   ├─ Browser still has cookie
+   └─ User can resume (session not lost)
+   ✓ Persistence confirmed
+```
+
+### B.11 Password Reset Flow Trace
+
+```
+POST /auth/forgot-password { email: 'john@example.com' }
+   ↓
+1. Find user by email
+   ├─ User found? Continue
+   └─ User not found? Return "Check your email" (security: don't reveal)
+   ↓
+2. Generate random reset token (crypto.randomBytes)
+   resetToken = 'a3f8c2d9x...' (random string)
+   ↓
+3. Hash token for storage (never store plain text):
+   user.resetToken = hash(resetToken)
+   user.resetTokenExpiry = Date.now() + 1 * 60 * 60 * 1000  // 1 hour
+   ↓
+4. Save user with token
+   ↓
+5. Send email (or log for demo):
+   Reset link: /auth/reset-password?token=a3f8c2d9x...
+   ↓
+6. User clicks link
+   GET /auth/reset-password?token=a3f8c2d9x...
+   ├─ Extract token from query
+   ├─ Hash it
+   ├─ Compare with user.resetToken
+   └─ Check expiry: resetTokenExpiry > Date.now()?
+   
+7. Token valid? Show password form
+   ↓
+8. POST /auth/reset-password { password, token }
+   ├─ Find user by hashed token
+   ├─ Verify not expired
+   ├─ UPDATE password (hashed in pre-save)
+   ├─ Clear resetToken and expiry
+   └─ Save user
+   ✓ Password reset complete
+```
+
+### B.12 Dashboard Stats Query Trace
+
+```
+GET /admin/dashboard
+
+1. dashboardController.index() called
+   ↓
+2. Execute parallel queries using Promise.all:
+   ```
+   const [movies, halls, screenings] = await Promise.all([
+     Movie.find().limit(10),
+     Hall.find(),
+     Screening.countDocuments({ status: 'scheduled' })
+   ]);
+   ```
+   
+3. Each query executes concurrently (not sequential):
+   ├─ Movie.find() queries 'movies' collection
+   ├─ Hall.find() queries 'halls' collection  
+   └─ Screening.countDocuments() counts 'screenings' documents
+   
+4. Results collected once all complete
+   ├─ movies = [Movie, Movie, ...]
+   ├─ halls = [Hall, Hall, ...]
+   └─ screeningCount = 42
+   
+5. Compute derived stats:
+   totalCapacity = halls.reduce((sum, h) => sum + h.capacity, 0)
+   occupancyRate = (screened_seats / total_seats) * 100
+   
+6. res.render('dashboard/index', { movieCount: 10, hallCount: 3, ... })
+   ↓
+7. EJS template renders statistics cards in layout
+   ✓ Dashboard loaded efficiently (concurrent queries, no N+1)
+```
+
+### B.13 Multer File Upload Trace
+
+```
+1. User selects movie poster on /admin/movies/new form
+   └─ <input type="file" name="posterImage" accept="image/*">
+   
+2. User submits form (POST /admin/movies)
+   ├─ Form encoding: multipart/form-data (tells server file is coming)
+   └─ File attached to request body
+   
+3. Express middleware chain:
+   ├─ Body parsers skipped (not JSON/urlencoded)
+   ├─ Multer middleware intercepts (name='posterImage')
+   │  ├─ Read file from stream
+   │  ├─ Check MIME type: image/jpeg? image/png? Yes → OK, No → Reject
+   │  ├─ Check file size: 5MB limit? Yes → OK, No → Reject (413 Payload Too Large)
+   │  ├─ Generate unique filename: movie_timestamp_random.jpg
+   │  ├─ Save to disk: public/uploads/posters/movie_timestamp_random.jpg
+   │  └─ Populate req.file = { filename, originalname, mimetype, size }
+   │
+   └─ movieController.createMovie() continues
+   
+4. Controller:
+   const posterUrl = req.file ? `/uploads/posters/${req.file.filename}` : null;
+   await Movie.create({ title, genre, posterUrl });
+   
+5. Database stores relative path: /uploads/posters/movie_123.jpg
+   
+6. When rendering movie in view:
+   <img src="<%= movie.posterUrl %>">
+   └─ Browser requests GET /uploads/posters/movie_123.jpg
+   └─ Express.static serves from public/ directory
+   └─ Image displayed
+   ✓ Upload complete
+```
+
+### B.14 Timeline View Toggle (AM/PM) Trace
+
+```
+1. User on /admin/screenings sees:
+   ├─ Timeline: 06:00 – 14:00 (AM)
+   ├─ Button: "AM Schedule" (active/primary)
+   └─ Button: "PM Schedule" (outline/secondary)
+   
+2. User clicks "PM Schedule" button
+   ↓
+3. Event handler:
+   activeView = 'PM';
+   updateViewToggleButtons();
+   renderMasterGrid();
+   
+4. updateViewToggleButtons():
+   ├─ "AM Schedule" btn: removeClass('btn-primary'), addClass('btn-outline-primary')
+   └─ "PM Schedule" btn: removeClass('btn-outline-primary'), addClass('btn-primary')
+   
+5. renderMasterGrid():
+   ├─ Recompute time slots based on activeView
+   ├─ If 'PM': slots = [14:00, 14:30, ..., 22:00]
+   └─ Redraw grid with new time range
+   
+6. User drags movie to 16:30 slot
+   └─ Server receives startTime='16:30' (correct)
+   
+7. After movie placement, grid re-renders
+   └─ Movie block positioned correctly in PM view
+   ✓ View toggle working correctly
+```
+
+### B.15 Drag-and-Drop Conflict Prevention Trace
+
+```
+1. User dragging movie "Godzilla" (120 min) over timeline
+   
+2. dragover event at time slot 14:30:
+   ├─ Compute expected endTime: 14:30 + 120 min = 16:30
+   ├─ Check overlap with existing screenings
+   │  └─ If AJAX call: fetch('/api/screenings/check-overlap?, ...)
+   │  └─ If local logic: check dragPayload against knownScreenings
+   │
+   └─ If conflict:
+      ├─ Preview turns red/striped (visual warning)
+      ├─ Set dragPayload.conflict = true
+      └─ Don't allow drop
+      
+3. User moves to different slot 17:00 (after buffer):
+   ├─ dragover event fires again
+   ├─ Overlap check: OK
+   ├─ Preview turns green
+   ├─ dragPayload.conflict = false
+   └─ Allow drop
+      
+4. User releases mouse (drop event):
+   ├─ dragPayload.conflict? 
+   │  └─ true: Reject, show error "Time slot conflicts"
+   │  └─ false: AJAX POST /admin/screenings { movieId, hallId, startTime }
+   │
+   └─ Server validates again (duplicate check)
+      └─ Return success/error JSON
+   ✓ Double validation prevents conflicts
+```
+
+### B.16 Form Validation Pipeline Trace
+
+```
+<input type="number" min="10" max="1000" required name="capacity">
+   ↓
+1. CLIENT-SIDE (HTML5):
+   User enters 5, submits form
+   ├─ Browser checks: value < min (10)? Yes
+   ├─ Show native error tooltip
+   └─ Prevent form submission
+   
+2. USER enters 50, submits:
+   ├─ HTML5 check passes
+   ├─ Form data: { capacity: '50' }
+   ├─ POST /admin/halls
+   └─ Reaches server
+   
+3. MIDDLEWARE (validationMiddleware.js):
+   value = req.body.capacity = 50
+   ├─ Check req.body.capacity? Yes
+   ├─ Check 50 >= 10 && 50 <= 1000? Yes
+   └─ Call next() → Continue to controller
+   
+4. CONTROLLER (hallController.js):
+   const { capacity } = req.body;
+   const hall = new Hall({ capacity });
+   ├─ Pass to service
+   └─ Service creates Hall document
+   
+5. DATABASE (Mongoose schema):
+   hallSchema.capacity = { type: Number, min: 10, max: 1000 }
+   ├─ Document created
+   ├─ Validation runs: capacity >= 10 && capacity <= 1000? Yes
+   ├─ Index checks (unique fields)
+   └─ Insert to MongoDB
+   ✓ Triple validation: client, middleware, database
+```
+
+### B.17 Error Flow: Movie Without Poster Trace
+
+```
+1. POST /admin/movies (no file selected)
+   ├─ req.file = undefined (multer found no file)
+   ├─ Passed to movieController.createMovie()
+   └─ posterUrl = null
+   
+2. Controller:
+   const movie = await movieService.createMovie({
+     title: 'New Movie',
+     genre: 'Action',
+     posterUrl: null  // OK, optional
+   });
+   
+3. Movie schema:
+   posterUrl: { type: String, required: false }  // No error
+   
+4. Document saved successfully
+   └─ posterUrl field is null
+   
+5. When rendering movie in dashboard:
+   <% if (movie.posterUrl) { %>
+     <img src="<%= movie.posterUrl %>">
+   <% } else { %>
+     <img src="/images/placeholder.jpg">
+   <% } %>
+   
+6. Result: Placeholder image shown
+   ✓ Graceful handling of optional file
+```
+
+### B.18 Concurrent Operations: Update & Delete Race Condition Trace
+
+```
+SCENARIO: User clicks update AND delete simultaneously
+
+1. THREAD A: PUT /admin/movies/M1 { title: 'New Title' }
+   ├─ Service layer: Find & update document
+   ├─ Mongoose: validateBeforeSave()
+   └─ MongoDB: db.movies.updateOne({ _id: M1 }, { title: ... })
+   
+2. THREAD B (same time): DELETE /admin/movies/M1
+   ├─ Service layer: Check screenings exist for this movie
+   ├─ Mongoose: findByIdAndDelete(M1)
+   └─ MongoDB: db.movies.deleteOne({ _id: M1 })
+   
+3. RACE CONDITIONS:
+   Option A: A completes first
+   └─ Document updated
+   └─ B tries to delete, succeeds
+   └─ Result: Document deleted (final state)
+   
+   Option B: B completes first
+   └─ Document deleted
+   └─ A tries to update, gets null (no document found)
+   └─ A throws: "Document not found"
+   └─ Result: Error displayed to user A
+   
+4. MITIGATION (not currently implemented):
+   Use Mongoose sessions/transactions:
+   ```
+   const session = await mongoose.startSession();
+   session.startTransaction();
+   try {
+     const movie = await Movie.findById(M1).session(session);
+     // Lock acquired, other operations blocked
+     ...
+   } catch {
+     session.abortTransaction();
+   }
+   ```
+   ✓ Prevents race conditions
+```
+
+### B.19 Troubleshooting Decision Tree
+
+```
+ISSUE: "Session expired unexpectedly"
+
+1. Symptom: User logged out suddenly
+   └─ Is session_timeout configured too short?
+      ├─ YES: Increase SESSION_MAX_AGE in app.js
+      └─ NO: Continue
+      
+2. Check MongoDB connection:
+   └─ Is connect-mongo store connecting?
+      ├─ Error in logs: "MongoStore connection failed"
+      └─ YES: Fix MONGODB_URI in .env
+      └─ NO: Continue
+      
+3. Check session data:
+   ```
+   mongosh
+   use cinevillage
+   db.sessions.find()  // Are sessions being saved?
+   ```
+   ├─ Documents appear? Continue
+   └─ Empty: Store not working
+   
+4. Check cookie settings:
+   └─ Is cookie being sent to browser?
+      ├─ DevTools → Application → Cookies → connect.sid present?
+      ├─ YES: Continue
+      └─ NO: Check secure flag, sameSite setting
+      
+5. Check session warning timer:
+   └─ Is setupSessionWarning() being called?
+      ├─ Check console for errors
+      └─ Set breakpoint in JavaScript debugger
+         
+6. Last resort:
+   - Clear browser cookies
+   - Clear MongoDB sessions collection
+   - Restart server
+   - Test login again
+```
+
+### B.20 Performance Optimization Checklist
+
+```
+SCREENING SCHEDULER (~1000+ screenings):
+
+☐ Database indexes:
+  - CREATE INDEX screenings(hallId, screeningDate)
+  - CREATE INDEX screenings(movieId, status)
+  
+☐ Query optimization:
+  - Use projection: Screening.find({}, { movieId: 1, hallId: 1 }) // exclude large arrays
+  - Use limit when fetching lists
+  - Aggregate rather than count+find
+  
+☐ Frontend optimization:
+  - Lazy-load timeline grid (render visible slots only)
+  - Virtual scrolling for large hall lists
+  - Debounce search input (wait 300ms before filtering)
+  
+☐ Caching:
+  - Cache movie list in browser localStorage
+  - Redis for frequently-accessed data (future)
+  
+☐ N+1 Query Prevention:
+  ✗ Bad: for(screenings) { fetchMovie(movieId) }  // N queries for movies
+  ✓ Good: aggregate: [{ $lookup: 'movies' }]      // 1 query
+```
+
+---
+
+## Conclusion
+
+CineVillage demonstrates modern best practices for a three-tier web application:
+
+- **Separation of Concerns**: Controllers, services, models each have one responsibility
+- **Middleware Pattern**: Stackable, composable request processing
+- **Type Safety (via Mongoose)**: Schema validation at the DB layer
+- **Secure Practices**: bcrypt hashing, session persistence, CSRF tokens (potential addition)
+- **User Experience**: Real-time search, drag-drop UI, flash messages
+- **Scalability Foundation**: Service layer easily testable and refactorable
+
+The newly added **movie search feature** exemplifies progressive enhancement:
+- Works without JavaScript (form submission fallback could be added)
+- Responsive to user input (instant filtering)
+- Integrates seamlessly with existing drag-drop system
+- Zero database queries (client-side filtering)
+
+**Next Learning Steps**:
+1. Add unit tests (Jest for services, Mocha for integration)
+2. Implement API rate limiting (express-rate-limit)
+3. Add logging (Morgan, Winston)
+4. Deploy to production (environment-specific configs)
+5. Add WebSocket support for real-time updates (Socket.IO)
 

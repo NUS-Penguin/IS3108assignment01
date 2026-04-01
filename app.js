@@ -48,6 +48,7 @@ app.use((req, res, next) => {
         id: req.session.userId,
         username: req.session.username
     } : null;
+    res.locals.userRole = req.session.role || 'manager';
     delete req.session.flash;
     next();
 });
